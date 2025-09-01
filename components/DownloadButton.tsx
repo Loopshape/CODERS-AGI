@@ -23,7 +23,12 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({ content, fileName }) =>
     const handleDownload = (format: string, mimeType: string) => {
         const lastDotIndex = fileName.lastIndexOf('.');
         const baseName = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
-        const newFileName = `${baseName}.${format}`;
+        
+        let newFileName = `${baseName}.${format}`;
+        // Special case for the installer script to download it without an extension
+        if (format === 'sh' && baseName === 'ai') {
+            newFileName = 'ai';
+        }
         
         const blob = new Blob([content], { type: mimeType });
         const url = URL.createObjectURL(blob);

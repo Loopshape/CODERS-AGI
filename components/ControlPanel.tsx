@@ -9,8 +9,8 @@ interface ControlPanelProps {
   onProcessUrl: (url: string) => void;
   onUrlEnhance: (url: string) => void;
   onGeminiEnhance: (file: File) => void;
-  onGetBashrcAdaptation: () => void;
-  onGetInstallScript: () => void;
+  onShowBashrcConfig: () => void;
+  onGetInstallerScript: () => void;
   onGitInit: () => void;
   onGitAdd: (files: string) => void;
   onGitCommit: (message: string) => void;
@@ -28,8 +28,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onProcessUrl,
     onUrlEnhance,
     onGeminiEnhance,
-    onGetBashrcAdaptation,
-    onGetInstallScript,
+    onShowBashrcConfig,
+    onGetInstallerScript,
     onGitInit,
     onGitAdd,
     onGitCommit,
@@ -40,7 +40,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     progress
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [activeTab, setActiveTab] = useState<'ai' | 'agi' | 'prompt' | 'git'>('ai');
+  const [activeTab, setActiveTab] = useState<'installer' | 'ai' | 'agi' | 'prompt' | 'git'>('installer');
   const [prompt, setPrompt] = useState('');
   const [url, setUrl] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -152,6 +152,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   return (
     <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl p-6 sticky top-8">
       <div className="flex border-b border-brand-border mb-6">
+        <TabButton isActive={activeTab === 'installer'} onClick={() => setActiveTab('installer')}>Installer</TabButton>
         <TabButton isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI Modes</TabButton>
         <TabButton isActive={activeTab === 'agi'} onClick={() => setActiveTab('agi')}>AGI Modes</TabButton>
         <TabButton isActive={activeTab === 'git'} onClick={() => setActiveTab('git')}>Git</TabButton>
@@ -159,6 +160,39 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       </div>
 
       <div className="min-h-[380px]">
+        {activeTab === 'installer' && (
+            <div className="space-y-6 animate-fade-in">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-brand-accent">Termux Proot-Distro Installer</h2>
+                    <p className="text-brand-text-secondary mt-1">Install the fully-automated `ai` command-line tool.</p>
+                </div>
+                
+                <div className="p-4 border border-brand-border rounded-lg space-y-3 bg-brand-bg/30">
+                    <h3 className="text-xl font-semibold text-brand-text-primary">Step 1: Get the Installer Script</h3>
+                    <p className="text-sm text-brand-text-secondary">This generates the main `ai` script. Download it and make it executable.</p>
+                    <ActionButton onClick={onGetInstallerScript} disabled={isLoading} isLoading={loadingAction === 'getInstallerScript'}>
+                        Generate `ai` Installer Script
+                    </ActionButton>
+                    <CodeSnippet commands={[
+                        '# After downloading, move `ai` to your home directory or ~/bin',
+                        'chmod +x ai'
+                    ]} />
+                </div>
+
+                <div className="p-4 border border-brand-border rounded-lg space-y-3 bg-brand-bg/30">
+                    <h3 className="text-xl font-semibold text-brand-text-primary">Step 2: Initialize & Configure</h3>
+                    <p className="text-sm text-brand-text-secondary">Run the script's `init` command. This automatically adapts `~/.bashrc` for you.</p>
+                    <ActionButton onClick={onShowBashrcConfig} disabled={isLoading} isLoading={loadingAction === 'showBashrcConfig'}>
+                        Show `.bashrc` Changes
+                    </ActionButton>
+                    <CodeSnippet commands={[
+                        './ai init',
+                        '# Restart your shell or run:',
+                        'source ~/.bashrc'
+                    ]} />
+                </div>
+            </div>
+        )}
         {activeTab === 'ai' && (
           <div className="flex flex-col space-y-6">
             <h2 className="text-xl font-semibold text-brand-text-primary">1. Select File(s)</h2>
@@ -217,17 +251,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <div className="space-y-4">
                  <SimulationPlaceholder title="Watch Mode (+/~)" message="This simulates watching a folder for file changes. This functionality requires filesystem access and cannot be implemented in the browser." />
                  <SimulationPlaceholder title="Virtual Screenshot (-)" message="This simulates generating a virtual screenshot of a specified aspect ratio." />
-                 <div className="pt-4 border-t border-brand-border">
-                    <h2 className="text-xl font-semibold text-brand-text-primary mb-4 text-center">System Integration</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <ActionButton onClick={onGetBashrcAdaptation} disabled={isLoading} isLoading={loadingAction === 'getBashrc'}>
-                            Adapt .bashrc
-                        </ActionButton>
-                        <ActionButton onClick={onGetInstallScript} disabled={isLoading} isLoading={loadingAction === 'getInstallScript'}>
-                            Get Self-Install Script
-                        </ActionButton>
-                    </div>
-                 </div>
             </div>
         )}
          {activeTab === 'git' && (
@@ -383,6 +406,39 @@ const SimulationPlaceholder: React.FC<SimulationPlaceholderProps> = ({ title, me
         <p className="text-brand-text-secondary">{message}</p>
     </div>
 );
+
+interface CodeSnippetProps {
+    commands: string[];
+}
+
+const CodeSnippet: React.FC<CodeSnippetProps> = ({ commands }) => {
+    const [copied, setCopied] = useState(false);
+    const textToCopy = commands.filter(cmd => !cmd.startsWith('#')).join('\n');
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(textToCopy);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div className="bg-brand-bg p-3 rounded-md relative font-mono text-sm text-brand-text-secondary border border-brand-border mt-3">
+            <button onClick={handleCopy} className="absolute top-2 right-2 text-xs bg-brand-border px-2 py-1 rounded hover:bg-brand-accent transition-colors">
+                {copied ? 'Copied!' : 'Copy'}
+            </button>
+            <pre><code className="whitespace-pre-wrap">
+                {commands.map((cmd, i) => (
+                    <span key={i} className="block">
+                        {cmd.startsWith('#') 
+                            ? <span className="text-gray-500 italic">{cmd}</span> 
+                            : <><span className="text-brand-accent mr-1">$</span>{cmd}</>
+                        }
+                    </span>
+                ))}
+            </code></pre>
+        </div>
+    )
+};
 
 
 export default ControlPanel;
