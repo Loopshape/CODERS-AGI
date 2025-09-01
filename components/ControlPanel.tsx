@@ -7,6 +7,7 @@ interface ControlPanelProps {
   onScanEnvironment: () => void;
   onProcessPrompt: (prompt: string) => void;
   onProcessUrl: (url: string) => void;
+  onUrlEnhance: (url: string) => void;
   onGeminiEnhance: (file: File) => void;
   onGetBashrcAdaptation: () => void;
   onGetInstallScript: () => void;
@@ -25,6 +26,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onScanEnvironment,
     onProcessPrompt,
     onProcessUrl,
+    onUrlEnhance,
     onGeminiEnhance,
     onGetBashrcAdaptation,
     onGetInstallScript,
@@ -83,6 +85,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       if (url.trim()) {
           onProcessUrl(url);
       }
+  }
+
+  const handleUrlEnhanceClick = () => {
+    if (url.trim()) {
+        onUrlEnhance(url);
+    }
   }
 
   const triggerGitFeedback = (action: string, callback: () => void) => {
@@ -191,14 +199,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
             <h2 className="text-xl font-semibold text-brand-text-primary">2. Choose Action</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ActionButton onClick={handleProcessFilesClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={isLoading}>
+              <ActionButton onClick={handleProcessFilesClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'processFiles'}>
                 Process File(s) (`-` `*` `:`)
               </ActionButton>
-              <ActionButton onClick={handleGeminiEnhanceClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={isLoading} isGemini>
-                Enhance with Gemini AI ✨
+              <ActionButton onClick={handleGeminiEnhanceClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'geminiEnhance'} isGemini>
+                Review with Gemini AI 🧐
               </ActionButton>
               <div className="md:col-span-2">
-                <ActionButton onClick={onScanEnvironment} disabled={isLoading} isLoading={isLoading}>
+                <ActionButton onClick={onScanEnvironment} disabled={isLoading} isLoading={loadingAction === 'scanEnvironment'}>
                   Scan Environment (`.`)
                 </ActionButton>
               </div>
@@ -212,10 +220,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                  <div className="pt-4 border-t border-brand-border">
                     <h2 className="text-xl font-semibold text-brand-text-primary mb-4 text-center">System Integration</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <ActionButton onClick={onGetBashrcAdaptation} disabled={isLoading} isLoading={isLoading}>
+                        <ActionButton onClick={onGetBashrcAdaptation} disabled={isLoading} isLoading={loadingAction === 'getBashrc'}>
                             Adapt .bashrc
                         </ActionButton>
-                        <ActionButton onClick={onGetInstallScript} disabled={isLoading} isLoading={isLoading}>
+                        <ActionButton onClick={onGetInstallScript} disabled={isLoading} isLoading={loadingAction === 'getInstallScript'}>
                             Get Self-Install Script
                         </ActionButton>
                     </div>
@@ -272,38 +280,43 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
         )}
         {activeTab === 'prompt' && (
-            <div className="flex flex-col space-y-4">
-                <div>
-                    <h2 className="text-xl font-semibold text-brand-text-primary mb-3">Enter Prompt Text</h2>
+            <div className="flex flex-col space-y-4 p-4 border border-brand-border rounded-lg">
+                <div className="space-y-3">
+                    <h2 className="text-xl font-semibold text-brand-text-primary">From Text Prompt</h2>
                     <textarea 
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         className="w-full h-28 p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition"
                         placeholder="Enter prompt text or file content here..."
                     />
-                    <ActionButton onClick={handleProcessPromptClick} disabled={!prompt.trim() || isLoading} isLoading={isLoading}>
+                    <ActionButton onClick={handleProcessPromptClick} disabled={!prompt.trim() || isLoading} isLoading={loadingAction === 'processPrompt'}>
                         Process Text Prompt
                     </ActionButton>
                 </div>
 
-                <div className="flex items-center text-center">
+                <div className="relative flex py-2 items-center">
                     <div className="flex-grow border-t border-brand-border"></div>
-                    <span className="flex-shrink mx-4 text-brand-text-secondary">OR</span>
+                    <span className="flex-shrink mx-4 text-brand-text-secondary uppercase text-sm">Or</span>
                     <div className="flex-grow border-t border-brand-border"></div>
                 </div>
 
-                <div>
-                    <h2 className="text-xl font-semibold text-brand-text-primary mb-3">Fetch Prompt from URL</h2>
+                <div className="space-y-3">
+                    <h2 className="text-xl font-semibold text-brand-text-primary">From URL</h2>
                     <input 
                         type="url"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
-                        className="w-full p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition mb-4"
+                        className="w-full p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition"
                         placeholder="https://example.com"
                     />
-                    <ActionButton onClick={handleProcessUrlClick} disabled={!url.trim() || isLoading} isLoading={isLoading}>
-                        Fetch & Process URL
-                    </ActionButton>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <ActionButton onClick={handleProcessUrlClick} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'processUrl'}>
+                            Fetch & Process
+                        </ActionButton>
+                        <ActionButton onClick={handleUrlEnhanceClick} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'urlEnhance'} isGemini>
+                            Fetch & Enhance ✨
+                        </ActionButton>
+                    </div>
                 </div>
             </div>
         )}

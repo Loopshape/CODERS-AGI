@@ -17,3 +17,16 @@ export interface ProcessedFile {
   fileName: string;
   content: string;
 }
+
+export interface CodeIssue {
+  line?: number;
+  description: string;
+  suggestion: string;
+}
+
+export interface CodeReviewReport {
+  reviewSummary: string;
+  potentialBugs: CodeIssue[];
+  securityVulnerabilities: CodeIssue[];
+  performanceImprovements: CodeIssue[];
+}

@@ -1,10 +1,33 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { LogEntry, LogType, ProcessedFile } from './types';
+import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
 import { processFiles, scanEnvironment, processPrompt, getBashrcAdaptation, getInstallScript, processUrlPrompt, gitInit, gitAdd, gitCommit, gitPush } from './services/scriptService';
-import { getGeminiSuggestions } from './services/geminiService';
+import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
 import OutputViewer from './components/OutputViewer';
+
+const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): string => {
+    let markdown = `# Code Review for ${fileName}\n\n`;
+    markdown += `## 📝 Summary\n\n${report.reviewSummary}\n\n`;
+
+    const formatIssues = (title: string, icon: string, issues: CodeIssue[]): string => {
+        if (!issues || issues.length === 0) {
+            return `## ${icon} ${title}\n\nNo issues found in this category.\n\n`;
+        }
+        let section = `## ${icon} ${title}\n\n`;
+        issues.forEach(issue => {
+            section += `- **Line ${issue.line || 'N/A'}:** ${issue.description}\n`;
+            section += `  - **Suggestion:** ${issue.suggestion}\n\n`;
+        });
+        return section;
+    };
+
+    markdown += formatIssues('Potential Bugs', '🐛', report.potentialBugs);
+    markdown += formatIssues('Security Vulnerabilities', '🛡️', report.securityVulnerabilities);
+    markdown += formatIssues('Performance Improvements', '⚡', report.performanceImprovements);
+
+    return markdown;
+};
 
 const App: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -131,7 +154,7 @@ const App: React.FC = () => {
 
   const handleGeminiEnhance = useCallback(async (file: File) => {
     if (!file) {
-      addLog(LogType.Warn, "No file selected for Gemini AI enhancement.");
+      addLog(LogType.Warn, "No file selected for Gemini AI code review.");
       return;
     }
 
@@ -141,26 +164,28 @@ const App: React.FC = () => {
     setLogs([]);
     setProcessedOutput(null);
     setActiveFileIndex(0);
-    addLog(LogType.Gemini, `Preparing to enhance ${file.name} with Gemini AI...`);
+    addLog(LogType.Gemini, `Preparing to review ${file.name} with Gemini AI...`);
     setActiveOutput('logs');
 
     try {
       setProgress(25);
       const fileContent = await file.text();
-      addLog(LogType.Info, `Read file content, sending to Gemini AI for analysis.`);
+      addLog(LogType.Info, `Read file content, sending to Gemini AI for review.`);
       setProgress(50);
       
-      const suggestion = await getGeminiSuggestions(fileContent);
+      const reviewReport = await getGeminiCodeReview(fileContent);
       setProgress(90);
 
-      setProcessedOutput([{ fileName: `${file.name}.enhanced.html`, content: suggestion }]);
-      addLog(LogType.Success, `Successfully received enhancement from Gemini AI.`);
+      const markdownReport = formatReviewAsMarkdown(reviewReport, file.name);
+
+      setProcessedOutput([{ fileName: `${file.name}.review.md`, content: markdownReport }]);
+      addLog(LogType.Success, `Successfully received code review from Gemini AI.`);
       setActiveOutput('code');
       setProgress(100);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      addLog(LogType.Error, `Gemini AI enhancement failed: ${errorMessage}`);
+      addLog(LogType.Error, `Gemini AI code review failed: ${errorMessage}`);
       setActiveOutput('logs');
       setProgress(100);
     } finally {
@@ -168,6 +193,51 @@ const App: React.FC = () => {
             setLoadingAction(null);
             setProgress(0);
             setProcessingFile(null);
+        }, 500);
+    }
+  }, [addLog]);
+
+  const handleUrlEnhance = useCallback(async (url: string) => {
+    setLoadingAction('urlEnhance');
+    setProgress(10);
+    setLogs([]);
+    setProcessedOutput(null);
+    setActiveFileIndex(0);
+    addLog(LogType.Gemini, `Fetching from ${url} to enhance with Gemini AI...`);
+    setActiveOutput('logs');
+
+    try {
+      setProgress(25);
+      const { output: urlContent, logs: fetchLogs } = processUrlPrompt(url);
+      fetchLogs.forEach(log => addLog(log.type, log.message));
+      addLog(LogType.Info, `Content fetched. Sending to Gemini AI for analysis.`);
+      setProgress(50);
+
+      const suggestion = await getGeminiSuggestions(urlContent);
+      setProgress(90);
+      
+      let fileName = 'index.html';
+      try {
+        const urlParts = new URL(url);
+        fileName = urlParts.pathname.split('/').pop() || 'index.html';
+      } catch (e) {
+        console.warn("Could not parse URL to get filename, using default.");
+      }
+      
+      setProcessedOutput([{ fileName: `${fileName}.enhanced.html`, content: suggestion }]);
+      addLog(LogType.Success, `Successfully received enhancement from Gemini AI for content from ${url}.`);
+      setActiveOutput('code');
+      setProgress(100);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      addLog(LogType.Error, `URL enhancement process failed: ${errorMessage}`);
+      setActiveOutput('logs');
+      setProgress(100);
+    } finally {
+       setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
         }, 500);
     }
   }, [addLog]);
@@ -183,6 +253,7 @@ const App: React.FC = () => {
             onProcessPrompt={handleProcessPrompt}
             onProcessUrl={handleProcessUrl}
             onGeminiEnhance={handleGeminiEnhance}
+            onUrlEnhance={handleUrlEnhance}
             onGetBashrcAdaptation={handleGetBashrcAdaptation}
             onGetInstallScript={handleGetInstallScript}
             onGitInit={handleGitInit}
