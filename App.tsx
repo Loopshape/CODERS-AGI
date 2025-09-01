@@ -128,10 +128,6 @@ const App: React.FC = () => {
     handleRequest(() => processUrlPrompt(url), 'processUrl');
   }, [addLog]);
 
-  const handleShowBashrcConfig = useCallback(() => {
-    handleRequest(getBashrcAdaptation, 'showBashrcConfig');
-  }, [addLog]);
-
   const handleGetInstallerScript = useCallback(() => {
     handleRequest(getInstallScript, 'getInstallerScript');
   }, [addLog]);
@@ -254,7 +250,6 @@ const App: React.FC = () => {
             onProcessUrl={handleProcessUrl}
             onGeminiEnhance={handleGeminiEnhance}
             onUrlEnhance={handleUrlEnhance}
-            onShowBashrcConfig={handleShowBashrcConfig}
             onGetInstallerScript={handleGetInstallerScript}
             onGitInit={handleGitInit}
             onGitAdd={handleGitAdd}

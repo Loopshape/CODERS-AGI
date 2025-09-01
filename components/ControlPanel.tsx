@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import ProgressBar from './ProgressBar';
 import { SpinnerIcon } from './icons/SpinnerIcon';
+import { BASHRC_ADAPTATION_CODE } from '../services/scriptService';
 
 interface ControlPanelProps {
   onProcessFiles: (files: File[]) => void;
@@ -9,7 +10,6 @@ interface ControlPanelProps {
   onProcessUrl: (url: string) => void;
   onUrlEnhance: (url: string) => void;
   onGeminiEnhance: (file: File) => void;
-  onShowBashrcConfig: () => void;
   onGetInstallerScript: () => void;
   onGitInit: () => void;
   onGitAdd: (files: string) => void;
@@ -28,7 +28,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onProcessUrl,
     onUrlEnhance,
     onGeminiEnhance,
-    onShowBashrcConfig,
     onGetInstallerScript,
     onGitInit,
     onGitAdd,
@@ -40,7 +39,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     progress
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [activeTab, setActiveTab] = useState<'installer' | 'ai' | 'agi' | 'prompt' | 'git'>('installer');
+  const [activeTab, setActiveTab] = useState<'installer' | 'ai' | 'agi' | 'prompt' | 'git'>('ai');
   const [prompt, setPrompt] = useState('');
   const [url, setUrl] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -152,11 +151,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   return (
     <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl p-6 sticky top-8">
       <div className="flex border-b border-brand-border mb-6">
-        <TabButton isActive={activeTab === 'installer'} onClick={() => setActiveTab('installer')}>Installer</TabButton>
         <TabButton isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI Modes</TabButton>
         <TabButton isActive={activeTab === 'agi'} onClick={() => setActiveTab('agi')}>AGI Modes</TabButton>
         <TabButton isActive={activeTab === 'git'} onClick={() => setActiveTab('git')}>Git</TabButton>
         <TabButton isActive={activeTab === 'prompt'} onClick={() => setActiveTab('prompt')}>Direct Prompt</TabButton>
+        <TabButton isActive={activeTab === 'installer'} onClick={() => setActiveTab('installer')}>Installer</TabButton>
       </div>
 
       <div className="min-h-[380px]">
@@ -181,10 +180,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                 <div className="p-4 border border-brand-border rounded-lg space-y-3 bg-brand-bg/30">
                     <h3 className="text-xl font-semibold text-brand-text-primary">Step 2: Initialize & Configure</h3>
-                    <p className="text-sm text-brand-text-secondary">Run the script's `init` command. This automatically adapts `~/.bashrc` for you.</p>
-                    <ActionButton onClick={onShowBashrcConfig} disabled={isLoading} isLoading={loadingAction === 'showBashrcConfig'}>
-                        Show `.bashrc` Changes
-                    </ActionButton>
+                    <p className="text-sm text-brand-text-secondary">Run the script's `init` command. This automatically adapts your `~/.bashrc` with the content below after creating a backup.</p>
+                    <BashrcCodeDisplay code={BASHRC_ADAPTATION_CODE} />
                     <CodeSnippet commands={[
                         './ai init',
                         '# Restart your shell or run:',
@@ -410,6 +407,29 @@ const SimulationPlaceholder: React.FC<SimulationPlaceholderProps> = ({ title, me
 interface CodeSnippetProps {
     commands: string[];
 }
+
+interface BashrcCodeDisplayProps {
+    code: string;
+}
+
+const BashrcCodeDisplay: React.FC<BashrcCodeDisplayProps> = ({ code }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div className="bg-brand-bg p-3 rounded-md relative font-mono text-sm text-brand-text-secondary border border-brand-border mt-3">
+            <button onClick={handleCopy} className="absolute top-2 right-2 text-xs bg-brand-border px-2 py-1 rounded hover:bg-brand-accent transition-colors">
+                {copied ? 'Copied!' : 'Copy Code'}
+            </button>
+            <pre><code className="whitespace-pre-wrap">{code}</code></pre>
+        </div>
+    );
+};
 
 const CodeSnippet: React.FC<CodeSnippetProps> = ({ commands }) => {
     const [copied, setCopied] = useState(false);
