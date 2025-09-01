@@ -8,9 +8,12 @@ interface ControlPanelProps {
   onProcessPrompt: (prompt: string) => void;
   onProcessUrl: (url: string) => void;
   onGeminiEnhance: (file: File) => void;
-  onGetBashrc: () => void;
+  onGetBashrcAdaptation: () => void;
   onGetInstallScript: () => void;
-  onDebugScript: () => void;
+  onGitInit: () => void;
+  onGitAdd: (files: string) => void;
+  onGitCommit: (message: string) => void;
+  onGitPush: (remote: string, branch: string) => void;
   isLoading: boolean;
   loadingAction: string | null;
   processingFile: File | null;
@@ -23,20 +26,30 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onProcessPrompt,
     onProcessUrl,
     onGeminiEnhance,
-    onGetBashrc,
+    onGetBashrcAdaptation,
     onGetInstallScript,
-    onDebugScript,
+    onGitInit,
+    onGitAdd,
+    onGitCommit,
+    onGitPush,
     isLoading,
     loadingAction,
     processingFile,
     progress
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [activeTab, setActiveTab] = useState<'ai' | 'agi' | 'prompt'>('ai');
+  const [activeTab, setActiveTab] = useState<'ai' | 'agi' | 'prompt' | 'git'>('ai');
   const [prompt, setPrompt] = useState('');
   const [url, setUrl] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Git state
+  const [filesToAdd, setFilesToAdd] = useState('.');
+  const [commitMessage, setCommitMessage] = useState('');
+  const [remoteName, setRemoteName] = useState('origin');
+  const [branchName, setBranchName] = useState('main');
+  const [activeGitAction, setActiveGitAction] = useState<string | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -72,6 +85,35 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       }
   }
 
+  const triggerGitFeedback = (action: string, callback: () => void) => {
+    setActiveGitAction(action);
+    callback();
+    setTimeout(() => setActiveGitAction(null), 700);
+  };
+
+  const handleGitInitClick = () => {
+    triggerGitFeedback('init', onGitInit);
+  };
+
+  const handleGitAddClick = () => {
+    if (filesToAdd.trim()) {
+      triggerGitFeedback('add', () => onGitAdd(filesToAdd));
+    }
+  };
+
+  const handleGitCommitClick = () => {
+    if (commitMessage.trim()) {
+      triggerGitFeedback('commit', () => onGitCommit(commitMessage));
+    }
+  };
+
+  const handleGitPushClick = () => {
+    if (remoteName.trim() && branchName.trim()) {
+      triggerGitFeedback('push', () => onGitPush(remoteName, branchName));
+    }
+  };
+
+
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -104,6 +146,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       <div className="flex border-b border-brand-border mb-6">
         <TabButton isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI Modes</TabButton>
         <TabButton isActive={activeTab === 'agi'} onClick={() => setActiveTab('agi')}>AGI Modes</TabButton>
+        <TabButton isActive={activeTab === 'git'} onClick={() => setActiveTab('git')}>Git</TabButton>
         <TabButton isActive={activeTab === 'prompt'} onClick={() => setActiveTab('prompt')}>Direct Prompt</TabButton>
       </div>
 
@@ -169,23 +212,64 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                  <div className="pt-4 border-t border-brand-border">
                     <h2 className="text-xl font-semibold text-brand-text-primary mb-4 text-center">System Integration</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <ActionButton onClick={onGetBashrc} disabled={isLoading} isLoading={isLoading}>
-                            Get .bashrc Info
+                        <ActionButton onClick={onGetBashrcAdaptation} disabled={isLoading} isLoading={isLoading}>
+                            Adapt .bashrc
                         </ActionButton>
                         <ActionButton onClick={onGetInstallScript} disabled={isLoading} isLoading={isLoading}>
                             Get Self-Install Script
                         </ActionButton>
                     </div>
                  </div>
-                 <div className="pt-4 border-t border-brand-border">
-                    <h2 className="text-xl font-semibold text-brand-text-primary mb-4 text-center">Diagnostics</h2>
-                     <div className="grid grid-cols-1 gap-4">
-                         <ActionButton onClick={onDebugScript} disabled={isLoading} isLoading={isLoading}>
-                           Debug Script (`--debug`)
-                         </ActionButton>
-                     </div>
-                 </div>
             </div>
+        )}
+         {activeTab === 'git' && (
+          <div className="flex flex-col space-y-4">
+            <div className={`p-4 border border-brand-border rounded-lg transition-all duration-300 ${activeGitAction === 'init' ? 'ring-2 ring-brand-accent' : ''}`}>
+              <h2 className="text-xl font-semibold text-brand-text-primary mb-3">1. Initialize</h2>
+              <ActionButton onClick={handleGitInitClick} disabled={isLoading} isLoading={loadingAction === 'gitInit'}>
+                Initialize Git Repository
+              </ActionButton>
+            </div>
+            
+            <div className="p-4 border border-brand-border rounded-lg space-y-3">
+              <h2 className="text-xl font-semibold text-brand-text-primary">2. Stage</h2>
+               <input 
+                  type="text"
+                  value={filesToAdd}
+                  onChange={(e) => setFilesToAdd(e.target.value)}
+                  className={`w-full p-2 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition-all duration-300 ${activeGitAction === 'add' ? 'ring-2 ring-brand-accent' : ''}`}
+                  placeholder="e.g., '.' or 'src/index.js'"
+              />
+              <ActionButton onClick={handleGitAddClick} disabled={!filesToAdd.trim() || isLoading} isLoading={loadingAction === 'gitAdd'}>
+                Stage Changes (`git add`)
+              </ActionButton>
+            </div>
+
+            <div className="p-4 border border-brand-border rounded-lg space-y-3">
+              <h2 className="text-xl font-semibold text-brand-text-primary">3. Commit</h2>
+              <input 
+                  type="text"
+                  value={commitMessage}
+                  onChange={(e) => setCommitMessage(e.target.value)}
+                  className={`w-full p-2 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition-all duration-300 ${activeGitAction === 'commit' ? 'ring-2 ring-brand-accent' : ''}`}
+                  placeholder="Your commit message"
+              />
+              <ActionButton onClick={handleGitCommitClick} disabled={!commitMessage.trim() || isLoading} isLoading={loadingAction === 'gitCommit'}>
+                Commit (`git commit`)
+              </ActionButton>
+            </div>
+
+            <div className="p-4 border border-brand-border rounded-lg space-y-3">
+              <h2 className="text-xl font-semibold text-brand-text-primary">4. Push</h2>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" value={remoteName} onChange={(e) => setRemoteName(e.target.value)} className={`w-full p-2 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition-all duration-300 ${activeGitAction === 'push' ? 'ring-2 ring-brand-accent' : ''}`} placeholder="Remote (e.g., origin)" />
+                <input type="text" value={branchName} onChange={(e) => setBranchName(e.target.value)} className={`w-full p-2 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition-all duration-300 ${activeGitAction === 'push' ? 'ring-2 ring-brand-accent' : ''}`} placeholder="Branch (e.g., main)" />
+              </div>
+              <ActionButton onClick={handleGitPushClick} disabled={!remoteName.trim() || !branchName.trim() || isLoading} isLoading={loadingAction === 'gitPush'}>
+                Push to Remote (`git push`)
+              </ActionButton>
+            </div>
+          </div>
         )}
         {activeTab === 'prompt' && (
             <div className="flex flex-col space-y-4">

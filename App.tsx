@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { LogEntry, LogType, ProcessedFile } from './types';
-import { processFiles, scanEnvironment, processPrompt, getBashrcIntegration, getInstallScript, debugScript, processUrlPrompt } from './services/scriptService';
+import { processFiles, scanEnvironment, processPrompt, getBashrcAdaptation, getInstallScript, processUrlPrompt, gitInit, gitAdd, gitCommit, gitPush } from './services/scriptService';
 import { getGeminiSuggestions } from './services/geminiService';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
@@ -63,7 +63,7 @@ const App: React.FC = () => {
     setProcessedOutput(null);
     setActiveFileIndex(0);
     
-    const initialLog: LogEntry = { type: LogType.Info, message: `Starting batch AI enhancement for ${files.length} file(s)...`, timestamp: new Date().toLocaleTimeString() };
+    const initialLog: LogEntry = { type: LogType.Info, message: `Starting batch processing simulation for ${files.length} file(s)...`, timestamp: new Date().toLocaleTimeString() };
     setLogs([initialLog]);
     setActiveOutput('logs');
 
@@ -73,9 +73,8 @@ const App: React.FC = () => {
       setProcessedOutput(result.outputs);
       
       const resultLogs = result.logs.map(log => ({ ...log, timestamp: new Date().toLocaleTimeString() }));
-      const successLog: LogEntry = { type: LogType.Success, message: 'Batch enhancement complete.', timestamp: new Date().toLocaleTimeString() };
-
-      setLogs(prevLogs => [...prevLogs, ...resultLogs, successLog]);
+      
+      setLogs(prevLogs => [...prevLogs, ...resultLogs]);
       
       setActiveOutput('code');
       setProgress(100);
@@ -106,16 +105,28 @@ const App: React.FC = () => {
     handleRequest(() => processUrlPrompt(url), 'processUrl');
   }, [addLog]);
 
-  const handleGetBashrc = useCallback(() => {
-    handleRequest(getBashrcIntegration, 'getBashrc');
+  const handleGetBashrcAdaptation = useCallback(() => {
+    handleRequest(getBashrcAdaptation, 'getBashrc');
   }, [addLog]);
 
   const handleGetInstallScript = useCallback(() => {
     handleRequest(getInstallScript, 'getInstallScript');
   }, [addLog]);
 
-  const handleDebugScript = useCallback(() => {
-    handleRequest(debugScript, 'debugScript', true); // Set active to logs
+  const handleGitInit = useCallback(() => {
+    handleRequest(gitInit, 'gitInit', true);
+  }, [addLog]);
+
+  const handleGitAdd = useCallback((files: string) => {
+    handleRequest(() => gitAdd(files), 'gitAdd', true);
+  }, [addLog]);
+
+  const handleGitCommit = useCallback((message: string) => {
+    handleRequest(() => gitCommit(message), 'gitCommit', true);
+  }, [addLog]);
+
+  const handleGitPush = useCallback((remote: string, branch: string) => {
+    handleRequest(() => gitPush(remote, branch), 'gitPush', true);
   }, [addLog]);
 
   const handleGeminiEnhance = useCallback(async (file: File) => {
@@ -172,9 +183,12 @@ const App: React.FC = () => {
             onProcessPrompt={handleProcessPrompt}
             onProcessUrl={handleProcessUrl}
             onGeminiEnhance={handleGeminiEnhance}
-            onGetBashrc={handleGetBashrc}
+            onGetBashrcAdaptation={handleGetBashrcAdaptation}
             onGetInstallScript={handleGetInstallScript}
-            onDebugScript={handleDebugScript}
+            onGitInit={handleGitInit}
+            onGitAdd={handleGitAdd}
+            onGitCommit={handleGitCommit}
+            onGitPush={handleGitPush}
             isLoading={isLoading}
             loadingAction={loadingAction}
             processingFile={processingFile}

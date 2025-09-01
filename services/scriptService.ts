@@ -1,5 +1,4 @@
 import { LogType, ProcessedFile } from '../types';
-import { getGeminiSuggestions } from './geminiService';
 
 export const UNIVERSAL_LAW = `:BOF:
 redo complete layout and design an advanced symetrics to proximity accordance
@@ -29,34 +28,22 @@ export const processFiles = async (files: File[], onProgress: (progress: number)
 
     for (let i = 0; i < totalFiles; i++) {
         const file = files[i];
-        logs.push({ type: LogType.Info, message: `Processing file ${i + 1}/${totalFiles}: ${file.name}` });
+        
+        logs.push({ type: LogType.Info, message: `Processing file: ${file.name}` });
+        // Simulate the script's fallback behavior when Ollama is not present
+        logs.push({ type: LogType.Warn, message: `Ollama not found, writing universal law instead` });
 
-        try {
-            const fileContent = await file.text();
-            logs.push({ type: LogType.Gemini, message: `Sending ${file.name} to Gemini AI for enhancement...` });
-            
-            const enhancedContent = await getGeminiSuggestions(fileContent);
-
-            outputs.push({
-              fileName: `${file.name}.enhanced.txt`,
-              content: enhancedContent,
-            });
-            
-            logs.push({ type: LogType.Success, message: `Successfully enhanced ${file.name}.` });
-
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-            logs.push({ type: LogType.Error, message: `Failed to enhance ${file.name}: ${errorMessage}` });
-            outputs.push({
-              fileName: file.name,
-              content: `/* --- ERROR PROCESSING ${file.name}: ${errorMessage} --- */`
-            });
-        }
+        outputs.push({
+            fileName: `${file.name}.processed`, // The new script adds .processed
+            content: UNIVERSAL_LAW,
+        });
         
         const progress = Math.round(((i + 1) / totalFiles) * 100);
         onProgress(progress);
         await new Promise(res => setTimeout(res, 50));
     }
+
+    logs.push({ type: LogType.Success, message: 'Batch processing simulation complete.' });
 
     return {
         outputs,
@@ -92,8 +79,8 @@ drwxr-xr-x 1 root        root        4096 Jul 29 09:58 ..
 
 export const processPrompt = (prompt: string) => {
     const logs = [
-        {type: LogType.Warn, message: `Awareness: Direct prompt mode | UNIVERSAL_LAW active`},
-        {type: LogType.Info, message: 'Processing prompt...'},
+        {type: LogType.Info, message: `Running prompt on Ollama gemma3:1b...`},
+        {type: LogType.Warn, message: 'Ollama not found, printing prompt only'},
     ];
     return { output: prompt, logs, fileName: 'prompt_output.txt' };
 }
@@ -124,68 +111,77 @@ export const processUrlPrompt = (url: string) => {
     return { output: simulatedContent, logs, fileName: 'url_content.html' };
 };
 
-
-export const debugScript = () => {
+// --- Git functionality ---
+export const gitInit = () => {
     const logs = [
-        {type: LogType.Info, message: 'Initiating script debug sequence...'},
-        {type: LogType.Warn, message: 'Debug Mode: ON. Verbose output enabled.'},
-        {type: LogType.Info, message: 'Script Version: 1.0.0'},
-        {type: LogType.Info, message: 'Backup Directory: /app/home/.ai_backups'},
-        {type: LogType.Info, message: 'Ollama Endpoint: http://127.0.0.1:11434'},
+        { type: LogType.Info, message: 'Simulating: git init' },
+        { type: LogType.Success, message: 'Initialized empty Git repository in /app/home/.git/' }
     ];
-    const output = `
-[DEBUG MODE]
----
-Script Version: 1.0.0
-Timestamp: ${new Date().toISOString()}
----
-[Configuration]
-HOME_ROOT=/app/home
-BACKUP_DIR=/app/home/.ai_backups
-OLLAMA_HOST=127.0.0.1
-OLLAMA_PORT=11434
----
-[Status]
-Script loaded successfully.
-Ready for command execution.
-    `.trim();
+    return { output: 'Initialized empty Git repository in /app/home/.git/', logs, fileName: 'git_init.log' };
+};
 
-    return { output, logs, fileName: 'script_debug.log' };
-}
+export const gitAdd = (files: string) => {
+    const logs = [
+        { type: LogType.Info, message: `Simulating: git add ${files}` },
+        { type: LogType.Success, message: 'Changes staged for next commit.' }
+    ];
+    return { output: `Staged files matching pattern: ${files}`, logs, fileName: 'git_add.log' };
+};
+
+export const gitCommit = (message: string) => {
+    const commitHash = (Math.random().toString(36) + '00000000000000000').slice(2, 9);
+    const logs = [
+        { type: LogType.Info, message: `Simulating: git commit -m "${message}"` },
+        { type: LogType.Success, message: `[main (root-commit) ${commitHash}] ${message}` }
+    ];
+    const output = `[main (root-commit) ${commitHash}] ${message}\n 2 files changed, 28 insertions(+)`;
+    return { output, logs, fileName: 'git_commit.log' };
+};
+
+export const gitPush = (remote: string, branch: string) => {
+    const logs = [
+        { type: LogType.Info, message: `Simulating: git push ${remote} ${branch}` },
+        { type: LogType.Info, message: 'Enumerating objects: 5, done.' },
+        { type: LogType.Info, message: 'Writing objects: 100% (3/3), done.' },
+        { type: LogType.Success, message: `To github.com:user/repo.git\n * [new branch]      ${branch} -> ${branch}` }
+    ];
+    const output = `Total 3 (delta 0), reused 0 (delta 0)\nTo https://github.com/example/repo.git\n * [new branch]      ${branch} -> ${branch}`;
+    return { output, logs, fileName: 'git_push.log' };
+};
+
 
 // --- .bashrc integration ---
-export const BASHRC_INTEGRATION_CODE = `
-# The new 'ai' script handles its own installation and .bashrc configuration.
+export const BASHRC_ADAPTATION_CODE = `
 # To install, save the script as 'ai', give it execute permissions (chmod +x ai),
 # and then run './ai init'.
 
-# The 'ai init' command will completely overwrite your ~/.bashrc file with the following content.
-# It is recommended to back up your current .bashrc if you have custom configurations.
+# The 'ai init' command will adapt your ~/.bashrc file with the following content.
+# A backup of your original .bashrc will be created.
 
 # --- Content of ~/.bashrc after running 'ai init' ---
-# ~/.bashrc rebuilt by ~/bin/ai
+# ~/.bashrc adapted by AI tool
 export PATH="$HOME/bin:$PATH"
 alias ai="$HOME/bin/ai"
-export AI_HOME="$HOME_ROOT"
+# Add more environment variables or shell customizations here
 `;
 
-export const getBashrcIntegration = () => {
+export const getBashrcAdaptation = () => {
     const logs = [
-        {type: LogType.Info, message: 'Generating .bashrc integration info...'},
-        {type: LogType.Warn, message: "The 'ai init' command will overwrite your existing ~/.bashrc."},
+        {type: LogType.Info, message: 'Generating .bashrc adaptation info...'},
+        {type: LogType.Warn, message: "The 'ai init' command will create a backup and rewrite your existing ~/.bashrc."},
         {type: LogType.Success, message: 'Review the information below before running the installation.'},
     ];
-    return { output: BASHRC_INTEGRATION_CODE.trim(), logs, fileName: 'bashrc_info.txt' };
+    return { output: BASHRC_ADAPTATION_CODE.trim(), logs, fileName: 'bashrc_adaptation_info.txt' };
 };
 
 
 const AI_SCRIPT_CONTENT = `#!/usr/bin/env bash
 # Author: Aris Arjuna Noorsanto <exe.opcode@gmail.com>
 # AI / AGI / AIM Unified Processing Tool
-# Termux / Proot-Distro compatible, single-file
+# Termux / Proot-Distro compatible - All-in-one
 
 set -eu
-IFS=\$(printf '\\n\\t')
+IFS=$'\\n\\t'
 
 # -----------------------
 # CONFIG
@@ -194,19 +190,16 @@ HOME_ROOT="\${HOME:-/data/data/com.termux/files/home}"
 BACKUP_DIR="\$HOME_ROOT/.ai_backups"
 mkdir -p "\$BACKUP_DIR"
 
-MODEL_DIR="\$HOME_ROOT/.model"
-mkdir -p "\$MODEL_DIR"
-
 UNIVERSAL_LAW=\$(cat <<'EOF'
 :bof:
-redo complete layout and design an advanced symetrics to proximity accordance for dedicated info-quota alignments, which grant a better adjustment for leading besides subliminal range compliance promisings, that affair any competing content relations into a cognitive intuitition guidance comparison between space and gap implies, that are suggesting the viewer a subcoordinated
-experience alongside repetitive tasks and stoic context sortings, all cooperational aligned to timed subjects of importance accordingly to random
-capacity within builds of data statements, that prognose the grid reliability
+redo complete layout and design an advanced symetrics to proximity accordance for dedicated info-quota alignments, which grant a better adjustment for leading besides subliminal range compliance promisings, that affair any competing content relations into a cognitive intuitition guidance comparison between space and gap implies, that are suggesting the viewer a subcoordinated experience alongside repetitive tasks and stoic context sortings, all cooperational aligned to timed subjects of importance accordingly to random capacity within builds of data statements, that prognose the grid reliability
 of a mockup as given optically acknowledged for a more robust but also as
 attractive rulership into golden-ratio item handling
 :eof:
 EOF
 )
+
+OLLAMA_MODEL="gemma3:1b"
 
 # -----------------------
 # HELPER LOGGING
@@ -234,6 +227,7 @@ fetch_url() {
         wget -qO- "\$url"
     else
         log_error "curl or wget required to fetch URLs"
+        return 1
     fi
 }
 
@@ -254,57 +248,59 @@ get_prompt() {
 }
 
 # -----------------------
-# OLLAMA GEMMA3:1B INTEGRATION
+# BASHRC ADAPTATION
 # -----------------------
-ollama_init() {
-    if ! pgrep -f "ollama serve" >/dev/null 2>&1; then
-        log_info "Starting Ollama server for gemma3:1b..."
-        ollama serve &> /dev/null &
-        sleep 2
-        log_success "Ollama server started."
-    else
-        log_info "Ollama server already running."
-    fi
-}
-
-ollama_prompt() {
-    local prompt_input="\$1"
-    ollama_init
-    log_info "Running prompt on gemma3:1b..."
-    if command -v ollama >/dev/null 2>&1; then
-        echo "\$prompt_input" | ollama run gemma3:1b
-    else
-        log_error "Ollama CLI not found. Install gemma3:1b."
-    fi
+adapt_bashrc() {
+    local bashrc="\$HOME_ROOT/.bashrc"
+    backup_file "\$bashrc"
+    log_info "Rewriting .bashrc..."
+    cat > "\$bashrc" <<EOF
+# ~/.bashrc adapted by AI tool
+export PATH="\\\$HOME/bin:\\\$PATH"
+alias ai="\\\$HOME/bin/ai"
+# Add more environment variables or shell customizations here
+EOF
+    log_success ".bashrc rewritten and environment set"
 }
 
 # -----------------------
-# AI / AGI / AIM MODES
+# AI MODES
 # -----------------------
-mode_file() {
+ai_file() {
     for f in "\$@"; do
         [ -f "\$f" ] || continue
         backup_file "\$f"
         log_info "Processing file: \$f"
-        echo "\$UNIVERSAL_LAW" > "\$f.processed"
+        # AI processing via Ollama
+        if command -v ollama >/dev/null 2>&1; then
+            pkill ollama || true
+            ollama serve &
+            sleep 2
+            cat "\$f" | ollama run "\$OLLAMA_MODEL"
+        else
+            log_warn "Ollama not found, writing universal law instead"
+            echo "\$UNIVERSAL_LAW" > "\$f.processed"
+        fi
     done
 }
 
-mode_script() {
-    log_info "Processing script content..."
-    # Placeholder for script-aware logic
+ai_script() {
+    log_info "Processing script logic..."
+    # Placeholder for AI script-aware processing
 }
 
-mode_batch() {
-    local pattern="\$1"; shift
+ai_batch() {
+    local pattern="\$1"
+    shift
     for f in \$pattern; do
         [ -f "\$f" ] || continue
         backup_file "\$f"
-        log_info "Batch processing \$f"
+        log_info "Batch processing: \$f"
+        ai_file "\$f"
     done
 }
 
-mode_env() {
+ai_env() {
     log_info "Scanning environment..."
     env | sort
     df -h
@@ -312,16 +308,17 @@ mode_env() {
     ls -la /etc
 }
 
-mode_pipeline() {
+ai_pipeline() {
     for f in "\$@"; do
         [ -f "\$f" ] || continue
         backup_file "\$f"
         log_info "Pipeline processing: \$f"
+        ai_file "\$f"
     done
 }
 
 # -----------------------
-# AGI WATCH & SCREENSHOT
+# AGI MODES
 # -----------------------
 agi_watch() {
     local folder="\$1"
@@ -332,7 +329,7 @@ agi_watch() {
         case "\$file" in
             \$pattern)
                 log_info "Detected change: \$file"
-                mode_file "\$file"
+                ai_file "\$file"
                 ;;
         esac
     done
@@ -343,48 +340,34 @@ agi_screenshot() {
 }
 
 # -----------------------
-# BASHRC REBUILD
-# -----------------------
-rebuild_bashrc() {
-    local bashrc="\$HOME_ROOT/.bashrc"
-    backup_file "\$bashrc"
-    log_info "Rebuilding .bashrc..."
-    cat > "\$bashrc" <<EOF
-# ~/.bashrc rebuilt by ~/bin/ai
-export PATH="\\\$HOME/bin:\\\$PATH"
-alias ai="\\\$HOME/bin/ai"
-export AI_HOME="\\\$HOME_ROOT"
-EOF
-    log_success ".bashrc rewritten successfully."
-}
-
-# -----------------------
 # INSTALLER MODE
 # -----------------------
-mode_init() {
-    log_info "Initializing AI/AGI/AIM tool..."
-    mkdir -p "\$HOME_ROOT/bin"
-    cp -f "\$0" "\$HOME_ROOT/bin/ai"
-    chmod +x "\$HOME_ROOT/bin/ai"
-    rebuild_bashrc
-    log_success "Tool installed as ~/bin/ai and .bashrc updated."
+install_tool() {
+    adapt_bashrc
+    mkdir -p "\$HOME/bin"
+    cp -f "\$0" "\$HOME/bin/ai"
+    chmod +x "\$HOME/bin/ai"
+    log_success "AI tool installed at \$HOME/bin/ai"
 }
 
 # -----------------------
 # ARGUMENT PARSING
 # -----------------------
 if [ \$# -eq 0 ]; then
-    log_info "Usage: \$0 <mode> [files/patterns] [prompt]"
+    log_info "Usage: ai <mode> [files/patterns/prompt]"
     exit 0
 fi
 
 case "\$1" in
-    init) shift; mode_init "\$@" ;;
-    -) shift; mode_file "\$@" ;;
-    +) shift; mode_script "\$@" ;;
-    \\*) shift; mode_batch "\$@" ;;
-    .) shift; mode_env "\$@" ;;
-    :) shift; IFS=':' read -r -a files <<< "\$1"; mode_pipeline "\${files[@]}" ;;
+    init) shift; install_tool "\$@" ;;
+    -) shift; ai_file "\$@" ;;
+    +) shift; ai_script "\$@" ;;
+    \\*) shift; ai_batch "\$@" ;;
+    .) shift; ai_env "\$@" ;;
+    :) shift
+       IFS=':' read -r -a files <<< "\$1"
+       ai_pipeline "\${files[@]}"
+       ;;
     agi) shift
         case "\$1" in
             +|~) shift; agi_watch "\$@" ;;
@@ -394,7 +377,16 @@ case "\$1" in
         ;;
     *)
         PROMPT=\$(get_prompt "\$*")
-        ollama_prompt "\$PROMPT"
+        log_info "Running prompt on Ollama gemma3:1b..."
+        if command -v ollama >/dev/null 2>&1; then
+            pkill ollama || true
+            ollama serve &
+            sleep 2
+            echo "\$PROMPT" | ollama run "\$OLLAMA_MODEL"
+        else
+            log_warn "Ollama not found, printing prompt only"
+            echo "\$PROMPT"
+        fi
         ;;
 esac
 `;
