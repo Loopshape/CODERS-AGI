@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo } from 'react';
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
 import { processFiles, scanEnvironment, processPrompt, getBashrcAdaptation, getInstallScript, processUrlPrompt, gitInit, gitAdd, gitCommit, gitPush } from './services/scriptService';
@@ -7,6 +6,7 @@ import { processHtml } from './services/enhancementService';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
 import OutputViewer from './components/OutputViewer';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): string => {
     let markdown = `# Code Review for ${fileName}\n\n`;
@@ -296,7 +296,6 @@ const App: React.FC = () => {
       setProgress(100);
 
     } catch (error) {
-// FIX: A syntax error was present here ('B' instead of '{'). This has been corrected.
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `URL enhancement process failed: ${errorMessage}`);
       setActiveOutput('logs');
@@ -313,11 +312,12 @@ const App: React.FC = () => {
     return processedOutput?.some(file => file.fileName.includes('.enhanced.')) ?? false;
   }, [processedOutput]);
 
-  const handleImproveLocalAI = useCallback(() => {
+  const handleImproveLocalAI = useCallback((errorInfo?: string) => {
       const enhancedFile = processedOutput?.find(file => file.fileName.includes('.enhanced.'));
+      const trainingSource = errorInfo ? 'an application error report' : enhancedFile?.fileName;
 
-      if (!enhancedFile) {
-          addLog(LogType.Warn, "No enhanced file available. Run 'Gemini AI Enhance' on a file first.");
+      if (!trainingSource) {
+          addLog(LogType.Warn, "No training data available. Run 'Gemini AI Enhance' on a file or encounter an error to improve the AI.");
           return;
       }
 
@@ -325,7 +325,7 @@ const App: React.FC = () => {
       setProgress(0);
       setLogs([]);
       setActiveOutput('logs');
-      addLog(LogType.Info, `Starting local AI training with ${enhancedFile.fileName}...`);
+      addLog(LogType.Info, `Starting local AI training with data from ${trainingSource}...`);
       
       const runTrainingSimulation = async () => {
           await new Promise(res => setTimeout(res, 500));
@@ -342,7 +342,7 @@ const App: React.FC = () => {
 
           await new Promise(res => setTimeout(res, 800));
           setProgress(100);
-          addLog(LogType.Success, `Local AI model successfully improved with data from ${enhancedFile.fileName}.`);
+          addLog(LogType.Success, `Local AI model successfully improved with data from ${trainingSource}.`);
 
           await new Promise(res => setTimeout(res, 500));
           setLoadingAction(null);
@@ -354,43 +354,45 @@ const App: React.FC = () => {
   }, [processedOutput, addLog]);
 
   return (
-    <div className="min-h-screen bg-brand-bg font-sans flex flex-col">
-      <Header />
-      <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        <ControlPanel 
-            onProcessFiles={handleProcessFiles}
-            onScanEnvironment={handleScanEnvironment}
-            onProcessPrompt={handleProcessPrompt}
-            onProcessUrl={handleProcessUrl}
-            onGeminiEnhance={handleGeminiEnhance}
-            onLocalAIEnhance={handleLocalAIEnhance}
-            onUrlEnhance={handleUrlEnhance}
-            onImproveLocalAI={handleImproveLocalAI}
-            hasEnhancedFile={hasEnhancedFile}
-            onGetInstallerScript={handleGetInstallerScript}
-            onGitInit={handleGitInit}
-            onGitAdd={handleGitAdd}
-            onGitCommit={handleGitCommit}
-            onGitPush={handleGitPush}
+    <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
+      <div className="min-h-screen bg-brand-bg font-sans flex flex-col">
+        <Header />
+        <main role="main" className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          <ControlPanel 
+              onProcessFiles={handleProcessFiles}
+              onScanEnvironment={handleScanEnvironment}
+              onProcessPrompt={handleProcessPrompt}
+              onProcessUrl={handleProcessUrl}
+              onGeminiEnhance={handleGeminiEnhance}
+              onLocalAIEnhance={handleLocalAIEnhance}
+              onUrlEnhance={handleUrlEnhance}
+              onImproveLocalAI={handleImproveLocalAI}
+              hasEnhancedFile={hasEnhancedFile}
+              onGetInstallerScript={handleGetInstallerScript}
+              onGitInit={handleGitInit}
+              onGitAdd={handleGitAdd}
+              onGitCommit={handleGitCommit}
+              onGitPush={handleGitPush}
+              isLoading={isLoading}
+              loadingAction={loadingAction}
+              processingFile={processingFile}
+              progress={progress}
+          />
+          <OutputViewer
+            processedOutput={processedOutput}
+            logs={logs}
             isLoading={isLoading}
-            loadingAction={loadingAction}
-            processingFile={processingFile}
-            progress={progress}
-        />
-        <OutputViewer
-          processedOutput={processedOutput}
-          logs={logs}
-          isLoading={isLoading}
-          activeOutput={activeOutput}
-          setActiveOutput={setActiveOutput}
-          activeFileIndex={activeFileIndex}
-          setActiveFileIndex={setActiveFileIndex}
-        />
-      </main>
-      <footer className="text-center p-4 text-brand-text-secondary text-sm">
-        <p>UI generated from bash script logic by a world-class senior frontend React engineer.</p>
-      </footer>
-    </div>
+            activeOutput={activeOutput}
+            setActiveOutput={setActiveOutput}
+            activeFileIndex={activeFileIndex}
+            setActiveFileIndex={setActiveFileIndex}
+          />
+        </main>
+        <footer role="contentinfo" className="text-center p-4 text-brand-text-secondary text-sm">
+          <p>UI generated from bash script logic by a world-class senior frontend React engineer.</p>
+        </footer>
+      </div>
+    </ErrorBoundary>
   );
 };
 

@@ -55,14 +55,14 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
 
   return (
     <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl flex flex-col h-[80vh] min-h-[600px]">
-      <div className="flex border-b border-brand-border shrink-0">
+      <div className="flex border-b border-brand-border shrink-0" role="tablist" aria-label="Output viewer modes">
         <OutputTabButton icon={<CodeIcon />} label="Processed Output" isActive={activeOutput === 'code'} onClick={() => setActiveOutput('code')} disabled={!processedOutput} />
         <OutputTabButton icon={<EyeIcon />} label="Live Preview" isActive={activeOutput === 'preview'} onClick={() => setActiveOutput('preview')} disabled={isPreviewDisabled}/>
         <OutputTabButton icon={<TerminalIcon />} label={isTermux ? "Terminal" : "Logs"} isActive={activeOutput === 'logs'} onClick={() => setActiveOutput('logs')} />
       </div>
 
       {processedOutput && processedOutput.length > 1 && (activeOutput === 'code' || activeOutput === 'preview') && (
-        <div className="flex border-b border-brand-border bg-brand-bg px-2 shrink-0 overflow-x-auto">
+        <div className="flex border-b border-brand-border bg-brand-bg px-2 shrink-0 overflow-x-auto" role="tablist" aria-label="Processed files">
           {processedOutput.map((file, index) => (
             <FileTabButton
               key={`${file.fileName}-${index}`}
@@ -74,7 +74,7 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
         </div>
       )}
 
-      <div className="p-1 flex-grow overflow-auto">
+      <div className="p-1 flex-grow overflow-auto" role="tabpanel">
         {renderContent()}
       </div>
     </div>
@@ -97,7 +97,7 @@ const OutputTabButton: React.FC<OutputTabButtonProps> = ({ icon, label, isActive
     const disabledClasses = "text-gray-600 cursor-not-allowed";
 
     return (
-        <button onClick={onClick} className={`${baseClasses} ${disabled ? disabledClasses : (isActive ? activeClasses : inactiveClasses)}`} disabled={disabled}>
+        <button onClick={onClick} className={`${baseClasses} ${disabled ? disabledClasses : (isActive ? activeClasses : inactiveClasses)}`} disabled={disabled} role="tab" aria-selected={isActive}>
             {icon}
             <span className="hidden sm:inline">{label}</span>
         </button>
@@ -115,14 +115,14 @@ const FileTabButton: React.FC<FileTabButtonProps> = ({ fileName, isActive, onCli
     const activeClasses = "text-brand-accent border-b-2 border-brand-accent";
     const inactiveClasses = "text-brand-text-secondary hover:text-brand-text-primary border-b-2 border-transparent";
     return (
-        <button onClick={onClick} className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
+        <button onClick={onClick} className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`} role="tab" aria-selected={isActive}>
             {fileName}
         </button>
     );
 };
 
 const LoadingSkeleton: React.FC = () => (
-    <div className="p-6 animate-pulse">
+    <div className="p-6 animate-pulse" aria-label="Loading content">
         <div className="h-4 bg-brand-border rounded w-1/4 mb-4"></div>
         <div className="h-4 bg-brand-border rounded w-full mb-2"></div>
         <div className="h-4 bg-brand-border rounded w-full mb-2"></div>
@@ -135,7 +135,7 @@ const LoadingSkeleton: React.FC = () => (
 
 const InitialState: React.FC = () => (
     <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <SparklesIcon className="w-16 h-16 text-brand-border mb-4" />
+        <SparklesIcon className="w-16 h-16 text-brand-border mb-4" aria-hidden="true" />
         <h3 className="text-xl font-bold text-brand-text-primary">Ready to Process</h3>
         <p className="text-brand-text-secondary max-w-md">
             Select a file or enter a prompt and choose an action from the control panel to see the results here.
@@ -150,8 +150,11 @@ const NoContent: React.FC<{ message: string }> = ({ message }) => (
 )
 
 const CodeDisplay: React.FC<{ content: string; fileName: string; language: string; }> = ({ content, fileName, language }) => {
+    const [copied, setCopied] = useState(false);
     const handleCopy = () => {
         navigator.clipboard.writeText(content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
     return (
@@ -159,7 +162,9 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; language: strin
             <div className="flex justify-between items-center p-3 bg-brand-surface border-b border-brand-border rounded-t-lg">
                 <span className="text-sm font-mono text-brand-text-secondary">{fileName}</span>
                 <div className="flex items-center space-x-2">
-                    <button onClick={handleCopy} className="text-sm bg-brand-border px-3 py-1 rounded hover:bg-brand-accent transition-colors">Copy</button>
+                    <button onClick={handleCopy} className="text-sm bg-brand-border px-3 py-1 rounded hover:bg-brand-accent transition-colors">
+                        {copied ? 'Copied!' : 'Copy'}
+                    </button>
                     <DownloadButton content={content} fileName={fileName} />
                 </div>
             </div>
@@ -177,8 +182,14 @@ const logColorMap: { [key in LogType]: string } = {
 };
 
 const LogDisplay: React.FC<{ logs: LogEntry[] }> = ({ logs }) => {
+  const logEndRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
   return (
-    <div className="p-4 font-mono text-sm space-y-2 h-full overflow-y-auto">
+    <div className="p-4 font-mono text-sm space-y-2 h-full overflow-y-auto" aria-live="polite" aria-atomic="false">
       {logs.map((log, index) => (
         <div key={index} className="flex items-start">
           <span className="text-brand-text-secondary mr-3">{log.timestamp}</span>
@@ -186,24 +197,31 @@ const LogDisplay: React.FC<{ logs: LogEntry[] }> = ({ logs }) => {
           <p className="flex-1 whitespace-pre-wrap text-brand-text-primary">{log.message}</p>
         </div>
       ))}
+      <div ref={logEndRef} />
     </div>
   );
 };
 
 const TerminalView: React.FC<{ logs: LogEntry[] }> = ({ logs }) => {
+    const terminalEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [logs]);
+
     return (
-        <div className="bg-black rounded-lg p-4 font-mono text-sm text-white h-full overflow-y-auto">
+        <div className="bg-black rounded-lg p-4 font-mono text-sm text-white h-full overflow-y-auto" aria-live="polite" aria-atomic="false">
             <p className="text-green-400">Welcome to AI/AGI/AIM Terminal View [v1.0.0]</p>
             <p className="text-gray-500">Log output below. Newest entries appear last.</p>
             <br/>
             {logs.map((log, index) => (
                 <div key={index} className="flex items-start">
-                    <span className="text-gray-500 mr-2">&gt;</span>
+                    <span className="text-gray-500 mr-2" aria-hidden="true">&gt;</span>
                     <span className={`font-bold mr-2 ${logColorMap[log.type]}`}>[{log.type.toUpperCase()}]</span>
                     <p className="flex-1 whitespace-pre-wrap text-gray-300">{log.message}</p>
                 </div>
             ))}
-             <div className="text-green-400 mt-2">
+             <div className="text-green-400 mt-2" ref={terminalEndRef}>
                 <span className="animate-pulse">_</span>
             </div>
         </div>

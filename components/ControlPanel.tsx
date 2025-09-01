@@ -162,7 +162,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   return (
     <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl p-6 sticky top-8">
-      <div className="flex border-b border-brand-border mb-6">
+      <div className="flex border-b border-brand-border mb-6" role="tablist" aria-label="Control Panel Modes">
         <TabButton isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI Modes</TabButton>
         <TabButton isActive={activeTab === 'agi'} onClick={() => setActiveTab('agi')}>AGI Modes</TabButton>
         <TabButton isActive={activeTab === 'git'} onClick={() => setActiveTab('git')}>Git</TabButton>
@@ -213,8 +213,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
                     className={`mt-3 flex flex-col justify-center items-center w-full min-h-[8rem] p-4 transition-all bg-brand-bg border-2 border-brand-border border-dashed rounded-md appearance-none cursor-pointer hover:border-brand-accent focus:outline-none ${isDragging ? 'border-brand-accent ring-2 ring-brand-accent/50' : ''}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="File selection area. Click or drop files to select them."
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); triggerFileSelect(); } }}
                 >
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" />
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" aria-hidden="true" />
                     {selectedFiles.length > 0 ? (
                         <div className="text-center w-full">
                             <p className="text-brand-success font-medium">{selectedFiles.length} file(s) selected</p>
@@ -235,7 +239,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         </div>
                     ) : (
                          <span className="flex items-center space-x-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-brand-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-brand-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                             <span className="font-medium text-brand-text-secondary">
                               {isDragging ? "Drop files here" : <>Drop files or <span className="text-brand-accent">browse</span></>}
                             </span>
@@ -300,6 +304,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   onChange={(e) => setFilesToAdd(e.target.value)}
                   className={`w-full p-2 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition-all duration-300 ${activeGitAction === 'add' ? 'ring-2 ring-brand-accent' : ''}`}
                   placeholder="e.g., '.' or 'src/index.js'"
+                  aria-label="Files to stage for git add"
               />
               <ActionButton onClick={handleGitAddClick} disabled={!filesToAdd.trim() || isLoading} isLoading={loadingAction === 'gitAdd'}>
                 Stage Changes (`git add`)
@@ -314,6 +319,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   onChange={(e) => setCommitMessage(e.target.value)}
                   className={`w-full p-2 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition-all duration-300 ${activeGitAction === 'commit' ? 'ring-2 ring-brand-accent' : ''}`}
                   placeholder="Your commit message"
+                  aria-label="Git commit message"
               />
               <ActionButton onClick={handleGitCommitClick} disabled={!commitMessage.trim() || isLoading} isLoading={loadingAction === 'gitCommit'}>
                 Commit (`git commit`)
@@ -323,8 +329,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <div className="p-4 border border-brand-border rounded-lg space-y-3">
               <h2 className="text-xl font-semibold text-brand-text-primary">4. Push</h2>
               <div className="grid grid-cols-2 gap-2">
-                <input type="text" value={remoteName} onChange={(e) => setRemoteName(e.target.value)} className={`w-full p-2 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition-all duration-300 ${activeGitAction === 'push' ? 'ring-2 ring-brand-accent' : ''}`} placeholder="Remote (e.g., origin)" />
-                <input type="text" value={branchName} onChange={(e) => setBranchName(e.target.value)} className={`w-full p-2 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition-all duration-300 ${activeGitAction === 'push' ? 'ring-2 ring-brand-accent' : ''}`} placeholder="Branch (e.g., main)" />
+                <input type="text" value={remoteName} onChange={(e) => setRemoteName(e.target.value)} className={`w-full p-2 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition-all duration-300 ${activeGitAction === 'push' ? 'ring-2 ring-brand-accent' : ''}`} placeholder="Remote (e.g., origin)" aria-label="Git remote name" />
+                <input type="text" value={branchName} onChange={(e) => setBranchName(e.target.value)} className={`w-full p-2 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition-all duration-300 ${activeGitAction === 'push' ? 'ring-2 ring-brand-accent' : ''}`} placeholder="Branch (e.g., main)" aria-label="Git branch name" />
               </div>
               <ActionButton onClick={handleGitPushClick} disabled={!remoteName.trim() || !branchName.trim() || isLoading} isLoading={loadingAction === 'gitPush'}>
                 Push to Remote (`git push`)
@@ -341,6 +347,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         onChange={(e) => setPrompt(e.target.value)}
                         className="w-full h-28 p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition"
                         placeholder="Enter prompt text or file content here..."
+                        aria-label="Text prompt for AI processing"
                     />
                     <ActionButton onClick={handleProcessPromptClick} disabled={!prompt.trim() || isLoading} isLoading={loadingAction === 'processPrompt'}>
                         Process Text Prompt
@@ -361,6 +368,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         onChange={(e) => setUrl(e.target.value)}
                         className="w-full p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition"
                         placeholder="https://example.com"
+                        aria-label="URL for fetching and processing"
                     />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <ActionButton onClick={handleProcessUrlClick} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'processUrl'}>
@@ -393,7 +401,12 @@ const TabButton: React.FC<TabButtonProps> = ({ isActive, onClick, children }) =>
     const activeClasses = "text-brand-accent border-b-2 border-brand-accent";
     const inactiveClasses = "text-brand-text-secondary hover:text-brand-text-primary";
     return (
-        <button onClick={onClick} className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}>
+        <button 
+            onClick={onClick} 
+            className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
+            role="tab"
+            aria-selected={isActive}
+        >
             {children}
         </button>
     )
@@ -423,6 +436,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({ onClick, disabled, isLoadin
             onClick={onClick} 
             disabled={disabled}
             className={`${baseClasses} ${disabled ? disabledClasses : enabledClasses}`}
+            aria-disabled={disabled}
         >
             {isLoading ? <SpinnerIcon className="-ml-1 mr-3 h-5 w-5 text-white animate-spin" /> : children}
         </button>
@@ -460,7 +474,7 @@ const BashrcCodeDisplay: React.FC<BashrcCodeDisplayProps> = ({ code }) => {
 
     return (
         <div className="bg-brand-bg p-3 rounded-md relative font-mono text-sm text-brand-text-secondary border border-brand-border mt-3">
-            <button onClick={handleCopy} className="absolute top-2 right-2 text-xs bg-brand-border px-2 py-1 rounded hover:bg-brand-accent transition-colors">
+            <button onClick={handleCopy} className="absolute top-2 right-2 text-xs bg-brand-border px-2 py-1 rounded hover:bg-brand-accent transition-colors" aria-label="Copy .bashrc adaptation code">
                 {copied ? 'Copied!' : 'Copy Code'}
             </button>
             <pre><code className="whitespace-pre-wrap">{code}</code></pre>
@@ -480,7 +494,7 @@ const CodeSnippet: React.FC<CodeSnippetProps> = ({ commands }) => {
 
     return (
         <div className="bg-brand-bg p-3 rounded-md relative font-mono text-sm text-brand-text-secondary border border-brand-border mt-3">
-            <button onClick={handleCopy} className="absolute top-2 right-2 text-xs bg-brand-border px-2 py-1 rounded hover:bg-brand-accent transition-colors">
+            <button onClick={handleCopy} className="absolute top-2 right-2 text-xs bg-brand-border px-2 py-1 rounded hover:bg-brand-accent transition-colors" aria-label="Copy terminal commands">
                 {copied ? 'Copied!' : 'Copy'}
             </button>
             <pre><code className="whitespace-pre-wrap">
@@ -488,7 +502,7 @@ const CodeSnippet: React.FC<CodeSnippetProps> = ({ commands }) => {
                     <span key={i} className="block">
                         {cmd.startsWith('#') 
                             ? <span className="text-gray-500 italic">{cmd}</span> 
-                            : <><span className="text-brand-accent mr-1">$</span>{cmd}</>
+                            : <><span className="text-brand-accent mr-1" aria-hidden="true">$</span>{cmd}</>
                         }
                     </span>
                 ))}
