@@ -12,19 +12,27 @@
         theme: {
           extend: {
             colors: {
-              'brand-bg': '#1a1a1a',
-              'brand-surface': '#2a2a2a',
-              'brand-border': '#444444',
-              'brand-text-primary': '#f0f0f0',
-              'brand-text-secondary': '#a0a0a0',
-              'brand-accent': '#ff00ff',
-              'brand-accent-hover': '#e600e6',
-              'brand-info': '#87CEEB',
-              'brand-success': '#32CD32',
-              'brand-warn': '#FFA500',
-              'brand-error': '#DC143C',
-              'brand-gemini': '#8E44AD',
+              'brand-bg': '#0D1117',
+              'brand-surface': '#161B22',
+              'brand-border': '#30363D',
+              'brand-text-primary': '#C9D1D9',
+              'brand-text-secondary': '#8B949E',
+              'brand-accent': '#58A6FF',
+              'brand-accent-hover': '#79B8FF',
+              'brand-info': '#388BFD',
+              'brand-success': '#238636',
+              'brand-warn': '#9E6A03',
+              'brand-error': '#DA3633',
+              'brand-gemini': '#A371F7',
             },
+            animation: {
+              blink: 'blink 1s step-end infinite',
+            },
+            keyframes: {
+              blink: {
+                '50%': { opacity: '0' },
+              }
+            }
           },
         },
       }
@@ -40,7 +48,7 @@
 }
 </script>
 </head>
-  <body class="bg-brand-bg text-brand-text-primary">
+  <body class="bg-brand-bg text-brand-text-primary font-sans" style="background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0);">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

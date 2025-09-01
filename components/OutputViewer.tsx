@@ -1,9 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { LogEntry, LogType, ProcessedFile } from '../types';
 import { useTermuxDetection } from '../hooks/useTermuxDetection';
 import { CodeIcon } from './icons/CodeIcon';
 import { EyeIcon } from './icons/EyeIcon';
-import { SparklesIcon } from './icons/SparklesIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
 import DownloadButton from './DownloadButton';
 
@@ -40,9 +40,8 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
 
     switch (activeOutput) {
       case 'code':
-        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} language="bash" /> : <NoContent message="No output to display. Process something first." />;
+        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} /> : <NoContent message="No output to display. Process something first." />;
       case 'preview':
-        // A simple check to see if content might be HTML.
         return currentFile && currentFile.content.trim().startsWith('<') ? <iframe srcDoc={currentFile.content} title="Live Preview" className="w-full h-full bg-white rounded-b-lg" /> : <NoContent message="No HTML content to preview." />;
       case 'logs':
         return isTermux ? <TerminalView logs={logs} /> : <LogDisplay logs={logs} />;
@@ -62,7 +61,7 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
       </div>
 
       {processedOutput && processedOutput.length > 1 && (activeOutput === 'code' || activeOutput === 'preview') && (
-        <div className="flex border-b border-brand-border bg-brand-bg px-2 shrink-0 overflow-x-auto" role="tablist" aria-label="Processed files">
+        <div className="flex border-b border-brand-border bg-brand-bg/50 px-2 shrink-0 overflow-x-auto" role="tablist" aria-label="Processed files">
           {processedOutput.map((file, index) => (
             <FileTabButton
               key={`${file.fileName}-${index}`}
@@ -81,75 +80,54 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
   );
 };
 
+const OutputTabButton: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void; disabled?: boolean; }> = ({ icon, label, isActive, onClick, disabled = false }) => (
+    <button onClick={onClick} className={`flex items-center justify-center space-x-2 flex-1 text-center py-3 px-2 font-semibold transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-accent/50 ${disabled ? 'text-brand-text-secondary/50 cursor-not-allowed' : isActive ? 'text-brand-accent bg-brand-bg' : 'text-brand-text-secondary hover:text-brand-text-primary'}`} disabled={disabled} role="tab" aria-selected={isActive}>
+        {icon}
+        <span className="hidden sm:inline">{label}</span>
+    </button>
+);
 
-interface OutputTabButtonProps {
-    icon: React.ReactNode;
-    label: string;
-    isActive: boolean;
-    onClick: () => void;
-    disabled?: boolean;
-}
-
-const OutputTabButton: React.FC<OutputTabButtonProps> = ({ icon, label, isActive, onClick, disabled = false }) => {
-    const baseClasses = "flex items-center justify-center space-x-2 flex-1 text-center py-3 px-2 font-semibold transition-colors duration-300 focus:outline-none";
-    const activeClasses = "text-brand-accent border-b-2 border-brand-accent bg-brand-bg";
-    const inactiveClasses = "text-brand-text-secondary hover:text-brand-text-primary";
-    const disabledClasses = "text-gray-600 cursor-not-allowed";
-
-    return (
-        <button onClick={onClick} className={`${baseClasses} ${disabled ? disabledClasses : (isActive ? activeClasses : inactiveClasses)}`} disabled={disabled} role="tab" aria-selected={isActive}>
-            {icon}
-            <span className="hidden sm:inline">{label}</span>
-        </button>
-    );
-};
-
-interface FileTabButtonProps {
-    fileName: string;
-    isActive: boolean;
-    onClick: () => void;
-}
-
-const FileTabButton: React.FC<FileTabButtonProps> = ({ fileName, isActive, onClick }) => {
-    const baseClasses = "py-2 px-4 text-sm font-medium whitespace-nowrap transition-colors duration-200 focus:outline-none";
-    const activeClasses = "text-brand-accent border-b-2 border-brand-accent";
-    const inactiveClasses = "text-brand-text-secondary hover:text-brand-text-primary border-b-2 border-transparent";
-    return (
-        <button onClick={onClick} className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`} role="tab" aria-selected={isActive}>
-            {fileName}
-        </button>
-    );
-};
+const FileTabButton: React.FC<{ fileName: string; isActive: boolean; onClick: () => void; }> = ({ fileName, isActive, onClick }) => (
+    <button onClick={onClick} className={`py-2 px-4 text-sm font-medium whitespace-nowrap transition-colors duration-200 focus:outline-none border-b-2 ${isActive ? 'text-brand-accent border-brand-accent' : 'text-brand-text-secondary hover:text-brand-text-primary border-transparent'}`} role="tab" aria-selected={isActive}>
+        {fileName}
+    </button>
+);
 
 const LoadingSkeleton: React.FC = () => (
     <div className="p-6 animate-pulse" aria-label="Loading content">
         <div className="h-4 bg-brand-border rounded w-1/4 mb-4"></div>
-        <div className="h-4 bg-brand-border rounded w-full mb-2"></div>
-        <div className="h-4 bg-brand-border rounded w-full mb-2"></div>
-        <div className="h-4 bg-brand-border rounded w-3/4 mb-6"></div>
-        <div className="h-4 bg-brand-border rounded w-1/3 mb-4"></div>
-        <div className="h-4 bg-brand-border rounded w-full mb-2"></div>
-        <div className="h-4 bg-brand-border rounded w-5/6"></div>
+        <div className="space-y-2">
+            <div className="h-4 bg-brand-border rounded w-full"></div>
+            <div className="h-4 bg-brand-border rounded w-full"></div>
+            <div className="h-4 bg-brand-border rounded w-3/4"></div>
+        </div>
+        <div className="h-4 bg-brand-border rounded w-1/3 mb-4 mt-8"></div>
+        <div className="space-y-2">
+            <div className="h-4 bg-brand-border rounded w-full"></div>
+            <div className="h-4 bg-brand-border rounded w-5/6"></div>
+        </div>
     </div>
 );
 
 const InitialState: React.FC = () => (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <SparklesIcon className="w-16 h-16 text-brand-border mb-4" aria-hidden="true" />
+    <div className="flex flex-col items-center justify-center h-full text-center p-8 text-brand-text-secondary">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-4 text-brand-border">
+            <path d="M7 8L3 12L7 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M17 8L21 12L17 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M14 4L10 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
         <h3 className="text-xl font-bold text-brand-text-primary">Ready to Process</h3>
-        <p className="text-brand-text-secondary max-w-md">
-            Select a file or enter a prompt and choose an action from the control panel to see the results here.
-        </p>
+        <p className="max-w-md">Select an action from the control panel to see the results here.</p>
     </div>
 );
 
 const NoContent: React.FC<{ message: string }> = ({ message }) => (
-     <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <p className="text-brand-text-secondary max-w-md">{message}</p>
+     <div className="flex flex-col items-center justify-center h-full text-center p-8 text-brand-text-secondary">
+        <p className="max-w-md">{message}</p>
     </div>
 )
 
-const CodeDisplay: React.FC<{ content: string; fileName: string; language: string; }> = ({ content, fileName, language }) => {
+const CodeDisplay: React.FC<{ content: string; fileName: string; }> = ({ content, fileName }) => {
     const [copied, setCopied] = useState(false);
     const handleCopy = () => {
         navigator.clipboard.writeText(content);
@@ -162,13 +140,13 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; language: strin
             <div className="flex justify-between items-center p-3 bg-brand-surface border-b border-brand-border rounded-t-lg">
                 <span className="text-sm font-mono text-brand-text-secondary">{fileName}</span>
                 <div className="flex items-center space-x-2">
-                    <button onClick={handleCopy} className="text-sm bg-brand-border px-3 py-1 rounded hover:bg-brand-accent transition-colors">
+                    <button onClick={handleCopy} className="text-sm bg-brand-border/50 px-3 py-1 rounded hover:bg-brand-accent hover:text-white transition-colors">
                         {copied ? 'Copied!' : 'Copy'}
                     </button>
                     <DownloadButton content={content} fileName={fileName} />
                 </div>
             </div>
-            <pre className="p-4 text-sm overflow-auto flex-grow"><code className={`language-${language}`}>{content}</code></pre>
+            <pre className="p-4 text-sm overflow-auto flex-grow"><code className="language-bash">{content}</code></pre>
         </div>
     );
 };
@@ -176,7 +154,7 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; language: strin
 const logColorMap: { [key in LogType]: string } = {
     [LogType.Info]: 'text-brand-info',
     [LogType.Success]: 'text-brand-success',
-    [LogType.Warn]: 'text-brand-warn',
+    [LogType.Warn]: 'text-yellow-500', // Adjusted for better visibility on dark bg
     [LogType.Error]: 'text-brand-error',
     [LogType.Gemini]: 'text-brand-gemini',
 };
@@ -216,17 +194,16 @@ const TerminalView: React.FC<{ logs: LogEntry[] }> = ({ logs }) => {
             <br/>
             {logs.map((log, index) => (
                 <div key={index} className="flex items-start">
-                    <span className="text-gray-500 mr-2" aria-hidden="true">&gt;</span>
+                    <span className="text-green-400 mr-2" aria-hidden="true">~ $</span>
                     <span className={`font-bold mr-2 ${logColorMap[log.type]}`}>[{log.type.toUpperCase()}]</span>
                     <p className="flex-1 whitespace-pre-wrap text-gray-300">{log.message}</p>
                 </div>
             ))}
              <div className="text-green-400 mt-2" ref={terminalEndRef}>
-                <span className="animate-pulse">_</span>
+                <span>~ $ </span><span className="bg-green-400 w-2 h-4 inline-block animate-blink"></span>
             </div>
         </div>
     );
 };
-
 
 export default OutputViewer;

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { TerminalIcon } from './icons/TerminalIcon';
 import { DocumentTextIcon } from './icons/DocumentTextIcon';
@@ -58,7 +59,7 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({ content, fileName }) =>
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="text-sm bg-brand-border px-3 py-1 rounded hover:bg-brand-success transition-colors flex items-center"
+                className="text-sm bg-brand-border/50 px-3 py-1 rounded hover:bg-brand-success hover:text-white transition-colors flex items-center"
             >
                 Download
                 <svg className={`w-4 h-4 ml-1 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>

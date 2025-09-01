@@ -22,40 +22,30 @@ This is a web-based graphical user interface for the powerful "AI/AGI/AIM Unifie
     - See a live HTML preview of your output.
     - Monitor detailed logs of all operations in a clean, color-coded interface.
 
-## 🚀 Getting Started: Installing the CLI Tool
+## 🚀 Getting Started: Installing the Local Server
 
-The primary purpose of the "Installer" tab in this GUI is to help you set up the `ai` command-line tool on your system (especially for Termux/proot-distro environments).
+The "Installer" tab provides a script to set up a complete, persistent local development server for CODERS-AGI, optimized for Termux/proot-distro environments.
 
 1.  **Navigate to the Installer Tab**: Open the application and click on the "Installer" tab in the control panel.
 
-2.  **Step 1: Generate the Script**:
-    - Click the **"Generate `ai` Installer Script"** button.
-    - The `ai` shell script will appear in the output viewer.
-    - Use the **Download** button to save the script to your local machine (as `ai`).
+2.  **Generate the Installer Script**: Click the **"Generate Installer Script"** button. The new installer script will appear in the output viewer.
 
-3.  **Step 2: Make it Executable**:
-    - Move the downloaded `ai` script to a directory in your `PATH`, like `~/bin` or `~`.
-    - Open your terminal and run the following command:
+3.  **Download and Run**:
+    - Use the **Download** button to save the generated script as `install.sh` or a similar name.
+    - Open your terminal, make the script executable, and run it:
       ```bash
-      chmod +x ai
+      chmod +x install.sh
+      ./install.sh
       ```
+    - The script will clone the repository, install Node.js (via nvm if needed), install project dependencies, and set up launcher scripts.
 
-4.  **Step 3: Initialize the Environment**:
-    - Run the script's built-in installer:
+4.  **Start the Server**:
+    - The installer adds an auto-start hook to your `~/.bashrc`. Open a new terminal session, and the server should start automatically in the background.
+    - To manually start it or attach to the running session, use the new command:
       ```bash
-      ./ai init
+      coders-agi
       ```
-    - This command will:
-        - Create a backup of your existing `~/.bashrc`.
-        - Add the necessary aliases and `PATH` configurations to a new `~/.bashrc`.
-        - Copy itself to `~/bin/ai` for system-wide access.
-
-5.  **Step 4: Reload Your Shell**:
-    - To apply the changes, either restart your terminal session or run:
-      ```bash
-      source ~/.bashrc
-      ```
-    - You can now use the `ai` command from anywhere in your terminal!
+    - On Termux, this will also automatically open the URL `http://localhost:8888` in your browser.
 
 ## 🖥️ Using the GUI
 
@@ -83,15 +73,12 @@ The primary purpose of the "Installer" tab in this GUI is to help you set up the
 
 ## 💻 Command-Line Usage (Quick Reference)
 
-Once installed, you can use the script directly from your terminal.
+Once the installer has run, two new commands are available in your shell:
 
--   **Initialize Installer**: `ai init`
--   **Process Files**: `ai - [file1] [file2] ...`
--   **Process Script Logic**: `ai + [file]`
--   **Batch Process**: `ai * "*.js"`
--   **Scan Environment**: `ai .`
--   **Pipeline Processing**: `ai : "file1:file2:file3"`
--   **Run a Prompt**: `ai "your prompt here"` or `ai https://example.com`
--   **Watch a Folder (AGI)**: `ai agi + /path/to/folder`
+-   **Start/Attach Server**: `coders-agi`
+    -   Starts the server in a background `tmux` session if it's not running.
+    -   Attaches to the running `tmux` session so you can see logs.
+-   **Stop Server**: `coders-agi-stop`
+    -   Kills the background `tmux` session, stopping the server.
 
-This GUI provides a safe and intuitive way to explore these features before, during, and after you've installed the command-line tool.
+The web application will be available at **http://localhost:8888** as long as the server is running.

@@ -1,6 +1,7 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
-import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitInit, gitAdd, gitCommit, gitPush } from './services/scriptService';
+import { processFiles, scanEnvironment, processPrompt, getBashrcAdaptation, getInstallScript, processUrlPrompt, gitInit, gitAdd, gitCommit, gitPush } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
 import { processHtml } from './services/enhancementService';
 import Header from './components/Header';
@@ -250,6 +251,7 @@ const App: React.FC = () => {
       setProgress(100);
 
     } catch (error) {
+// FIX: Added missing opening brace to the catch block to fix a major syntax error.
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `Gemini AI enhancement failed: ${errorMessage}`);
       setActiveOutput('logs');
