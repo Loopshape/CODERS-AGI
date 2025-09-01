@@ -10,6 +10,9 @@ interface ControlPanelProps {
   onProcessUrl: (url: string) => void;
   onUrlEnhance: (url: string) => void;
   onGeminiEnhance: (file: File) => void;
+  onLocalAIEnhance: (file: File) => void;
+  onImproveLocalAI: () => void;
+  hasEnhancedFile: boolean;
   onGetInstallerScript: () => void;
   onGitInit: () => void;
   onGitAdd: (files: string) => void;
@@ -28,6 +31,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onProcessUrl,
     onUrlEnhance,
     onGeminiEnhance,
+    onLocalAIEnhance,
+    onImproveLocalAI,
+    hasEnhancedFile,
     onGetInstallerScript,
     onGitInit,
     onGitAdd,
@@ -71,6 +77,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const handleGeminiEnhanceClick = () => {
     if (selectedFiles.length > 0) {
         onGeminiEnhance(selectedFiles[0]);
+    }
+  }
+
+  const handleLocalAIEnhanceClick = () => {
+    if (selectedFiles.length > 0) {
+        onLocalAIEnhance(selectedFiles[0]);
     }
   }
 
@@ -168,7 +180,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 
                 <div className="p-4 border border-brand-border rounded-lg space-y-3 bg-brand-bg/30">
                     <h3 className="text-xl font-semibold text-brand-text-primary">Step 1: Get the Installer Script</h3>
-                    <p className="text-sm text-brand-text-secondary">This generates the main `ai` script. Download it and make it executable.</p>
+                    <p className="text-sm text-brand-text-secondary">This generates the main `ai` script. After downloading, make it executable using the command shown below.</p>
                     <ActionButton onClick={onGetInstallerScript} disabled={isLoading} isLoading={loadingAction === 'getInstallerScript'}>
                         Generate `ai` Installer Script
                     </ActionButton>
@@ -180,7 +192,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                 <div className="p-4 border border-brand-border rounded-lg space-y-3 bg-brand-bg/30">
                     <h3 className="text-xl font-semibold text-brand-text-primary">Step 2: Initialize & Configure</h3>
-                    <p className="text-sm text-brand-text-secondary">Run the script's `init` command. This automatically adapts your `~/.bashrc` with the content below after creating a backup.</p>
+                    <p className="text-sm text-brand-text-secondary">Run the script's `init` command to finalize setup. After initialization, you must restart your shell for the changes to take effect, as shown in the command below.</p>
                     <BashrcCodeDisplay code={BASHRC_ADAPTATION_CODE} />
                     <CodeSnippet commands={[
                         './ai init',
@@ -192,55 +204,76 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         )}
         {activeTab === 'ai' && (
           <div className="flex flex-col space-y-6">
-            <h2 className="text-xl font-semibold text-brand-text-primary">1. Select File(s)</h2>
-            <div 
-                onClick={triggerFileSelect}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                className={`flex flex-col justify-center items-center w-full min-h-[8rem] p-4 transition-all bg-brand-bg border-2 border-brand-border border-dashed rounded-md appearance-none cursor-pointer hover:border-brand-accent focus:outline-none ${isDragging ? 'border-brand-accent ring-2 ring-brand-accent/50' : ''}`}
-            >
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" />
-                {selectedFiles.length > 0 ? (
-                    <div className="text-center w-full">
-                        <p className="text-brand-success font-medium">{selectedFiles.length} file(s) selected</p>
-                        <ul className="text-xs text-brand-text-secondary mt-2 list-disc list-inside max-h-24 overflow-y-auto text-left px-4">
-                           {selectedFiles.map(f => {
-                              const isProcessingThisFile = 
-                                loadingAction === 'processFiles' ||
-                                (loadingAction === 'geminiEnhance' && processingFile?.name === f.name);
-                              return (
-                                <li key={f.name} className="flex items-center justify-between text-brand-text-secondary">
-                                  <span className="truncate pr-2">{f.name}</span>
-                                  {isProcessingThisFile && <SpinnerIcon className="w-4 h-4 text-brand-accent flex-shrink-0 animate-spin" />}
-                                </li>
-                              );
-                            })}
-                        </ul>
-                    </div>
-                ) : (
-                     <span className="flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-brand-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                        <span className="font-medium text-brand-text-secondary">
-                          {isDragging ? "Drop files here" : <>Drop files or <span className="text-brand-accent">browse</span></>}
+            <div>
+                <h2 className="text-xl font-semibold text-brand-text-primary">1. Select File(s)</h2>
+                <div 
+                    onClick={triggerFileSelect}
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    className={`mt-3 flex flex-col justify-center items-center w-full min-h-[8rem] p-4 transition-all bg-brand-bg border-2 border-brand-border border-dashed rounded-md appearance-none cursor-pointer hover:border-brand-accent focus:outline-none ${isDragging ? 'border-brand-accent ring-2 ring-brand-accent/50' : ''}`}
+                >
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" />
+                    {selectedFiles.length > 0 ? (
+                        <div className="text-center w-full">
+                            <p className="text-brand-success font-medium">{selectedFiles.length} file(s) selected</p>
+                            <ul className="text-xs text-brand-text-secondary mt-2 list-disc list-inside max-h-24 overflow-y-auto text-left px-4">
+                               {selectedFiles.map(f => {
+                                  const isProcessingThisFile = 
+                                    loadingAction === 'processFiles' ||
+                                    (loadingAction === 'geminiEnhance' && processingFile?.name === f.name) ||
+                                    (loadingAction === 'localAIEnhance' && processingFile?.name === f.name);
+                                  return (
+                                    <li key={f.name} className="flex items-center justify-between text-brand-text-secondary">
+                                      <span className="truncate pr-2">{f.name}</span>
+                                      {isProcessingThisFile && <SpinnerIcon className="w-4 h-4 text-brand-accent flex-shrink-0 animate-spin" />}
+                                    </li>
+                                  );
+                                })}
+                            </ul>
+                        </div>
+                    ) : (
+                         <span className="flex items-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-brand-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                            <span className="font-medium text-brand-text-secondary">
+                              {isDragging ? "Drop files here" : <>Drop files or <span className="text-brand-accent">browse</span></>}
+                            </span>
                         </span>
-                    </span>
-                )}
+                    )}
+                </div>
             </div>
-            <h2 className="text-xl font-semibold text-brand-text-primary">2. Choose Action</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ActionButton onClick={handleProcessFilesClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'processFiles'}>
-                Process File(s) (`-` `*` `:`)
-              </ActionButton>
-              <ActionButton onClick={handleGeminiEnhanceClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'geminiEnhance'} isGemini>
-                Review with Gemini AI 🧐
-              </ActionButton>
-              <div className="md:col-span-2">
-                <ActionButton onClick={onScanEnvironment} disabled={isLoading} isLoading={loadingAction === 'scanEnvironment'}>
-                  Scan Environment (`.`)
+            
+            <div>
+                <h2 className="text-xl font-semibold text-brand-text-primary">2. Choose Action</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                  <ActionButton onClick={handleProcessFilesClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'processFiles'}>
+                    Process File(s)
+                  </ActionButton>
+                  <ActionButton onClick={handleLocalAIEnhanceClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'localAIEnhance'} isLocal>
+                    Local AI Enhance
+                  </ActionButton>
+                  <ActionButton onClick={handleGeminiEnhanceClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'geminiEnhance'} isGemini>
+                    Gemini AI Enhance
+                  </ActionButton>
+                  <ActionButton onClick={onScanEnvironment} disabled={isLoading} isLoading={loadingAction === 'scanEnvironment'}>
+                    Scan Environment
+                  </ActionButton>
+                </div>
+            </div>
+
+            <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-brand-border"></div>
+                <span className="flex-shrink mx-4 text-brand-text-secondary uppercase text-sm">Then</span>
+                <div className="flex-grow border-t border-brand-border"></div>
+            </div>
+
+            <div>
+                <h2 className="text-xl font-semibold text-brand-text-primary">3. AI Training</h2>
+                <p className="text-sm text-brand-text-secondary mt-1 mb-3">Use the output of "Gemini AI Enhance" to improve the local model.</p>
+                <ActionButton onClick={onImproveLocalAI} disabled={!hasEnhancedFile || isLoading} isLoading={loadingAction === 'improveLocalAI'}>
+                    Improve Local AI
                 </ActionButton>
-              </div>
             </div>
           </div>
         )}
@@ -334,7 +367,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             Fetch & Process
                         </ActionButton>
                         <ActionButton onClick={handleUrlEnhanceClick} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'urlEnhance'} isGemini>
-                            Fetch & Enhance ✨
+                            URL Enhance
                         </ActionButton>
                     </div>
                 </div>
@@ -372,13 +405,17 @@ interface ActionButtonProps {
     isLoading: boolean;
     children: React.ReactNode;
     isGemini?: boolean;
+    isLocal?: boolean;
 }
 
-const ActionButton: React.FC<ActionButtonProps> = ({ onClick, disabled, isLoading, children, isGemini = false}) => {
+const ActionButton: React.FC<ActionButtonProps> = ({ onClick, disabled, isLoading, children, isGemini = false, isLocal = false}) => {
     const baseClasses = "w-full text-white font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out flex items-center justify-center shadow-lg";
-    const enabledClasses = isGemini 
-        ? "bg-brand-gemini hover:bg-purple-700"
-        : "bg-brand-accent hover:bg-brand-accent-hover";
+    let enabledClasses = "bg-brand-accent hover:bg-brand-accent-hover";
+    if (isGemini) {
+        enabledClasses = "bg-brand-gemini hover:bg-purple-700";
+    } else if (isLocal) {
+        enabledClasses = "bg-brand-info hover:bg-sky-500";
+    }
     const disabledClasses = "bg-gray-600 cursor-not-allowed";
 
     return (

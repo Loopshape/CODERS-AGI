@@ -24,29 +24,39 @@ export const processHtml = (content: string): { enhancedContent: string; logs: s
       logs.push('Added "AI: monitored" comments to event listeners.');
   }
 
-  // 4. Semantic HTML
-  const sectionRegex = /<div class="section"/g;
-  const sectionEndRegex = /<\/div><!-- \.section -->/g;
-  if(sectionRegex.test(processedContent)) {
-    processedContent = processedContent.replace(sectionRegex, '<section class="section"');
+  // 4. Semantic HTML: Replace div.section with <section>
+  const originalContentForSections = processedContent;
+  processedContent = processedContent.replace(/<div([^>]*)>/gi, (match, attributes) => {
+    if (/\bclass\s*=\s*(['"])[^\1]*\bsection\b[^\1]*\1/.test(attributes)) {
+      return `<section${attributes}>`;
+    }
+    return match;
+  });
+
+  if (originalContentForSections !== processedContent) {
+    const sectionEndRegex = /<\/div><!-- \.section -->/g;
     processedContent = processedContent.replace(sectionEndRegex, '</section>');
-    logs.push('Replaced semantic div.section with <section> tags.');
+    logs.push('Replaced div.section with <section> tags.');
   }
   
-  // 5. ARIA Roles
-  const replacements: { [key: string]: string } = {
-    '<nav': '<nav role="navigation"',
-    '<header': '<header role="banner"',
-    '<main': '<main role="main"',
-    '<footer': '<footer role="contentinfo"',
+  // 5. ARIA Roles Injection (if missing)
+  const roles: { [key: string]: string } = {
+    'nav': 'navigation',
+    'header': 'banner',
+    'main': 'main',
+    'footer': 'contentinfo',
   };
 
-  for (const [key, value] of Object.entries(replacements)) {
-    const regex = new RegExp(key, "gi");
-    if(regex.test(processedContent)) {
-        processedContent = processedContent.replace(regex, value);
-        logs.push(`Added role to <${key.substring(1)}> tag.`);
-    }
+  for (const [tag, role] of Object.entries(roles)) {
+    const tagRegex = new RegExp(`<(${tag})([^>]*)>`, 'gi');
+    processedContent = processedContent.replace(tagRegex, (match, tagName, attributes) => {
+        // Check if a role attribute already exists
+        if (!/\srole\s*=\s*['"]/.test(attributes)) {
+            logs.push(`Injected role="${role}" into <${tagName}> tag.`);
+            return `<${tagName} role="${role}"${attributes}>`;
+        }
+        return match; // Return original match if role exists
+    });
   }
 
   if(logs.length === 0) {

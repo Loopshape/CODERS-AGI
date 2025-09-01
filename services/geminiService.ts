@@ -7,16 +7,19 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getGeminiSuggestions = async (htmlContent: string): Promise<string> => {
   const prompt = `
-You are an expert frontend developer. Your task is to analyze the following HTML/JS code and provide an enhanced version.
-Apply these enhancements:
-1.  **Semantic HTML**: Replace non-semantic tags with appropriate semantic tags.
-2.  **Accessibility (ARIA)**: Add necessary ARIA roles and attributes.
-3.  **JavaScript Comments**: Add clear, concise comments to JavaScript functions.
-4.  **Best Practices**: Apply any other modern best practices.
+Act as an expert senior frontend engineer tasked with refactoring and enhancing the following code snippet. Your goal is to apply modern best practices to improve its structure, accessibility, and readability. This refactored code will be used as training data to improve our local AI model's understanding of high-quality code.
 
-IMPORTANT: Respond ONLY with the complete, enhanced code block. Do not include any explanations, greetings, or markdown formatting.
+Please follow these instructions precisely:
 
-Here is the code to enhance:
+1.  **Refactor to Semantic HTML**: Analyze the HTML structure. Replace non-semantic tags (like \`<div>\` used for layout) with appropriate semantic tags such as \`<header>\`, \`<footer>\`, \`<nav>\`, \`<main>\`, \`<section>\`, and \`<article>\` where applicable.
+
+2.  **Improve Accessibility**: Enhance the code for screen readers and assistive technologies. Add necessary ARIA roles (e.g., \`role="navigation"\`, \`role="main"\`) and attributes (e.g., \`aria-label\`, \`aria-labelledby\`) to interactive elements and landmarks.
+
+3.  **CRITICAL - Add JSDoc Comments**: You MUST locate every JavaScript function within \`<script>\` tags. For each function, add a complete JSDoc comment block. This must include a description of the function, a \`@param\` tag for every parameter (with type and description), and a \`@returns\` tag if the function returns a value.
+
+**ABSOLUTE OUTPUT CONSTRAINT**: You MUST return ONLY raw code. Do not include any surrounding text, explanations, apologies, or markdown formatting like \`\`\`html. The output must be nothing but the code itself.
+
+Original Code Snippet to enhance:
 \`\`\`html
 ${htmlContent}
 \`\`\`
@@ -31,7 +34,7 @@ ${htmlContent}
     let suggestedCode = response.text;
     
     // Clean up markdown backticks that the model might add
-    suggestedCode = suggestedCode.replace(/^```(html|xml)?\n/, '').replace(/\n```$/, '');
+    suggestedCode = suggestedCode.replace(/^```(html|xml|javascript)?\n/, '').replace(/\n```$/, '');
 
     return suggestedCode.trim();
 
@@ -47,13 +50,29 @@ ${htmlContent}
 
 export const getGeminiCodeReview = async (codeContent: string): Promise<CodeReviewReport> => {
     const prompt = `
-You are an expert code reviewer specializing in frontend development (HTML, CSS, JavaScript). 
-Your task is to analyze the following code and provide a structured review report in JSON format.
-Focus on identifying potential bugs, security vulnerabilities, and performance improvements.
-For each issue, provide the line number if applicable, a clear description of the issue, and a concrete suggestion for fixing it.
-Also, provide a brief, one-sentence summary of the code quality.
+Act as an automated code review service powered by an expert AI. Your analysis must be meticulous, objective, and focused on providing actionable feedback.
 
-Here is the code to review:
+Your task is to analyze the following frontend code (HTML/JS/CSS) and generate a structured review report in the required JSON format.
+
+**Review Directives:**
+
+1.  **Overall Summary**: Begin with a concise, one-sentence summary that captures the overall quality and main areas for improvement.
+2.  **Potential Bugs**:
+    - Look for null reference errors, race conditions, off-by-one errors, and logical flaws.
+    - Check for incorrect event handling or DOM manipulation that could lead to unexpected behavior.
+3.  **Security Vulnerabilities**:
+    - Scrutinize for Cross-Site Scripting (XSS) vulnerabilities (e.g., use of \`innerHTML\` with user-provided content).
+    - Check for insecure direct object references or missing validation on inputs.
+    - Look for usage of deprecated or insecure APIs.
+4.  **Performance Improvements**:
+    - Identify inefficient DOM queries inside loops.
+    - Suggest optimizations for event listeners (e.g., event delegation).
+    - Look for large, unoptimized assets or blocking JavaScript operations.
+5.  **Actionable Suggestions**: For every issue identified, provide a clear description and a concrete, practical code suggestion for how to fix it. If a line number is relevant, include it.
+
+Your final output must strictly adhere to the provided JSON schema. Do not add any text outside of the JSON object.
+
+Code for review:
 \`\`\`
 ${codeContent}
 \`\`\`
