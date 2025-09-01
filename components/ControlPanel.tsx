@@ -10,6 +10,7 @@ interface ControlPanelProps {
   onProcessUrl: (url: string) => void;
   onUrlEnhance: (url: string) => void;
   onGeminiEnhance: (file: File) => void;
+  onGeminiCodeReview: (file: File) => void;
   onLocalAIEnhance: (file: File) => void;
   onImproveLocalAI: () => void;
   hasEnhancedFile: boolean;
@@ -31,6 +32,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onProcessUrl,
     onUrlEnhance,
     onGeminiEnhance,
+    onGeminiCodeReview,
     onLocalAIEnhance,
     onImproveLocalAI,
     hasEnhancedFile,
@@ -77,6 +79,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const handleGeminiEnhanceClick = () => {
     if (selectedFiles.length > 0) {
         onGeminiEnhance(selectedFiles[0]);
+    }
+  }
+
+  const handleGeminiCodeReviewClick = () => {
+    if (selectedFiles.length > 0) {
+        onGeminiCodeReview(selectedFiles[0]);
     }
   }
 
@@ -227,6 +235,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                   const isProcessingThisFile = 
                                     loadingAction === 'processFiles' ||
                                     (loadingAction === 'geminiEnhance' && processingFile?.name === f.name) ||
+                                    (loadingAction === 'geminiCodeReview' && processingFile?.name === f.name) ||
                                     (loadingAction === 'localAIEnhance' && processingFile?.name === f.name);
                                   return (
                                     <li key={f.name} className="flex items-center justify-between text-brand-text-secondary">
@@ -259,6 +268,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   </ActionButton>
                   <ActionButton onClick={handleGeminiEnhanceClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'geminiEnhance'} isGemini>
                     Gemini AI Enhance
+                  </ActionButton>
+                  <ActionButton onClick={handleGeminiCodeReviewClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'geminiCodeReview'} isGeminiReview>
+                    Gemini Code Review
                   </ActionButton>
                   <ActionButton onClick={onScanEnvironment} disabled={isLoading} isLoading={loadingAction === 'scanEnvironment'}>
                     Scan Environment
@@ -418,16 +430,19 @@ interface ActionButtonProps {
     isLoading: boolean;
     children: React.ReactNode;
     isGemini?: boolean;
+    isGeminiReview?: boolean;
     isLocal?: boolean;
 }
 
-const ActionButton: React.FC<ActionButtonProps> = ({ onClick, disabled, isLoading, children, isGemini = false, isLocal = false}) => {
+const ActionButton: React.FC<ActionButtonProps> = ({ onClick, disabled, isLoading, children, isGemini = false, isLocal = false, isGeminiReview = false}) => {
     const baseClasses = "w-full text-white font-bold py-3 px-4 rounded-lg transition duration-300 ease-in-out flex items-center justify-center shadow-lg";
     let enabledClasses = "bg-brand-accent hover:bg-brand-accent-hover";
     if (isGemini) {
         enabledClasses = "bg-brand-gemini hover:bg-purple-700";
     } else if (isLocal) {
         enabledClasses = "bg-brand-info hover:bg-sky-500";
+    } else if (isGeminiReview) {
+        enabledClasses = "bg-brand-warn hover:bg-orange-600";
     }
     const disabledClasses = "bg-gray-600 cursor-not-allowed";
 

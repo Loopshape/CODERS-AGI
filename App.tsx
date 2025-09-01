@@ -262,6 +262,52 @@ const App: React.FC = () => {
         }, 500);
     }
   }, [addLog]);
+  
+  const handleGeminiCodeReview = useCallback(async (file: File) => {
+    if (!file) {
+      addLog(LogType.Warn, "No file selected for Gemini Code Review.");
+      return;
+    }
+
+    setProcessingFile(file);
+    setLoadingAction('geminiCodeReview');
+    setProgress(10);
+    setLogs([]);
+    setProcessedOutput(null);
+    setActiveFileIndex(0);
+    addLog(LogType.Gemini, `Starting code review for ${file.name} with Gemini AI...`);
+    setActiveOutput('logs');
+
+    try {
+      setProgress(25);
+      const fileContent = await file.text();
+      addLog(LogType.Info, `Read file content, sending to Gemini AI for review.`);
+      setProgress(50);
+      
+      const reviewReport = await getGeminiCodeReview(fileContent);
+      setProgress(90);
+
+      const reviewMarkdown = formatReviewAsMarkdown(reviewReport, file.name);
+      const newFileName = `review_for_${file.name}.md`;
+
+      setProcessedOutput([{ fileName: newFileName, content: reviewMarkdown }]);
+      addLog(LogType.Success, `Successfully received code review from Gemini AI.`);
+      setActiveOutput('code');
+      setProgress(100);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      addLog(LogType.Error, `Gemini AI code review failed: ${errorMessage}`);
+      setActiveOutput('logs');
+      setProgress(100);
+    } finally {
+       setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
+            setProcessingFile(null);
+        }, 500);
+    }
+  }, [addLog]);
 
   const handleUrlEnhance = useCallback(async (url: string) => {
     setLoadingAction('urlEnhance');
@@ -364,6 +410,7 @@ const App: React.FC = () => {
               onProcessPrompt={handleProcessPrompt}
               onProcessUrl={handleProcessUrl}
               onGeminiEnhance={handleGeminiEnhance}
+              onGeminiCodeReview={handleGeminiCodeReview}
               onLocalAIEnhance={handleLocalAIEnhance}
               onUrlEnhance={handleUrlEnhance}
               onImproveLocalAI={handleImproveLocalAI}
