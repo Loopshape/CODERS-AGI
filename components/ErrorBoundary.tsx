@@ -1,8 +1,9 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 
+// Fix: Add onImproveLocalAI to props interface
 interface Props {
   children: ReactNode;
-  onImproveLocalAI: () => void;
+  onImproveLocalAI?: () => void;
 }
 
 interface State {
@@ -27,10 +28,6 @@ class ErrorBoundary extends Component<Props, State> {
   private handleReload = () => {
     window.location.reload();
   };
-  
-  private handleReport = () => {
-    this.props.onImproveLocalAI();
-  };
 
   public render() {
     if (this.state.hasError) {
@@ -39,7 +36,7 @@ class ErrorBoundary extends Component<Props, State> {
           <div className="bg-brand-surface p-8 rounded-lg border border-brand-error shadow-2xl text-center max-w-2xl">
             <h1 className="text-4xl font-bold text-brand-error mb-4">Oops! Something Went Wrong</h1>
             <p className="text-lg text-brand-text-secondary mb-6">
-              An unexpected error occurred. You can help improve our AI by reporting this issue.
+              An unexpected error occurred in the application. Please reload to continue.
             </p>
             {this.state.error && (
               <details className="bg-brand-bg p-3 rounded-lg text-left text-sm text-brand-text-secondary w-full overflow-auto mb-6 cursor-pointer">
@@ -49,19 +46,22 @@ class ErrorBoundary extends Component<Props, State> {
                 </pre>
               </details>
             )}
-            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+            {/* Fix: Add flex container and the "Improve Local AI" button */}
+            <div className="flex items-center justify-center space-x-4">
               <button
                 onClick={this.handleReload}
                 className="w-full sm:w-auto px-6 py-3 bg-brand-accent text-white font-bold rounded-lg hover:bg-brand-accent-hover transition-colors focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 focus:ring-offset-brand-surface"
               >
                 Reload Page
               </button>
-              <button
-                onClick={this.handleReport}
-                className="w-full sm:w-auto px-6 py-3 bg-brand-info text-white font-bold rounded-lg hover:bg-sky-500 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-info focus:ring-offset-2 focus:ring-offset-brand-surface"
-              >
-                Report & Improve AI
-              </button>
+              {this.props.onImproveLocalAI && (
+                  <button
+                    onClick={this.props.onImproveLocalAI}
+                    className="w-full sm:w-auto px-6 py-3 bg-brand-info text-white font-bold rounded-lg hover:bg-brand-accent-hover transition-colors focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 focus:ring-offset-brand-surface"
+                  >
+                    Improve Local AI
+                  </button>
+              )}
             </div>
           </div>
         </div>

@@ -1,10 +1,11 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { LogEntry, LogType, ProcessedFile } from '../types';
 import { useTermuxDetection } from '../hooks/useTermuxDetection';
 import { CodeIcon } from './icons/CodeIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
 import DownloadButton from './DownloadButton';
 
 interface OutputViewerProps {
@@ -127,6 +128,38 @@ const NoContent: React.FC<{ message: string }> = ({ message }) => (
     </div>
 )
 
+const getLanguage = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase() || '';
+    switch (extension) {
+        case 'js':
+        case 'jsx':
+            return 'javascript';
+        case 'ts':
+        case 'tsx':
+            return 'typescript';
+        case 'css':
+            return 'css';
+        case 'json':
+            return 'json';
+        case 'html':
+        case 'xml':
+            return 'markup';
+        case 'md':
+            return 'markdown';
+        case 'sh':
+            return 'bash';
+        case 'py':
+            return 'python';
+        case 'java':
+            return 'java';
+        case 'c':
+        case 'cpp':
+            return 'cpp';
+        default:
+            return 'plaintext';
+    }
+};
+
 const CodeDisplay: React.FC<{ content: string; fileName: string; }> = ({ content, fileName }) => {
     const [copied, setCopied] = useState(false);
     const handleCopy = () => {
@@ -134,6 +167,8 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; }> = ({ content
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
+
+    const language = getLanguage(fileName);
 
     return (
         <div className="bg-brand-bg rounded-lg h-full flex flex-col">
@@ -146,7 +181,20 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; }> = ({ content
                     <DownloadButton content={content} fileName={fileName} />
                 </div>
             </div>
-            <pre className="p-4 text-sm overflow-auto flex-grow"><code className="language-bash">{content}</code></pre>
+            <div className="flex-grow overflow-auto text-sm" style={{fontSize: '0.875rem'}}>
+                <SyntaxHighlighter
+                    language={language}
+                    style={vscDarkPlus}
+                    showLineNumbers
+                    wrapLines={true}
+                    wrapLongLines={true}
+                    lineNumberStyle={{ minWidth: '2.5em', paddingRight: '1em', textAlign: 'right', color: '#8B949E' }}
+                    customStyle={{ margin: 0, height: '100%', backgroundColor: '#0D1117', padding: '1rem' }}
+                    codeTagProps={{ style: { fontFamily: 'inherit' } }}
+                >
+                    {String(content).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+            </div>
         </div>
     );
 };
@@ -189,7 +237,7 @@ const TerminalView: React.FC<{ logs: LogEntry[] }> = ({ logs }) => {
 
     return (
         <div className="bg-black rounded-lg p-4 font-mono text-sm text-white h-full overflow-y-auto" aria-live="polite" aria-atomic="false">
-            <p className="text-green-400">Welcome to AI/AGI/AIM Terminal View [v1.0.0]</p>
+            <p className="text-green-400">Welcome to AI/AGI/AIM Terminal View [v2.0.0]</p>
             <p className="text-gray-500">Log output below. Newest entries appear last.</p>
             <br/>
             {logs.map((log, index) => (

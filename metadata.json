@@ -1,5 +1,5 @@
 {
   "name": "AI/AGI/AIM Unified Tool GUI",
-  "description": "A web-based graphical user interface for a powerful script that enhances HTML/JS files using predefined regex rules and AI-powered suggestions from a local model via Ollama.",
+  "description": "A web-based graphical user interface for the AI/AGI/AIM Unified Processing Tool, a bash script for file processing and environment interaction via a local Ollama model.",
   "requestFramePermissions": []
 }

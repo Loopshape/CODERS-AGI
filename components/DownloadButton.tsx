@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { TerminalIcon } from './icons/TerminalIcon';
 import { DocumentTextIcon } from './icons/DocumentTextIcon';
-import { SparklesIcon } from './icons/SparklesIcon';
+import { SparklesIcon } from './SparklesIcon';
 import { CodeIcon } from './icons/CodeIcon';
 
 interface DownloadButtonProps {

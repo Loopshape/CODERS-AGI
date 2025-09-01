@@ -1,18 +1,12 @@
 import { LogType, ProcessedFile } from '../types';
 
-export const UNIVERSAL_LAW = `:BOF:
-redo complete layout and design an advanced symetrics to proximity accordance
-for dedicated info-quota alignments, which grant a better adjustment for
-leading besides subliminal range compliance promisings, that affair any
-competing content relations into a cognitive intuitition guidance comparison
-between space and gap implies, that are suggesting the viewer a subcoordinated
-experience alongside repetitive tasks and stoic context sortings, all
-cooperational aligned to timed subjects of importance accordingly to random
-capacity within builds of data statements, that prognose the grid reliability
+export const UNIVERSAL_LAW = `:bof:
+redo complete layout and design an advanced symetrics to proximity accordance for dedicated info-quota alignments, which grant a better adjustment for leading besides subliminal range compliance promisings, that affair any competing content relations into a cognitive intuitition guidance comparison between space and gap implies, that are suggesting the viewer a subcoordinated experience alongside repetitive tasks and stoic context sortings, all cooperational aligned to timed subjects of importance accordingly to random capacity within builds of data statements, that prognose the grid reliability
 of a mockup as given optically acknowledged for a more robust but also as
 attractive rulership into golden-ratio item handling
-:EOF:`;
+:eof:`;
 
+// Fix: Rename aiFile to processFiles
 export const processFiles = async (files: File[], onProgress: (progress: number) => void): Promise<{ outputs: ProcessedFile[]; logs: { type: LogType; message: string; }[] }> => {
     const logs: {type: LogType, message: string}[] = [];
     const outputs: ProcessedFile[] = [];
@@ -20,37 +14,33 @@ export const processFiles = async (files: File[], onProgress: (progress: number)
 
     if (totalFiles === 0) {
         logs.push({type: LogType.Warn, message: 'No files selected for processing.'});
-        return {
-            outputs: [],
-            logs,
-        };
+        return { outputs: [], logs };
     }
 
     for (let i = 0; i < totalFiles; i++) {
         const file = files[i];
         
         logs.push({ type: LogType.Info, message: `Processing file: ${file.name}` });
+        logs.push({ type: LogType.Info, message: `Backup created for ${file.name}` });
         // Simulate the script's fallback behavior when Ollama is not present
         logs.push({ type: LogType.Warn, message: `Ollama not found, writing universal law instead` });
 
         outputs.push({
-            fileName: `${file.name}.processed`, // The new script adds .processed
+            fileName: `${file.name}.processed`,
             content: UNIVERSAL_LAW,
         });
         
         const progress = Math.round(((i + 1) / totalFiles) * 100);
         onProgress(progress);
-        await new Promise(res => setTimeout(res, 50));
+        await new Promise(res => setTimeout(res, 100));
     }
 
-    logs.push({ type: LogType.Success, message: 'Batch processing simulation complete.' });
+    logs.push({ type: LogType.Success, message: 'File processing simulation complete.' });
 
-    return {
-        outputs,
-        logs,
-    };
+    return { outputs, logs };
 };
 
+// Fix: Rename aiEnv to scanEnvironment
 export const scanEnvironment = () => {
     const logs = [
         {type: LogType.Info, message: 'Scanning environment...'}
@@ -65,18 +55,17 @@ SHELL=/bin/bash
 [Disk Usage]
 Filesystem      Size  Used Avail Use% Mounted on
 overlay          50G   10G   40G  20% /
-tmpfs            64M     0   64M   0% /dev
 ...
 
 [Home Directory]
 total 8
-drwxr-xr-x 1 webapp_user webapp_user 4096 Jul 29 10:00 .
-drwxr-xr-x 1 root        root        4096 Jul 29 09:58 ..
--rw-r--r-- 1 webapp_user webapp_user    0 Jul 29 10:00 .bash_history
+drwxr-xr-x 1 webapp_user webapp_user 4096 Jul 30 10:00 .
+drwxr-xr-x 1 root        root        4096 Jul 30 09:58 ..
 `;
     return { output: output.trim(), logs, fileName: 'environment_scan.txt' };
 }
 
+// Fix: Rename aiPrompt to processPrompt and remove URL logic
 export const processPrompt = (prompt: string) => {
     const logs = [
         {type: LogType.Info, message: `Running prompt on Ollama gemma3:1b...`},
@@ -85,234 +74,174 @@ export const processPrompt = (prompt: string) => {
     return { output: prompt, logs, fileName: 'prompt_output.txt' };
 }
 
+// Fix: Add new function processUrlPrompt
 export const processUrlPrompt = (url: string) => {
     const logs = [
-        {type: LogType.Info, message: `Simulating fetch for URL: ${url}`},
-        {type: LogType.Warn, message: `Note: In-browser fetching is restricted by CORS. This is a simulation.`},
+        {type: LogType.Info, message: `Fetching content from URL: ${url}`},
+        {type: LogType.Warn, message: 'This is a simulation. No real network request is made.'}
     ];
-
-    const simulatedContent = `
+    const output = `
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Simulated Content from ${url}</title>
+    <title>Simulated Content for ${url}</title>
 </head>
 <body>
-    <h1>Content for ${url}</h1>
+    <h1>Page from ${url}</h1>
     <p>This is simulated content fetched from the provided URL.</p>
-    <p>The actual script running in a shell environment would download the real content.</p>
 </body>
 </html>
     `.trim();
-
-    logs.push({type: LogType.Success, message: 'Successfully simulated fetching content.'});
-
-    return { output: simulatedContent, logs, fileName: 'url_content.html' };
+    return { output, logs, fileName: `content_from_url.html` };
 };
 
-// --- Git functionality ---
+// Fix: Update getInstallScript to generate a proper proot-distro installer.
+export const getInstallScript = () => {
+    const logs = [
+        { type: LogType.Info, message: 'Generating proot-distro installer script...' },
+        { type: LogType.Info, message: 'This script will install the `ai` command inside your Linux container.' },
+        { type: LogType.Success, message: 'Installer script ready for download.' }
+    ];
+
+    const aiScriptContent = `#!/bin/bash
+# AI/AGI/AIM Unified Processing Tool v2.0
+# This script is installed by the ai-installer.sh
+
+# This is a fallback for when a local AI model is not available.
+UNIVERSAL_LAW=\`cat <<'EOF'
+:bof:
+redo complete layout and design an advanced symetrics to proximity accordance for dedicated info-quota alignments, which grant a better adjustment for leading besides subliminal range compliance promisings, that affair any competing content relations into a cognitive intuitition guidance comparison between space and gap implies, that are suggesting the viewer a subcoordinated experience alongside repetitive tasks and stoic context sortings, all cooperational aligned to timed subjects of importance accordingly to random capacity within builds of data statements, that prognose the grid reliability
+of a mockup as given optically acknowledged for a more robust but also as
+attractive rulership into golden-ratio item handling
+:eof:
+EOF
+\`
+
+echo "AI Tool v2.0 (proot-distro edition)"
+echo "Command executed with arguments: \$@"
+echo ""
+echo "Simulating AI processing..."
+echo "Ollama not found, writing universal law instead."
+echo "\$UNIVERSAL_LAW"
+`;
+
+    const installerScript = `#!/bin/bash
+#
+# AI Tool Installer for Termux proot-distro
+#
+# This script installs the 'ai' command-line tool into a proot-distro
+# environment. It places the main script in /usr/local/bin/ai, makes it
+# executable, and creates a symlink in your home directory for easy access.
+#
+
+# --- Configuration ---
+# The name of your proot-distro installation (e.g., ubuntu, debian).
+# Change this if you use a different name.
+DISTRO="debian"
+
+# --- Main script content to be installed ---
+# Using a HEREDOC with a quoted delimiter to prevent shell expansion.
+read -r -d '' AI_SCRIPT_CONTENT << 'EOF'
+${aiScriptContent}
+EOF
+
+# --- Installation Logic ---
+set -e # Exit immediately if a command exits with a non-zero status.
+
+echo "--- Starting installation of 'ai' tool into the '$DISTRO' proot-distro ---"
+
+# 1. Check if proot-distro command exists
+if ! command -v proot-distro &> /dev/null; then
+    echo "[ERROR] 'proot-distro' command not found."
+    echo "Please ensure you are running this script within Termux and have proot-distro installed."
+    exit 1
+fi
+
+echo "[INFO] Found proot-distro. Checking for '$DISTRO' container..."
+
+# 2. Write the script content to /usr/local/bin/ai inside the distro
+echo "[INFO] Writing script to /usr/local/bin/ai (requires sudo)..."
+echo "$AI_SCRIPT_CONTENT" | proot-distro login "$DISTRO" -- sudo tee /usr/local/bin/ai > /dev/null
+echo "[SUCCESS] Script file written."
+
+# 3. Make the script executable
+echo "[INFO] Setting execute permissions..."
+proot-distro login "$DISTRO" -- sudo chmod +x /usr/local/bin/ai
+echo "[SUCCESS] Permissions set."
+
+# 4. Create symlink in user's home directory
+echo "[INFO] Creating symlink in user's home directory..."
+proot-distro login "$DISTRO" -- bash -c '
+    set -e
+    mkdir -p "$HOME/bin"
+    ln -sf /usr/local/bin/ai "$HOME/bin/ai"
+    echo "[SUCCESS] Symlink created at $HOME/bin/ai"
+'
+
+echo "
+---------------------------------------------------------------------
+✅ Installation Complete!
+---------------------------------------------------------------------
+
+The 'ai' command is now installed in your '$DISTRO' environment.
+
+To use it:
+1. Log into your distro:
+   proot-distro login $DISTRO
+
+2. Run the command:
+   ai your-prompt-here
+
+NOTE: If the 'ai' command is not found, you may need to add '$HOME/bin'
+to your PATH. Add the following line to your ~/.bashrc or ~/.zshrc
+inside the distro, then restart your shell:
+
+   export PATH=\\$HOME/bin:\\$PATH
+
+---------------------------------------------------------------------
+"
+`.trim();
+
+    return { output: installerScript, logs, fileName: 'ai-installer.sh' };
+};
+
+// Fix: Add missing git functions
 export const gitInit = () => {
     const logs = [
         { type: LogType.Info, message: 'Simulating: git init' },
-        { type: LogType.Success, message: 'Initialized empty Git repository in /app/home/.git/' }
+        { type: LogType.Success, message: 'Initialized empty Git repository in /app/.git/' }
     ];
-    return { output: 'Initialized empty Git repository in /app/home/.git/', logs, fileName: 'git_init.log' };
+    const output = 'Initialized empty Git repository.';
+    return { output, logs, fileName: 'git_init.log' };
 };
 
 export const gitAdd = (files: string) => {
+    const fileList = files || '.';
     const logs = [
-        { type: LogType.Info, message: `Simulating: git add ${files}` },
-        { type: LogType.Success, message: 'Changes staged for next commit.' }
+        { type: LogType.Info, message: `Simulating: git add ${fileList}` },
+        { type: LogType.Success, message: `Staged changes for: ${fileList}` }
     ];
-    return { output: `Staged files matching pattern: ${files}`, logs, fileName: 'git_add.log' };
+    const output = `Staged files: ${fileList}`;
+    return { output, logs, fileName: 'git_add.log' };
 };
 
 export const gitCommit = (message: string) => {
-    const commitHash = (Math.random().toString(36) + '00000000000000000').slice(2, 9);
+    const commitMsg = message || 'feat: initial commit';
     const logs = [
-        { type: LogType.Info, message: `Simulating: git commit -m "${message}"` },
-        { type: LogType.Success, message: `[main (root-commit) ${commitHash}] ${message}` }
+        { type: LogType.Info, message: `Simulating: git commit -m "${commitMsg}"` },
+        { type: LogType.Success, message: `[main 1a2b3c4] ${commitMsg}` }
     ];
-    const output = `[main (root-commit) ${commitHash}] ${message}\n 2 files changed, 28 insertions(+)`;
+    const output = `[main 1a2b3c4] ${commitMsg}\n 1 file changed, 1 insertion(+)`;
     return { output, logs, fileName: 'git_commit.log' };
 };
 
 export const gitPush = (remote: string, branch: string) => {
+    const remoteName = remote || 'origin';
+    const branchName = branch || 'main';
     const logs = [
-        { type: LogType.Info, message: `Simulating: git push ${remote} ${branch}` },
-        { type: LogType.Info, message: 'Enumerating objects: 5, done.' },
-        { type: LogType.Info, message: 'Writing objects: 100% (3/3), done.' },
-        { type: LogType.Success, message: `To github.com:user/repo.git\n * [new branch]      ${branch} -> ${branch}` }
+        { type: LogType.Info, message: `Simulating: git push ${remoteName} ${branchName}` },
+        { type: LogType.Success, message: `Pushed to ${remoteName}/${branchName} successfully.` }
     ];
-    const output = `Total 3 (delta 0), reused 0 (delta 0)\nTo https://github.com/example/repo.git\n * [new branch]      ${branch} -> ${branch}`;
+    const output = `Everything up-to-date.`;
     return { output, logs, fileName: 'git_push.log' };
-};
-
-
-const AI_SCRIPT_CONTENT = `#!/usr/bin/env bash
-# CODERS-AGI Installer for Termux/Proot (Unrooted)
-# Mandatory localhost:8888, tmux auto-restart, auto-browser, auto-start
-# Termux-safe: avoids declare -f / embedded function issues
-
-set -euo pipefail
-IFS=$'\\n\\t'
-
-log()    { printf '\\033[34m[→] %s\\033[0m\\n' "$*"; }
-warn()   { printf '\\033[33m[!] %s\\033[0m\\n' "$*"; }
-fail()   { printf '\\033[31m[✗] %s\\033[0m\\n' "$*" >&2; exit 1; }
-
-REPO_URL="https://github.com/Loopshape/CODERS-AGI.git"
-REPO_DIR="$HOME/CODERS-AGI"
-BIN_DIR="$HOME/bin"
-LAUNCHER="$BIN_DIR/coders-agi"
-STOPPER="$BIN_DIR/coders-agi-stop"
-BASHRC="$HOME/.bashrc"
-ENV_FILE="$REPO_DIR/.env.local"
-PORT=8888
-
-# --- Ensure bin dir exists and PATH is set
-mkdir -p "$BIN_DIR"
-if ! echo "$PATH" | grep -q "$BIN_DIR"; then
-  warn "Adding $BIN_DIR to PATH in $BASHRC"
-  echo "export PATH=\\$HOME/bin:\\$PATH" >> "$BASHRC"
-fi
-
-# --- Install nvm + Node.js if missing
-if ! command -v node >/dev/null 2>&1; then
-  log "Installing Node.js via nvm..."
-  if [ ! -d "$HOME/.nvm" ]; then
-    git clone https://github.com/nvm-sh/nvm.git "$HOME/.nvm"
-    cd "$HOME/.nvm" && git checkout \`git describe --abbrev=0 --tags\`
-  fi
-  export NVM_DIR="$HOME/.nvm"
-  [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
-  nvm install --lts
-  nvm use --lts
-else
-  log "Node.js already installed: $(node -v)"
-fi
-
-# --- Clone or update repo
-if [ -d "$REPO_DIR" ]; then
-  log "Repo exists. Pulling updates..."
-  git -C "$REPO_DIR" pull
-else
-  log "Cloning CODERS-AGI..."
-  git clone "$REPO_URL" "$REPO_DIR"
-fi
-
-cd "$REPO_DIR"
-
-# --- Install npm deps
-log "Installing dependencies..."
-npm install
-
-# --- Configure API key
-if [ -z "\${GEMINI_API_KEY:-}" ]; then
-  warn "No GEMINI_API_KEY detected. Please add it manually to $ENV_FILE"
-  echo "GEMINI_API_KEY=your_api_key_here" > "$ENV_FILE"
-else
-  log "Setting GEMINI_API_KEY into $ENV_FILE"
-  echo "GEMINI_API_KEY=$GEMINI_API_KEY" > "$ENV_FILE"
-fi
-
-# --- Helper to write LF-only files
-write_lf_file() {
-  local path="$1"
-  shift
-  printf "%s\\n" "$*" | sed 's/\\r$//' > "$path"
-  chmod +x "$path"
-}
-
-# --- Create Termux-safe launcher
-log "Creating launcher at $LAUNCHER"
-write_lf_file "$LAUNCHER" '#!/usr/bin/env bash
-cd "$HOME/CODERS-AGI"
-
-if [ -f "$HOME/.nvm/nvm.sh" ]; then
-  export NVM_DIR="$HOME/.nvm"
-  . "$NVM_DIR/nvm.sh"
-  nvm use --lts >/dev/null
-fi
-
-SESSION="coders-agi"
-PORT=8888
-VITE_HOST=localhost
-VITE_PORT=$PORT
-LOG_FILE="/tmp/coders-agi.log"
-URL="http://localhost:$PORT"
-
-log()    { printf "\\033[34m[→] %s\\033[0m\\n" "$*"; }
-warn()   { printf "\\033[33m[!] %s\\033[0m\\n" "$*"; }
-
-# Start tmux session if missing
-if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-  tmux new-session -d -s "$SESSION" bash -c "
-    export VITE_HOST=$VITE_HOST
-    export VITE_PORT=$VITE_PORT
-    export LOG_FILE=$LOG_FILE
-    echo \\"Starting CODERS-AGI on localhost:$VITE_PORT, logs: $LOG_FILE\\"
-    while true; do
-      npm run dev >\\"\$LOG_FILE\\" 2>&1
-      echo \\"Server exited. Restarting in 3s...\\"
-      sleep 3
-    done
-  "
-  # Wait for server and open browser once
-  for i in {1..60}; do
-    if nc -z localhost $PORT >/dev/null 2>&1; then
-      if command -v termux-open-url >/dev/null 2>&1; then
-        termux-open-url "$URL"
-      fi
-      break
-    fi
-    sleep 1
-  done
-fi
-
-tmux attach -t "$SESSION"
-'
-
-# --- Create stopper script with LF
-log "Creating stopper at $STOPPER"
-write_lf_file "$STOPPER" '#!/usr/bin/env bash
-if command -v tmux >/dev/null 2>&1; then
-  if tmux has-session -t coders-agi 2>/dev/null; then
-    tmux kill-session -t coders-agi
-    echo "CODERS-AGI session stopped."
-  else
-    echo "No CODERS-AGI session running."
-  fi
-else
-  echo "tmux not installed."
-fi'
-
-# --- Auto-start service hook
-SERVICE_SNIPPET="# CODERS-AGI auto-start"
-if ! grep -q "$SERVICE_SNIPPET" "$BASHRC" 2>/dev/null; then
-  cat >> "$BASHRC" <<EOF
-
-$SERVICE_SNIPPET
-if command -v tmux >/dev/null 2>&1; then
-  if ! tmux has-session -t coders-agi 2>/dev/null; then
-    nohup coders-agi >/dev/null 2>&1 &
-  fi
-fi
-EOF
-  log "Auto-start service added to $BASHRC"
-fi
-
-log "✅ Installation complete!"
-echo "Start manually with: coders-agi"
-echo "Stop with: coders-agi-stop"
-echo "Access on this device only: http://localhost:8888"
-`;
-
-export const getInstallScript = () => {
-    const logs = [
-        {type: LogType.Info, message: 'Generating CODERS-AGI installer script...'},
-        {type: LogType.Success, message: 'Save this script, run `chmod +x install.sh`, then `./install.sh`.'},
-    ];
-    return { output: AI_SCRIPT_CONTENT.trim(), logs, fileName: 'install-coders-agi.sh' };
 };

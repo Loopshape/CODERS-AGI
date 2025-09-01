@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
+// Fix: Ensure CodeReviewReport is imported after being added to types.ts
 import { CodeReviewReport } from '../types';
 
 // The API key is obtained exclusively from the environment variable `process.env.API_KEY`.

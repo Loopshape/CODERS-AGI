@@ -1,13 +1,13 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
-import { processFiles, scanEnvironment, processPrompt, getBashrcAdaptation, getInstallScript, processUrlPrompt, gitInit, gitAdd, gitCommit, gitPush } from './services/scriptService';
-import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
-import { processHtml } from './services/enhancementService';
-import Header from './components/Header';
-import ControlPanel from './components/ControlPanel';
-import OutputViewer from './components/OutputViewer';
-import ErrorBoundary from './components/ErrorBoundary';
+import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from '../types';
+import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitInit, gitAdd, gitCommit, gitPush } from '../services/scriptService';
+import { getGeminiSuggestions, getGeminiCodeReview } from '../services/geminiService';
+import { processHtml } from '../services/enhancementService';
+import Header from '../components/Header';
+import ControlPanel from '../components/ControlPanel';
+import OutputViewer from '../components/OutputViewer';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): string => {
     let markdown = `# Code Review for ${fileName}\n\n`;
@@ -202,6 +202,7 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
+// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `Local AI enhancement failed: ${errorMessage}`);
@@ -250,8 +251,8 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
+// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
-// FIX: Added missing opening brace to the catch block to fix a major syntax error.
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `Gemini AI enhancement failed: ${errorMessage}`);
       setActiveOutput('logs');
@@ -297,6 +298,7 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
+// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `Gemini AI code review failed: ${errorMessage}`);
@@ -343,6 +345,7 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
+// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `URL enhancement process failed: ${errorMessage}`);

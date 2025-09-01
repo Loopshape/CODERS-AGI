@@ -1,84 +1,65 @@
-
 # AI / AGI / AIM Unified Tool GUI
 
-This is a web-based graphical user interface for the powerful "AI/AGI/AIM Unified Tool," a command-line script designed to enhance files, interact with AI models, and manage development workflows. This UI provides a user-friendly way to access the script's core functionalities directly in your browser.
-
-![AI Unified Tool GUI Screenshot](https://i.imgur.com/your-screenshot.png) <!-- Placeholder for a future screenshot -->
+This is a web-based graphical user interface for the "AI/AGI/AIM Unified Processing Tool," a command-line script designed to process files, interact with a local Ollama AI model, and manage the system environment. This UI provides a user-friendly way to access the script's core functionalities directly in your browser.
 
 ## ✨ Features
 
-- **Installer Tab**: A guided, step-by-step process to generate the necessary scripts and configuration for the command-line tool.
+- **System Tab**:
+    - **Installer (`ai init`)**: A one-click simulation to install the `ai` tool, which adapts `.bashrc` and copies the script to the user's bin directory.
+    - **Environment Scan (`ai .`)**: Simulates a scan of the system environment, showing variables, disk usage, and more.
 - **AI Modes**:
-    - **File Processing**: Upload files to apply predefined enhancement rules.
-    - **Gemini Code Review**: Get an in-depth code quality analysis for a file, powered by the Google Gemini API.
-    - **Environment Scan**: Simulate a scan of the system environment.
-- **AGI Modes**: Placeholders simulating advanced functionalities like file system watching.
-- **Git Integration**: A simple UI to perform basic Git operations: `init`, `add`, `commit`, and `push`.
-- **Direct Prompting**:
-    - Process raw text through the AI.
-    - Fetch content from a URL and process or enhance it with Gemini AI.
+    - **Direct Input Processing**: Process raw text or fetch content from a URL to be analyzed by the local Ollama model.
+    - **File Processing (`ai -`)**: Upload one or more files to apply the script's standard AI processing.
+    - **Script Processing (`ai +`)**: A placeholder for future script-aware AI logic.
+- **AGI Modes**: Placeholders simulating advanced functionalities that require direct filesystem access, such as watching a folder for changes (`ai agi +`).
 - **Dynamic Output Viewer**:
-    - View processed code with syntax highlighting.
-    - See a live HTML preview of your output.
-    - Monitor detailed logs of all operations in a clean, color-coded interface.
+    - View processed code or text output.
+    - See a live HTML preview if the output is web content.
+    - Monitor detailed logs of all operations in a clean, color-coded terminal-style interface.
 
-## 🚀 Getting Started: Installing the Local Server
+## 🚀 Getting Started: Using the GUI
 
-The "Installer" tab provides a script to set up a complete, persistent local development server for CODERS-AGI, optimized for Termux/proot-distro environments.
+The GUI is designed to be a direct visual interface for the command-line script. All actions are simulations of what would happen in a real Termux or proot-distro environment.
 
-1.  **Navigate to the Installer Tab**: Open the application and click on the "Installer" tab in the control panel.
+### System Tab
 
-2.  **Generate the Installer Script**: Click the **"Generate Installer Script"** button. The new installer script will appear in the output viewer.
+This tab is for system-level operations.
 
-3.  **Download and Run**:
-    - Use the **Download** button to save the generated script as `install.sh` or a similar name.
-    - Open your terminal, make the script executable, and run it:
-      ```bash
-      chmod +x install.sh
-      ./install.sh
-      ```
-    - The script will clone the repository, install Node.js (via nvm if needed), install project dependencies, and set up launcher scripts.
+1.  **Install Tool**: Click the **"Install `ai` Command"** button to simulate the `ai init` command. This will show logs indicating that the `.bashrc` file has been adapted and the script has been installed to `~/bin/ai`.
+2.  **Scan Environment**: Click the **"Scan Environment"** button to simulate the `ai .` command. The output viewer will display a mock report of environment variables, disk usage, and directory listings.
 
-4.  **Start the Server**:
-    - The installer adds an auto-start hook to your `~/.bashrc`. Open a new terminal session, and the server should start automatically in the background.
-    - To manually start it or attach to the running session, use the new command:
-      ```bash
-      coders-agi
-      ```
-    - On Termux, this will also automatically open the URL `http://localhost:8888` in your browser.
+### AI Tab
 
-## 🖥️ Using the GUI
+This is the primary tab for all AI-driven processing tasks.
 
-### AI Modes Tab
+-   **Direct Input**:
+    1.  Enter text, paste code, or provide a URL in the respective input fields.
+    2.  Click **"Process Input"**.
+    3.  The UI will simulate sending this content to a local Ollama model and display the result. If Ollama isn't found, it will simply display the input back, as per the script's logic.
+-   **File Processing**:
+    1.  Drag and drop files onto the designated area or click to browse your local system.
+    2.  Click **"Process File(s)"**.
+    3.  The UI simulates running `ai - [your-files...]`. It will show logs indicating each file is backed up and then processed. Since the UI can't run Ollama, it will show the script's fallback behavior, which is to output a "universal law" into a `.processed` file.
 
-1.  **Select Files**: Drag and drop your files onto the designated area or click to browse your local system.
-2.  **Choose an Action**:
-    - **Process File(s)**: Applies the script's standard regex-based enhancements.
-    - **Review with Gemini AI**: Sends the *first selected file* to the Google Gemini API for a detailed code review.
-    - **Scan Environment**: Simulates running the environment scan.
+### AGI Tab
 
-### AGI & Git Tabs
+This tab contains placeholders for advanced features that require direct filesystem access and cannot be run in a browser environment.
 
--   **AGI Modes**: Contains placeholders for features that require direct filesystem access and cannot be run in a browser.
--   **Git**: Provides a simple, step-by-step form to simulate `git` commands. The output and logs will reflect the simulated actions.
-
-### Direct Prompt Tab
-
--   **From Text**: Type or paste any text into the textarea and click "Process Text Prompt."
--   **From URL**: Enter a URL to fetch its content.
-    - **Fetch & Process**: Applies the standard script processing to the URL's content.
-    - **Fetch & Enhance**: Sends the URL's content to the Gemini API for intelligent enhancement.
+-   **Watch Mode**: Simulates the `ai agi +` command, which would normally watch a directory for file changes.
+-   **Virtual Screenshot**: Simulates the `ai agi -` command.
 
 ---
 
-## 💻 Command-Line Usage (Quick Reference)
+## 💻 Command-Line Script Reference
 
-Once the installer has run, two new commands are available in your shell:
+The UI is based on the following script commands:
 
--   **Start/Attach Server**: `coders-agi`
-    -   Starts the server in a background `tmux` session if it's not running.
-    -   Attaches to the running `tmux` session so you can see logs.
--   **Stop Server**: `coders-agi-stop`
-    -   Kills the background `tmux` session, stopping the server.
-
-The web application will be available at **http://localhost:8888** as long as the server is running.
+-   `ai init`: Installs the tool. (System Tab)
+-   `ai .`: Scans the environment. (System Tab)
+-   `ai [prompt|url|file]`: The default action. Processes input with Ollama. (AI Tab -> Direct Input)
+-   `ai - [files...]`: Processes one or more files. (AI Tab -> File Processing)
+-   `ai +`: Placeholder for script logic. (AI Tab)
+-   `ai * [pattern]`: Batch processes files matching a pattern. (Represented by multi-file selection in the UI).
+-   `ai :[f1:f2]`: Pipeline processing. (Represented by multi-file selection in the UI).
+-   `ai agi + [folder]`: Watches a folder for changes. (AGI Tab)
+-   `ai agi -`: Takes a virtual screenshot. (AGI Tab)

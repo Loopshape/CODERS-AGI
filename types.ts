@@ -18,6 +18,7 @@ export interface ProcessedFile {
   content: string;
 }
 
+// Fix: Add missing type definitions for CodeReviewReport and CodeIssue.
 export interface CodeIssue {
   line?: number;
   description: string;

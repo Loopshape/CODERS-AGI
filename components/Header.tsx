@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { SparklesIcon } from './icons/SparklesIcon';
+import { SparklesIcon } from './SparklesIcon';
 
 const Header: React.FC = () => {
   return (

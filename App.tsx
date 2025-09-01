@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
 import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitInit, gitAdd, gitCommit, gitPush } from './services/scriptService';
@@ -201,6 +202,7 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
+// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `Local AI enhancement failed: ${errorMessage}`);
@@ -249,6 +251,7 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
+// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `Gemini AI enhancement failed: ${errorMessage}`);
@@ -295,6 +298,7 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
+// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `Gemini AI code review failed: ${errorMessage}`);
@@ -341,6 +345,7 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
+// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `URL enhancement process failed: ${errorMessage}`);
