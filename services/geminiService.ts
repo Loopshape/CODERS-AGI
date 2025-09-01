@@ -5,6 +5,40 @@ import { CodeReviewReport } from '../types';
 // This is a hard requirement and the execution environment must provide it.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+/**
+ * Handles errors from the Gemini API and returns a user-friendly message.
+ * @param error The error object caught from the API call.
+ * @returns A string containing a clear, actionable error message.
+ */
+const handleGeminiError = (error: unknown): string => {
+    if (error instanceof Error) {
+        const message = error.message.toLowerCase();
+        
+        if (message.includes('api key') || message.includes('[401]') || message.includes('[403]')) {
+            return 'Invalid or missing API Key. Please ensure your key is correctly configured in the environment variables.';
+        }
+        if (message.includes('quota')) {
+             return 'API quota exceeded. Please check your Google AI Studio account for billing details.';
+        }
+        if (message.includes('[429]')) {
+            return 'The service is temporarily overloaded (Too Many Requests). Please wait a moment and try again.';
+        }
+        if (message.includes('safety policies') || message.includes('blocked')) {
+            return 'Your request was blocked by the content safety filter. Please modify your input and try again.';
+        }
+        if (message.includes('[400]')) {
+            return 'The request was malformed (Bad Request). This may be an issue with the input data format.';
+        }
+        if (message.includes('[500]') || message.includes('[503]')) {
+            return 'The AI service encountered an internal error. Please try again later.';
+        }
+        // Generic fallback for other client/server errors that still provides context
+        return `An error occurred with the Gemini API: ${error.message}`;
+    }
+    return 'An unknown error occurred while communicating with the Gemini AI service.';
+};
+
+
 export const getGeminiSuggestions = async (htmlContent: string): Promise<string> => {
   const prompt = `
 Act as an expert senior frontend engineer tasked with refactoring and enhancing the following code snippet. Your goal is to apply modern best practices to improve its structure, accessibility, and readability. This refactored code will be used as training data to improve our local AI model's understanding of high-quality code.
@@ -40,11 +74,7 @@ ${htmlContent}
 
   } catch (error) {
     console.error("Error calling Google GenAI API:", error);
-    if (error instanceof Error) {
-        // Provide a more user-friendly message
-        return `Error from Gemini AI: ${error.message}. This could be due to an invalid API key, network issues, or content safety policies.`;
-    }
-    return "An unknown error occurred while fetching suggestions from the Gemini AI service.";
+    return handleGeminiError(error);
   }
 };
 
@@ -142,9 +172,6 @@ ${codeContent}
 
     } catch (error) {
         console.error("Error calling Google GenAI API for code review:", error);
-        if (error instanceof Error) {
-            throw new Error(`Error from Gemini AI: ${error.message}. This could be due to an invalid API key, network issues, or content safety policies.`);
-        }
-        throw new Error("An unknown error occurred while fetching a code review from the Gemini AI service.");
+        throw new Error(handleGeminiError(error));
     }
 };
