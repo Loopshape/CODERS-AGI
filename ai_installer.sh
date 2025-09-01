@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash 
 # CODERS-AGI Full Automation Installer for Termux/Proot
 # Mandatory 127.0.0.1:8888, tmux auto-restart, auto-browser, auto-start
 
