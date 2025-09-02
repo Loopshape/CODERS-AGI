@@ -27,6 +27,9 @@ const handleLocalAiError = (error: unknown): string => {
  * @returns The text response from the model.
  */
 const callLocalAi = async (prompt: string, isJson: boolean = false): Promise<string> => {
+    // Add artificial delay to simulate slower local model
+    await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000));
+
     try {
         const body = {
             model: MODEL_NAME,

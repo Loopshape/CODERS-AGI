@@ -35,6 +35,7 @@ interface ControlPanelProps {
   onGetInstallerScript: () => void;
   onGitPull: (url: string) => void;
   onGitPush: (url: string) => void;
+  onCloudAccelerate: () => void;
   isLoading: boolean;
   loadingAction: string | null;
   processingFile: File | null;
@@ -44,11 +45,12 @@ interface ControlPanelProps {
 const getLoadingMessage = (action: string | null, file: File | null, selectedFiles: File[]): string => {
     switch (action) {
         case 'processFiles': return `Processing ${selectedFiles.length} file(s)...`;
-        case 'localAIEnhance':
-        case 'ollamaEnhance':
+        case 'localAIEnhance': return `Applying local enhancements to ${file?.name} (can be slow)...`;
+        case 'ollamaEnhance': return `Enhancing ${file?.name} with Ollama (can be slow)...`;
         case 'aiEnhance':
         case 'aiCodeReview':
-            return `Analyzing ${file?.name}...`;
+            return `Analyzing ${file?.name} with Gemini AI...`;
+        case 'cloudAcceleration': return `Accelerating ${file?.name} with Cloud AI...`;
         case 'scanEnvironment': return 'Scanning environment...';
         case 'processPrompt': return 'Processing prompt with AI...';
         case 'processUrl': return 'Fetching and processing URL...';
@@ -79,6 +81,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onGetInstallerScript,
     onGitPull,
     onGitPush,
+    onCloudAccelerate,
     isLoading,
     loadingAction,
     processingFile,
@@ -298,13 +301,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
         )}
       </div>
-      <div className="h-12 mt-4">
+      <div className="h-20 mt-4">
         {isLoading && (
             <div className="animate-fade-in text-center space-y-2">
                 <p className="text-sm text-brand-text-secondary truncate px-2">
                     {getLoadingMessage(loadingAction, processingFile, selectedFiles)}
                 </p>
                 <ProgressBar progress={progress} />
+                {(loadingAction === 'ollamaEnhance' || loadingAction === 'localAIEnhance') && (
+                  <div className="pt-2">
+                    <button
+                      onClick={onCloudAccelerate}
+                      className="text-sm text-brand-gemini font-semibold hover:text-brand-accent transition-colors duration-200 animate-pulse"
+                    >
+                      ⚡ This is slow... Accelerate with Cloud AI?
+                    </button>
+                  </div>
+                )}
             </div>
         )}
       </div>

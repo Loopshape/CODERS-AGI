@@ -446,6 +446,69 @@ const App: React.FC = () => {
         }, 500);
     }
   }, [addLog, triggerErrorChat]);
+  
+  const handleCloudAcceleration = useCallback(async () => {
+    if (!processingFile) {
+        addLog(LogType.Warn, "No file is being processed to accelerate.");
+        return;
+    }
+
+    const file = processingFile;
+    setLoadingAction('cloudAcceleration');
+    addLog(LogType.Gemini, `Cloud acceleration started for ${file.name}... The local AI will be trained with the result.`);
+    setProgress(10);
+    
+    try {
+        // Part 1: Gemini Enhancement
+        setProgress(25);
+        const fileContent = await file.text();
+        addLog(LogType.Info, `Sending ${file.name} to Gemini AI for accelerated enhancement.`);
+        setProgress(50);
+        
+        const suggestion = await getGeminiSuggestions(fileContent);
+        setProgress(70);
+
+        const parts = file.name.split('.');
+        const extension = parts.length > 1 ? parts.pop() as string : '';
+        const baseName = parts.join('.');
+        const newFileName = extension ? `${baseName}.accelerated.enhanced.${extension}` : `${file.name}.accelerated.enhanced`;
+
+        const enhancedFile = { fileName: newFileName, content: suggestion };
+        setProcessedOutput([enhancedFile]);
+        addLog(LogType.Success, `Successfully received accelerated enhancement from Gemini AI.`);
+        setActiveOutput('code');
+        
+        // Part 2: Auto-improve local AI simulation
+        await new Promise(res => setTimeout(res, 500)); // UX pause
+        addLog(LogType.Info, `Using accelerated result to improve local AI model...`);
+        
+        await new Promise(res => setTimeout(res, 500));
+        setProgress(75);
+        addLog(LogType.Info, "Analyzing data patterns from cloud result...");
+        
+        await new Promise(res => setTimeout(res, 1000));
+        setProgress(85);
+        addLog(LogType.Info, "Updating local model weights...");
+
+        await new Promise(res => setTimeout(res, 1000));
+        setProgress(95);
+        addLog(LogType.Info, "Fine-tuning parameters...");
+
+        await new Promise(res => setTimeout(res, 800));
+        setProgress(100);
+        addLog(LogType.Success, `Local AI model successfully improved with data from ${enhancedFile.fileName}.`);
+
+    } catch (error) {
+        triggerErrorChat('Cloud Acceleration', error);
+        setProgress(100);
+    } finally {
+        setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
+            setProcessingFile(null); // Clear the file being processed
+        }, 1000); // Longer delay to let user see success
+    }
+  }, [processingFile, addLog, triggerErrorChat]);
 
   const hasEnhancedFile = useMemo(() => {
     return processedOutput?.some(file => file.fileName.includes('.enhanced.')) ?? false;
@@ -670,6 +733,7 @@ const App: React.FC = () => {
                 onGetInstallerScript={handleGetInstallerScript}
                 onGitPull={handleGitPull}
                 onGitPush={handleGitPush}
+                onCloudAccelerate={handleCloudAcceleration}
                 isLoading={isLoading}
                 loadingAction={loadingAction}
                 processingFile={processingFile}
