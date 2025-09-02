@@ -205,43 +205,12 @@ inside the distro, then restart your shell:
     return { output: installerScript, logs, fileName: 'ai-installer.sh' };
 };
 
-// Fix: Add missing git functions
-export const gitInit = () => {
+export const gitUpdate = (url: string) => {
     const logs = [
-        { type: LogType.Info, message: 'Simulating: git init' },
-        { type: LogType.Success, message: 'Initialized empty Git repository in /app/.git/' }
+        { type: LogType.Info, message: `Simulating: git pull from ${url}` },
+        { type: LogType.Info, message: 'Fetching origin...' },
+        { type: LogType.Success, message: 'Already up to date.' }
     ];
-    const output = 'Initialized empty Git repository.';
-    return { output, logs, fileName: 'git_init.log' };
-};
-
-export const gitAdd = (files: string) => {
-    const fileList = files || '.';
-    const logs = [
-        { type: LogType.Info, message: `Simulating: git add ${fileList}` },
-        { type: LogType.Success, message: `Staged changes for: ${fileList}` }
-    ];
-    const output = `Staged files: ${fileList}`;
-    return { output, logs, fileName: 'git_add.log' };
-};
-
-export const gitCommit = (message: string) => {
-    const commitMsg = message || 'feat: initial commit';
-    const logs = [
-        { type: LogType.Info, message: `Simulating: git commit -m "${commitMsg}"` },
-        { type: LogType.Success, message: `[main 1a2b3c4] ${commitMsg}` }
-    ];
-    const output = `[main 1a2b3c4] ${commitMsg}\n 1 file changed, 1 insertion(+)`;
-    return { output, logs, fileName: 'git_commit.log' };
-};
-
-export const gitPush = (remote: string, branch: string) => {
-    const remoteName = remote || 'origin';
-    const branchName = branch || 'main';
-    const logs = [
-        { type: LogType.Info, message: `Simulating: git push ${remoteName} ${branchName}` },
-        { type: LogType.Success, message: `Pushed to ${remoteName}/${branchName} successfully.` }
-    ];
-    const output = `Everything up-to-date.`;
-    return { output, logs, fileName: 'git_push.log' };
+    const output = `From ${url}\n * branch main -> FETCH_HEAD\nAlready up to date.`;
+    return { output, logs, fileName: 'git_update.log' };
 };

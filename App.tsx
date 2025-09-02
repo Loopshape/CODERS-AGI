@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
-import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitInit, gitAdd, gitCommit, gitPush } from './services/scriptService';
+import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitUpdate } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
 import { processHtml } from './services/enhancementService';
 import Header from './components/Header';
@@ -168,20 +168,8 @@ const App: React.FC = () => {
     handleRequest(() => scriptData, 'getInstallerScript', true);
   }, [addLog]);
 
-  const handleGitInit = useCallback(() => {
-    handleRequest(gitInit, 'gitInit', true);
-  }, [addLog]);
-
-  const handleGitAdd = useCallback((files: string) => {
-    handleRequest(() => gitAdd(files), 'gitAdd', true);
-  }, [addLog]);
-
-  const handleGitCommit = useCallback((message: string) => {
-    handleRequest(() => gitCommit(message), 'gitCommit', true);
-  }, [addLog]);
-
-  const handleGitPush = useCallback((remote: string, branch: string) => {
-    handleRequest(() => gitPush(remote, branch), 'gitPush', true);
+  const handleGitUpdate = useCallback((url: string) => {
+    handleRequest(() => gitUpdate(url), 'gitUpdate', true);
   }, [addLog]);
 
   const handleLocalAIEnhance = useCallback(async (file: File) => {
@@ -440,20 +428,8 @@ const App: React.FC = () => {
             case 'get-installer':
                 handleGetInstallerScript();
                 return true;
-            case 'git-init':
-                handleGitInit();
-                return true;
-            case 'git-add':
-                handleGitAdd(args.join(' ') || '.');
-                return true;
-            case 'git-commit':
-                handleGitCommit(args.join(' ') || 'feat: changes from UI');
-                return true;
-            case 'git-push':
-                handleGitPush(args[0] || 'origin', args[1] || 'main');
-                return true;
             case 'help':
-                addLog(LogType.Info, 'Available commands: scan-env, get-installer, git-init, git-add, git-commit, git-push. Any other text will be sent to the AI assistant.');
+                addLog(LogType.Info, 'Available commands: scan-env, get-installer. Any other text will be sent to the AI assistant.');
                 return true;
             default:
                 return false;
@@ -486,7 +462,7 @@ const App: React.FC = () => {
             setProgress(0);
         }, 500);
     }
-}, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript, handleGitInit, handleGitAdd, handleGitCommit, handleGitPush]);
+}, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript]);
 
   return (
     <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
@@ -506,10 +482,7 @@ const App: React.FC = () => {
                 onImproveLocalAI={handleImproveLocalAI}
                 hasEnhancedFile={hasEnhancedFile}
                 onGetInstallerScript={handleGetInstallerScript}
-                onGitInit={handleGitInit}
-                onGitAdd={handleGitAdd}
-                onGitCommit={handleGitCommit}
-                onGitPush={handleGitPush}
+                onGitUpdate={handleGitUpdate}
                 isLoading={isLoading}
                 loadingAction={loadingAction}
                 processingFile={processingFile}

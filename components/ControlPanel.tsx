@@ -31,10 +31,7 @@ interface ControlPanelProps {
   onImproveLocalAI: () => void;
   hasEnhancedFile: boolean;
   onGetInstallerScript: () => void;
-  onGitInit: () => void;
-  onGitAdd: (files: string) => void;
-  onGitCommit: (message: string) => void;
-  onGitPush: (remote: string, branch: string) => void;
+  onGitUpdate: (url: string) => void;
   isLoading: boolean;
   loadingAction: string | null;
   processingFile: File | null;
@@ -53,26 +50,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onImproveLocalAI,
     hasEnhancedFile,
     onGetInstallerScript,
-    onGitInit,
-    onGitAdd,
-    onGitCommit,
-    onGitPush,
+    onGitUpdate,
     isLoading,
     loadingAction,
     processingFile,
     progress
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [activeTab, setActiveTab] = useState<'ai' | 'system' | 'git'>('ai');
+  const [activeTab, setActiveTab] = useState<'ai' | 'system' | 'updates'>('ai');
   const [prompt, setPrompt] = useState('');
   const [url, setUrl] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [gitCommitMsg, setGitCommitMsg] = useState('');
-  const [gitFiles, setGitFiles] = useState('.');
-  const [gitRemote, setGitRemote] = useState('origin');
-  const [gitBranch, setGitBranch] = useState('main');
+  const [repoUrl, setRepoUrl] = useState('https://github.com/your-org/ai-tool-repo.git');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -139,7 +129,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl p-6 sticky top-8">
       <div className="flex border-b border-brand-border mb-6" role="tablist" aria-label="Control Panel Modes">
         <TabButton isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI Tools</TabButton>
-        <TabButton isActive={activeTab === 'git'} onClick={() => setActiveTab('git')}>Git</TabButton>
+        <TabButton isActive={activeTab === 'updates'} onClick={() => setActiveTab('updates')}>Updates</TabButton>
         <TabButton isActive={activeTab === 'system'} onClick={() => setActiveTab('system')}>System</TabButton>
       </div>
 
@@ -240,30 +230,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </ActionCard>
           </div>
         )}
-        {activeTab === 'git' && (
+        {activeTab === 'updates' && (
             <div className="space-y-6 animate-fade-in">
-                 <ActionCard title="Git Version Control" description="Perform simulated Git commands." icon={<GitIcon className="w-6 h-6 mr-3 text-brand-accent"/>}>
-                    <ActionButton onClick={onGitInit} disabled={isLoading} isLoading={loadingAction === 'gitInit'}>Initialize Repository</ActionButton>
-                    
+                 <ActionCard title="Source Control & Updates" description="Update the tool from a remote repository and generate an installer for the latest version." icon={<GitIcon className="w-6 h-6 mr-3 text-brand-accent"/>}>
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-brand-text-secondary">Files to add:</label>
-                        <input type="text" value={gitFiles} onChange={e => setGitFiles(e.target.value)} placeholder="e.g., . or src/" className="w-full p-2 bg-brand-bg border border-brand-border rounded-md"/>
-                        <ActionButton onClick={() => onGitAdd(gitFiles)} disabled={isLoading} isLoading={loadingAction === 'gitAdd'}>Add Files</ActionButton>
+                        <label className="text-sm font-medium text-brand-text-secondary">Repository URL:</label>
+                        <input type="text" value={repoUrl} onChange={e => setRepoUrl(e.target.value)} placeholder="https://github.com/user/repo.git" className="w-full p-2 bg-brand-bg border border-brand-border rounded-md"/>
+                        <ActionButton onClick={() => onGitUpdate(repoUrl)} disabled={isLoading} isLoading={loadingAction === 'gitUpdate'}>
+                          Update from Repository
+                        </ActionButton>
+                    </div>
+
+                    <div className="relative flex py-2 items-center">
+                        <div className="flex-grow border-t border-brand-border"></div>
+                        <span className="flex-shrink mx-4 text-brand-text-secondary uppercase text-sm">Then</span>
+                        <div className="flex-grow border-t border-brand-border"></div>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-brand-text-secondary">Commit message:</label>
-                        <input type="text" value={gitCommitMsg} onChange={e => setGitCommitMsg(e.target.value)} placeholder="Your commit message" className="w-full p-2 bg-brand-bg border border-brand-border rounded-md"/>
-                        <ActionButton onClick={() => onGitCommit(gitCommitMsg)} disabled={isLoading} isLoading={loadingAction === 'gitCommit'}>Commit Changes</ActionButton>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-brand-text-secondary">Remote & Branch:</label>
-                        <div className="flex gap-2">
-                            <input type="text" value={gitRemote} onChange={e => setGitRemote(e.target.value)} className="w-1/2 p-2 bg-brand-bg border border-brand-border rounded-md"/>
-                            <input type="text" value={gitBranch} onChange={e => setGitBranch(e.target.value)} className="w-1/2 p-2 bg-brand-bg border border-brand-border rounded-md"/>
-                        </div>
-                        <ActionButton onClick={() => onGitPush(gitRemote, gitBranch)} disabled={isLoading} isLoading={loadingAction === 'gitPush'}>Push to Remote</ActionButton>
+                        <p className="text-sm text-brand-text-secondary">Once updated, download the new installer to apply changes in your environment.</p>
+                        <ActionButton onClick={onGetInstallerScript} disabled={isLoading} isLoading={loadingAction === 'getInstallerScript'}>
+                          Download Installer
+                        </ActionButton>
                     </div>
                 </ActionCard>
             </div>
