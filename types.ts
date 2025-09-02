@@ -32,11 +32,11 @@ export interface CodeReviewReport {
   performanceImprovements: CodeIssue[];
 }
 
-// Add types for Chatbot
+// Fix: Add missing types for Chatbot component to resolve import errors.
 export enum MessageSender {
-  User = 'user',
-  AI = 'ai',
-  Error = 'error'
+  User = 'User',
+  AI = 'AI',
+  Error = 'Error',
 }
 
 export interface ChatMessage {

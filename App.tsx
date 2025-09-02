@@ -1,5 +1,6 @@
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
 import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitInit, gitAdd, gitCommit, gitPush } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
@@ -8,7 +9,9 @@ import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
 import OutputViewer from './components/OutputViewer';
 import ErrorBoundary from './components/ErrorBoundary';
-import Chatbot from './components/Chatbot';
+import CommandBar from './components/CommandBar';
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): string => {
     let markdown = `# Code Review for ${fileName}\n\n`;
@@ -54,6 +57,20 @@ const App: React.FC = () => {
   const [processingFile, setProcessingFile] = useState<File | null>(null);
   const [activeOutput, setActiveOutput] = useState<'code' | 'preview' | 'logs'>('code');
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
+  const [chat, setChat] = useState<Chat | null>(null);
+
+
+  useEffect(() => {
+    if (!chat) {
+        const newChat = ai.chats.create({
+            model: 'gemini-2.5-flash',
+            config: {
+                systemInstruction: 'You are a helpful assistant for a frontend developer using a web-based file processing tool. Keep your answers concise and helpful.',
+            },
+        });
+        setChat(newChat);
+    }
+  }, [chat]);
 
   const isLoading = useMemo(() => loadingAction !== null, [loadingAction]);
 
@@ -134,7 +151,7 @@ const App: React.FC = () => {
   }, [addLog]);
   
   const handleScanEnvironment = useCallback(() => {
-      handleRequest(scanEnvironment, 'scanEnvironment');
+      handleRequest(scanEnvironment, 'scanEnvironment', true);
   }, [addLog]);
   
   const handleProcessPrompt = useCallback((prompt: string) => {
@@ -148,7 +165,7 @@ const App: React.FC = () => {
   const handleGetInstallerScript = useCallback(() => {
     const scriptData = getInstallScript();
     downloadFile(scriptData.output, scriptData.fileName);
-    handleRequest(() => scriptData, 'getInstallerScript');
+    handleRequest(() => scriptData, 'getInstallerScript', true);
   }, [addLog]);
 
   const handleGitInit = useCallback(() => {
@@ -405,6 +422,72 @@ const App: React.FC = () => {
 
   }, [processedOutput, addLog]);
 
+  const handleCommand = useCallback(async (command: string) => {
+    if (!command.trim() || isLoading) return;
+
+    addLog(LogType.Info, `> ${command}`);
+    setActiveOutput('logs');
+    setProcessedOutput(null);
+
+    const parts = command.trim().match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+    const [cmd, ...args] = parts.map(p => p.startsWith('"') && p.endsWith('"') ? p.slice(1, -1) : p);
+
+    const commandWasExecuted = (() => {
+        switch (cmd.toLowerCase()) {
+            case 'scan-env':
+                handleScanEnvironment();
+                return true;
+            case 'get-installer':
+                handleGetInstallerScript();
+                return true;
+            case 'git-init':
+                handleGitInit();
+                return true;
+            case 'git-add':
+                handleGitAdd(args.join(' ') || '.');
+                return true;
+            case 'git-commit':
+                handleGitCommit(args.join(' ') || 'feat: changes from UI');
+                return true;
+            case 'git-push':
+                handleGitPush(args[0] || 'origin', args[1] || 'main');
+                return true;
+            case 'help':
+                addLog(LogType.Info, 'Available commands: scan-env, get-installer, git-init, git-add, git-commit, git-push. Any other text will be sent to the AI assistant.');
+                return true;
+            default:
+                return false;
+        }
+    })();
+
+    if (commandWasExecuted) return;
+
+    setLoadingAction('geminiCommand');
+    setProgress(30);
+    if (!chat) {
+        addLog(LogType.Error, "Chat is not initialized.");
+        setLoadingAction(null);
+        setProgress(0);
+        return;
+    }
+
+    try {
+        const response = await chat.sendMessage({ message: command });
+        setProgress(90);
+        addLog(LogType.Gemini, response.text);
+        setProgress(100);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        addLog(LogType.Error, `AI command failed: ${errorMessage}`);
+        setProgress(100);
+    } finally {
+        setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
+        }, 500);
+    }
+}, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript, handleGitInit, handleGitAdd, handleGitCommit, handleGitPush]);
+
   return (
     <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
       <div className="min-h-screen bg-brand-bg font-sans flex flex-col">
@@ -445,10 +528,12 @@ const App: React.FC = () => {
             />
           </div>
         </main>
-        <footer role="contentinfo" className="text-center p-4 border-t border-brand-border mt-8">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8 mt-auto pb-4">
+            <CommandBar onCommand={handleCommand} isLoading={loadingAction === 'geminiCommand'} />
+        </div>
+        <footer role="contentinfo" className="text-center p-4 border-t border-brand-border">
           <p className="text-sm text-brand-text-secondary">UI generated from bash script logic by a world-class senior frontend React engineer.</p>
         </footer>
-        <Chatbot />
       </div>
     </ErrorBoundary>
   );
