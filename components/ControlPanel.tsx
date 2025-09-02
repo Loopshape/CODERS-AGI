@@ -1,13 +1,9 @@
 
-
-
 import React, { useState, useRef } from 'react';
 import ProgressBar from './ProgressBar';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import { SparklesIcon } from './SparklesIcon';
-// Fix: Removed incorrect import. 'File' is not exported from '../types' and 'ProcessedFile' was unused.
 
-// --- Icon Components ---
 const ProcessIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>);
 const CodeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -23,7 +19,6 @@ const GitIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 const SystemIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-1.002 1.11-1.226M10.343 3.94a2.25 2.25 0 013.314 0c.55.224 1.02.684 1.11 1.226m-4.534 0c-.09.542.233 1.084.745 1.458l.743.694c.368.343.83.57 1.33.57h.01c.5 0 .962-.227 1.33-.57l.743-.694c.512-.374.835-.916.745-1.458m-4.534 0S10 3 12 3s1.657.94 1.657.94m-3.314 0c1.096 1.096 2.39 1.096 3.486 0M6.343 12.343a2.25 2.25 0 010-3.182c.55-.55 1.287-.825 2.03-.825h.01c.743 0 1.48.275 2.03.825 1.1 1.1 1.1 2.942 0 4.042-.55.55-1.287.825-2.03.825h-.01a2.25 2.25 0 01-2.03-.825m6.344 0c1.1 1.1 2.942 1.1 4.042 0 .55-.55.825-1.287.825-2.03h-.01a2.25 2.25 0 01-.825-2.03c0-.743.275-1.48.825-2.03.55-.55 1.287-.825 2.03-.825h.01" /></svg>);
 
-// Fix: Update props to match the new App component.
 interface ControlPanelProps {
   onProcessFiles: (files: File[]) => void;
   onScanEnvironment: () => void;
@@ -45,6 +40,28 @@ interface ControlPanelProps {
   processingFile: File | null;
   progress: number;
 }
+
+const getLoadingMessage = (action: string | null, file: File | null, selectedFiles: File[]): string => {
+    switch (action) {
+        case 'processFiles': return `Processing ${selectedFiles.length} file(s)...`;
+        case 'localAIEnhance':
+        case 'ollamaEnhance':
+        case 'aiEnhance':
+        case 'aiCodeReview':
+            return `Analyzing ${file?.name}...`;
+        case 'scanEnvironment': return 'Scanning environment...';
+        case 'processPrompt': return 'Processing prompt with AI...';
+        case 'processUrl': return 'Fetching and processing URL...';
+        case 'urlEnhance': return `Enhancing content from URL...`;
+        case 'trainFromUrl': return `Training AI from URL...`;
+        case 'improveLocalAI': return 'Improving local AI model...';
+        case 'getInstallerScript': return 'Generating installer...';
+        case 'gitPull': return 'Pulling from repository...';
+        case 'gitPush': return 'Pushing to repository...';
+        case 'geminiCommand': return 'Executing AI command...';
+        default: return 'Processing...';
+    }
+};
 
 const ControlPanel: React.FC<ControlPanelProps> = ({ 
     onProcessFiles,
@@ -237,7 +254,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         Local Enhance
                     </ActionButton>
                     <ActionButton onClick={() => onOllamaEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'ollamaEnhance'}>
-                        Local AI Enhance
+                        Ollama Enhance
                     </ActionButton>
                     <ActionButton onClick={() => onAiEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'aiEnhance'}>
                         AI Enhance
@@ -281,8 +298,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
         )}
       </div>
-      <div className="h-8 mt-4">
-        {isLoading && <ProgressBar progress={progress} />}
+      <div className="h-12 mt-4">
+        {isLoading && (
+            <div className="animate-fade-in text-center space-y-2">
+                <p className="text-sm text-brand-text-secondary truncate px-2">
+                    {getLoadingMessage(loadingAction, processingFile, selectedFiles)}
+                </p>
+                <ProgressBar progress={progress} />
+            </div>
+        )}
       </div>
     </div>
   );

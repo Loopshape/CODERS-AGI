@@ -1,13 +1,10 @@
 
-
-
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
-import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
+import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender } from './types';
 import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
-import { getLocalAiSuggestions } from './services/localAiService';
+import { getLocalAiSuggestions, chatWithLocalAi } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
@@ -63,12 +60,17 @@ const App: React.FC = () => {
   const [activeOutput, setActiveOutput] = useState<'code' | 'preview' | 'logs'>('code');
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
   const [chat, setChat] = useState<Chat | null>(null);
-  // Fix: Add editor settings state and handler to satisfy OutputViewerProps.
   const [editorSettings, setEditorSettings] = useState({
     fontSize: 14,
     theme: 'dark' as 'light' | 'dark',
     tabSize: 4,
   });
+  
+  // Chatbot states
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+
 
   const handleEditorSettingsChange = useCallback((newSettings: Partial<typeof editorSettings>) => {
     setEditorSettings(prev => ({ ...prev, ...newSettings }));
@@ -93,6 +95,30 @@ const App: React.FC = () => {
     setLogs(prev => [...prev, { type, message, timestamp: new Date().toLocaleTimeString() }]);
   }, []);
   
+  const triggerErrorChat = useCallback((actionName: string, error: unknown) => {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    
+    addLog(LogType.Error, `${actionName} failed: ${errorMessage}`);
+    setActiveOutput('logs');
+
+    const chatIntroMessage: ChatMessage = {
+        sender: MessageSender.AI,
+        text: `It looks like the '${actionName}' action failed with the following error:\n\n"${errorMessage}"\n\nI can try to help you troubleshoot this. What would you like to do?`,
+        timestamp: new Date().toLocaleTimeString()
+    };
+    
+    setChatMessages(prev => {
+        if (prev.length === 0) {
+            return [
+                { sender: MessageSender.AI, text: 'Hello! I am your local AI assistant. How can I help you today?', timestamp: new Date().toLocaleTimeString() },
+                chatIntroMessage
+            ];
+        }
+        return [...prev, chatIntroMessage];
+    });
+    setIsChatOpen(true);
+  }, [addLog]);
+
   const handleRequest = async (handler: () => ({ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }) | Promise<{ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }>, actionName: string, setActiveToLogs = false) => {
       setProcessingFile(null);
       setLoadingAction(actionName);
@@ -113,8 +139,7 @@ const App: React.FC = () => {
           setActiveOutput(setActiveToLogs ? 'logs' : 'code');
           setProgress(100);
       } catch (error) {
-           const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-            addLog(LogType.Error, `Processing failed: ${errorMessage}`);
+            triggerErrorChat(actionName, error);
             setProgress(100);
       } finally {
           setTimeout(() => {
@@ -152,9 +177,7 @@ const App: React.FC = () => {
       setProgress(100);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      const errorLog: LogEntry = { type: LogType.Error, message: `Batch processing failed: ${errorMessage}`, timestamp: new Date().toLocaleTimeString() };
-      setLogs(prevLogs => [...prevLogs, errorLog]);
+      triggerErrorChat('Batch File Processing', error);
       setActiveOutput('logs');
       setProgress(100);
     } finally {
@@ -163,7 +186,7 @@ const App: React.FC = () => {
             setProgress(0);
         }, 500);
     }
-  }, [addLog]);
+  }, [addLog, triggerErrorChat]);
   
   const handleScanEnvironment = useCallback(() => {
       handleRequest(scanEnvironment, 'scanEnvironment', true);
@@ -228,9 +251,7 @@ const App: React.FC = () => {
       setProgress(100);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      addLog(LogType.Error, `Local AI enhancement failed: ${errorMessage}`);
-      setActiveOutput('logs');
+      triggerErrorChat('Local AI Enhancement', error);
       setProgress(100);
     } finally {
        setTimeout(() => {
@@ -239,11 +260,11 @@ const App: React.FC = () => {
             setProcessingFile(null);
         }, 500);
     }
-  }, [addLog]);
+  }, [addLog, triggerErrorChat]);
 
   const handleOllamaEnhance = useCallback(async (file: File) => {
     if (!file) {
-      addLog(LogType.Warn, "No file selected for Local AI enhancement.");
+      addLog(LogType.Warn, "No file selected for Ollama enhancement.");
       return;
     }
 
@@ -253,32 +274,36 @@ const App: React.FC = () => {
     setLogs([]);
     setProcessedOutput(null);
     setActiveFileIndex(0);
-    addLog(LogType.AI, `Preparing to enhance ${file.name} with Local AI...`);
+    addLog(LogType.AI, `Preparing to enhance ${file.name} with Ollama...`);
     setActiveOutput('logs');
 
     try {
+      addLog(LogType.Info, `Scanning environment for context...`);
       setProgress(25);
+      const { output: envScanOutput, logs: scanLogs } = scanEnvironment();
+      scanLogs.forEach(log => addLog(log.type, log.message));
+      addLog(LogType.Success, `Environment scan complete.`);
+
+      setProgress(40);
       const fileContent = await file.text();
-      addLog(LogType.Info, `Read file content, sending to Local AI for enhancement.`);
+      addLog(LogType.Info, `Read file content, sending to Ollama with context for enhancement.`);
       setProgress(50);
       
-      const suggestion = await getLocalAiSuggestions(fileContent);
+      const suggestion = await getLocalAiSuggestions(fileContent, envScanOutput);
       setProgress(90);
 
       const parts = file.name.split('.');
       const extension = parts.length > 1 ? parts.pop() as string : '';
       const baseName = parts.join('.');
-      const newFileName = extension ? `${baseName}.local_enhanced.${extension}` : `${file.name}.local_enhanced`;
+      const newFileName = extension ? `${baseName}.ollama_enhanced.${extension}` : `${file.name}.ollama_enhanced`;
 
       setProcessedOutput([{ fileName: newFileName, content: suggestion }]);
-      addLog(LogType.Success, `Successfully received enhancement from Local AI.`);
+      addLog(LogType.Success, `Successfully received enhancement from Ollama.`);
       setActiveOutput('code');
       setProgress(100);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      addLog(LogType.Error, `Local AI enhancement failed: ${errorMessage}`);
-      setActiveOutput('logs');
+      triggerErrorChat('Ollama Enhancement', error);
       setProgress(100);
     } finally {
        setTimeout(() => {
@@ -287,7 +312,7 @@ const App: React.FC = () => {
             setProcessingFile(null);
         }, 500);
     }
-  }, [addLog]);
+  }, [addLog, triggerErrorChat]);
 
   const handleGeminiEnhance = useCallback(async (file: File) => {
     if (!file) {
@@ -324,9 +349,7 @@ const App: React.FC = () => {
       setProgress(100);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      addLog(LogType.Error, `Gemini AI enhancement failed: ${errorMessage}`);
-      setActiveOutput('logs');
+      triggerErrorChat('Gemini AI Enhancement', error);
       setProgress(100);
     } finally {
        setTimeout(() => {
@@ -335,7 +358,7 @@ const App: React.FC = () => {
             setProcessingFile(null);
         }, 500);
     }
-  }, [addLog]);
+  }, [addLog, triggerErrorChat]);
   
   const handleGeminiCodeReview = useCallback(async (file: File) => {
     if (!file) {
@@ -370,9 +393,7 @@ const App: React.FC = () => {
       setProgress(100);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      addLog(LogType.Error, `Gemini AI code review failed: ${errorMessage}`);
-      setActiveOutput('logs');
+      triggerErrorChat('Gemini AI Code Review', error);
       setProgress(100);
     } finally {
        setTimeout(() => {
@@ -381,7 +402,7 @@ const App: React.FC = () => {
             setProcessingFile(null);
         }, 500);
     }
-  }, [addLog]);
+  }, [addLog, triggerErrorChat]);
 
   const handleUrlEnhance = useCallback(async (url: string) => {
     setLoadingAction('urlEnhance');
@@ -416,9 +437,7 @@ const App: React.FC = () => {
       setProgress(100);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      addLog(LogType.Error, `URL enhancement process failed: ${errorMessage}`);
-      setActiveOutput('logs');
+      triggerErrorChat('URL Enhancement', error);
       setProgress(100);
     } finally {
        setTimeout(() => {
@@ -426,7 +445,7 @@ const App: React.FC = () => {
             setProgress(0);
         }, 500);
     }
-  }, [addLog]);
+  }, [addLog, triggerErrorChat]);
 
   const hasEnhancedFile = useMemo(() => {
     return processedOutput?.some(file => file.fileName.includes('.enhanced.')) ?? false;
@@ -510,8 +529,7 @@ const App: React.FC = () => {
       addLog(LogType.Success, `Local AI model successfully improved with data from ${url}.`);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      addLog(LogType.Error, `Training from URL failed: ${errorMessage}`);
+      triggerErrorChat('Training from URL', error);
       setProgress(100);
     } finally {
        setTimeout(() => {
@@ -519,7 +537,7 @@ const App: React.FC = () => {
             setProgress(0);
         }, 500);
     }
-  }, [addLog]);
+  }, [addLog, triggerErrorChat]);
 
   const handleCommand = useCallback(async (command: string) => {
     if (!command.trim() || isLoading) return;
@@ -564,8 +582,7 @@ const App: React.FC = () => {
         addLog(LogType.Gemini, response.text);
         setProgress(100);
     } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        addLog(LogType.Error, `AI command failed: ${errorMessage}`);
+        triggerErrorChat('AI Command', error);
         setProgress(100);
     } finally {
         setTimeout(() => {
@@ -573,7 +590,7 @@ const App: React.FC = () => {
             setProgress(0);
         }, 500);
     }
-}, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript]);
+}, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript, triggerErrorChat]);
 
   const handleContentChange = useCallback((newContent: string, index: number) => {
     setProcessedOutput(prev => {
@@ -585,6 +602,50 @@ const App: React.FC = () => {
       return newOutput;
     });
   }, []);
+
+  // Chatbot initial message effect
+  useEffect(() => {
+      if (isChatOpen && chatMessages.length === 0) {
+          setChatMessages([
+              { sender: MessageSender.AI, text: 'Hello! I am your local AI assistant. How can I help you today?', timestamp: new Date().toLocaleTimeString() }
+          ]);
+      }
+  }, [isChatOpen, chatMessages.length]);
+
+  // Function to handle sending chat messages
+  const handleSendChatMessage = useCallback(async (inputValue: string) => {
+      if (!inputValue.trim() || isChatLoading) return;
+
+      const userMessage: ChatMessage = {
+          sender: MessageSender.User,
+          text: inputValue,
+          timestamp: new Date().toLocaleTimeString(),
+      };
+      const currentMessages = [...chatMessages, userMessage];
+      setChatMessages(currentMessages);
+      setIsChatLoading(true);
+
+      try {
+          const responseText = await chatWithLocalAi(currentMessages);
+          const aiMessage: ChatMessage = {
+              sender: MessageSender.AI,
+              text: responseText,
+              timestamp: new Date().toLocaleTimeString(),
+          };
+          setChatMessages(prev => [...prev, aiMessage]);
+      } catch (error) {
+          console.error("Local AI Chat Error:", error);
+          const errorMessageText = error instanceof Error ? `Sorry, an error occurred: ${error.message}` : "An unknown error occurred.";
+          const errorMessage: ChatMessage = {
+              sender: MessageSender.Error,
+              text: errorMessageText,
+              timestamp: new Date().toLocaleTimeString(),
+          };
+          setChatMessages(prev => [...prev, errorMessage]);
+      } finally {
+          setIsChatLoading(false);
+      }
+  }, [isChatLoading, chatMessages]);
 
 
   return (
@@ -636,7 +697,13 @@ const App: React.FC = () => {
         <footer role="contentinfo" className="text-center p-4 border-t border-brand-border">
           <p className="text-sm text-brand-text-secondary">UI generated from bash script logic by a world-class senior frontend React engineer.</p>
         </footer>
-        <Chatbot />
+        <Chatbot
+          isOpen={isChatOpen}
+          toggleChat={() => setIsChatOpen(!isChatOpen)}
+          messages={chatMessages}
+          onSendMessage={handleSendChatMessage}
+          isLoading={isChatLoading}
+        />
       </div>
     </ErrorBoundary>
   );

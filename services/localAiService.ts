@@ -56,9 +56,15 @@ const callLocalAi = async (prompt: string, isJson: boolean = false): Promise<str
     }
 };
 
-export const getLocalAiSuggestions = async (htmlContent: string): Promise<string> => {
+export const getLocalAiSuggestions = async (htmlContent: string, environmentInfo: string): Promise<string> => {
     const prompt = `
 Act as an expert senior frontend engineer tasked with refactoring and enhancing the following code snippet. Your goal is to apply modern best practices to improve its structure, accessibility, and readability.
+
+Use the following environment scan information to inform your enhancements. This context about the user's system may be relevant for file paths, permissions, or system-specific configurations mentioned in the code.
+
+--- Environment Context ---
+${environmentInfo}
+--- End Environment Context ---
 
 Please follow these instructions precisely:
 

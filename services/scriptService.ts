@@ -1,3 +1,4 @@
+
 import { LogType, ProcessedFile } from '../types';
 
 export const UNIVERSAL_LAW = `:bof:
@@ -1444,6 +1445,18 @@ Filesystem      Size  Used Avail Use% Mounted on
 overlay          50G   10G   40G  20% /
 tmpfs            64M     0   64M   0% /dev
 shm             2.0G     0  2.0G   0% /dev/shm
+
+[/etc Directory Scan]
+-- /etc/os-release --
+PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+VERSION_ID="12"
+VERSION="12 (bookworm)"
+VERSION_CODENAME=bookworm
+ID=debian
+
+-- /etc/hostname --
+webapp-container
 
 [Home Directory Listing (~)]
 total 12

@@ -1,65 +1,31 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { chatWithLocalAi } from '../services/localAiService';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, MessageSender } from '../types';
 import { ChatIcon } from './icons/ChatIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import { CpuChipIcon } from './icons/CpuChipIcon';
 
-const Chatbot: React.FC = () => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+interface ChatbotProps {
+    isOpen: boolean;
+    toggleChat: () => void;
+    messages: ChatMessage[];
+    onSendMessage: (message: string) => void;
+    isLoading: boolean;
+}
+
+const Chatbot: React.FC<ChatbotProps> = ({ isOpen, toggleChat, messages, onSendMessage, isLoading }) => {
     const [inputValue, setInputValue] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-
     const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (isOpen && messages.length === 0) {
-            setMessages([
-                { sender: MessageSender.AI, text: 'Hello! I am your local AI assistant. How can I help you today?', timestamp: new Date().toLocaleTimeString() }
-            ]);
-        }
-    }, [isOpen, messages.length]);
     
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    const handleSendMessage = useCallback(async () => {
+    const handleSendMessage = () => {
         if (!inputValue.trim() || isLoading) return;
-
-        const userMessage: ChatMessage = {
-            sender: MessageSender.User,
-            text: inputValue,
-            timestamp: new Date().toLocaleTimeString(),
-        };
-        const currentMessages = [...messages, userMessage];
-        setMessages(currentMessages);
+        onSendMessage(inputValue);
         setInputValue('');
-        setIsLoading(true);
-
-        try {
-            const responseText = await chatWithLocalAi(currentMessages);
-            const aiMessage: ChatMessage = {
-                sender: MessageSender.AI,
-                text: responseText,
-                timestamp: new Date().toLocaleTimeString(),
-            };
-            setMessages(prev => [...prev, aiMessage]);
-        } catch (error) {
-            console.error("Local AI Chat Error:", error);
-            const errorMessage: ChatMessage = {
-                sender: MessageSender.Error,
-                text: error instanceof Error ? `Sorry, an error occurred: ${error.message}` : "An unknown error occurred.",
-                timestamp: new Date().toLocaleTimeString(),
-            };
-            setMessages(prev => [...prev, errorMessage]);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [inputValue, isLoading, messages]);
-
-    const toggleChat = () => setIsOpen(!isOpen);
+    };
 
     return (
         <>
