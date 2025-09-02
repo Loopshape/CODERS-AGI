@@ -155,7 +155,7 @@ const App: React.FC = () => {
   }, [addLog]);
   
   const handleProcessPrompt = useCallback((prompt: string) => {
-      handleRequest(() => processPrompt(prompt), 'processPrompt');
+      handleRequest(() => processPrompt(prompt), 'processPrompt', true);
   }, [addLog]);
 
   const handleProcessUrl = useCallback((url: string) => {
@@ -420,49 +420,32 @@ const App: React.FC = () => {
     const parts = command.trim().match(/(?:[^\s"]+|"[^"]*")+/g) || [];
     const [cmd, ...args] = parts.map(p => p.startsWith('"') && p.endsWith('"') ? p.slice(1, -1) : p);
 
-    const commandWasExecuted = (() => {
-        switch (cmd.toLowerCase()) {
-            case 'scan-env':
-                handleScanEnvironment();
-                return true;
-            case 'get-installer':
-                handleGetInstallerScript();
-                return true;
-            case 'help':
-                addLog(LogType.Info, 'Available commands: scan-env, get-installer. Any other text will be sent to the AI assistant.');
-                return true;
-            default:
-                return false;
-        }
-    })();
-
-    if (commandWasExecuted) return;
-
-    setLoadingAction('geminiCommand');
-    setProgress(30);
-    if (!chat) {
-        addLog(LogType.Error, "Chat is not initialized.");
-        setLoadingAction(null);
-        setProgress(0);
-        return;
+    switch (cmd.toLowerCase()) {
+        case 'scan-env':
+            handleScanEnvironment();
+            break;
+        case 'get-installer':
+            handleGetInstallerScript();
+            break;
+        case 'help':
+            addLog(LogType.Info, "Available commands: scan-env, get-installer, error-test. Any other text will be sent to the local AI via 'ollama run gemma3:1b'.");
+            break;
+        case 'error-test':
+            setLoadingAction('commandError');
+            setProgress(50);
+            await new Promise(res => setTimeout(res, 400));
+            addLog(LogType.Error, `Execution failed for command: '${command}'\nThis is a simulated error to demonstrate failure handling.`);
+            setProgress(100);
+            setTimeout(() => {
+                setLoadingAction(null);
+                setProgress(0);
+            }, 500);
+            break;
+        default:
+            handleProcessPrompt(command);
+            break;
     }
-
-    try {
-        const response = await chat.sendMessage({ message: command });
-        setProgress(90);
-        addLog(LogType.Gemini, response.text);
-        setProgress(100);
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        addLog(LogType.Error, `AI command failed: ${errorMessage}`);
-        setProgress(100);
-    } finally {
-        setTimeout(() => {
-            setLoadingAction(null);
-            setProgress(0);
-        }, 500);
-    }
-}, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript]);
+}, [addLog, isLoading, handleScanEnvironment, handleGetInstallerScript, handleProcessPrompt]);
 
   return (
     <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
@@ -502,7 +485,7 @@ const App: React.FC = () => {
           </div>
         </main>
         <div className="container mx-auto px-4 md:px-6 lg:px-8 mt-auto pb-4">
-            <CommandBar onCommand={handleCommand} isLoading={loadingAction === 'geminiCommand'} />
+            <CommandBar onCommand={handleCommand} isLoading={loadingAction === 'geminiCommand' || loadingAction === 'commandError'} />
         </div>
         <footer role="contentinfo" className="text-center p-4 border-t border-brand-border">
           <p className="text-sm text-brand-text-secondary">UI generated from bash script logic by a world-class senior frontend React engineer.</p>

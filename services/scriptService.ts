@@ -67,9 +67,11 @@ drwxr-xr-x 1 root        root        4096 Jul 30 09:58 ..
 
 // Fix: Rename aiPrompt to processPrompt and remove URL logic
 export const processPrompt = (prompt: string) => {
+    const command = '/usr/local/bin/ollama run gemma3:1b';
     const logs = [
-        {type: LogType.Info, message: `Running prompt on Ollama gemma3:1b...`},
-        {type: LogType.Warn, message: 'Ollama not found, printing prompt only'},
+        {type: LogType.Info, message: `Redirecting prompt to local AI model: gemma3:1b`},
+        {type: LogType.Info, message: `Simulating execution of: \`${command}\` with the provided prompt.`},
+        {type: LogType.Warn, message: 'Local Ollama instance not found. Fallback: returning prompt as output.'},
     ];
     return { output: prompt, logs, fileName: 'prompt_output.txt' };
 }
