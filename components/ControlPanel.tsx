@@ -28,13 +28,14 @@ const CloneIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 
 interface ControlPanelProps {
-  onProcessFiles: (files: File[]) => void;
+  onProcessFiles: (files: File[], enhancementType: 'none' | 'local' | 'gemini') => void;
   onScanEnvironment: () => void;
   onProcessPrompt: (prompt: string) => void;
   onProcessUrl: (url: string) => void;
   onAiEnhance: (file: File) => void;
   onLocalAiEnhance: (file: File) => void;
   onAiCodeReview: (file: File) => void;
+  onLocalAiCodeReview: (file: File) => void;
   onStaticEnhance: (file: File) => void;
   onUrlEnhance: (url: string) => void;
   onImproveLocalAI: () => void;
@@ -47,6 +48,7 @@ interface ControlPanelProps {
   onGitClone: (url: string) => void;
   onCloudAccelerate: () => void;
   onApiRequest: (request: ApiRequest) => void;
+  onReviewApiHistory: () => void;
   onSaveConfig: (fileName: string, content: string) => void;
   apiHistory: ApiHistoryEntry[];
   savedApiRequests: SavedApiRequest[];
@@ -62,20 +64,23 @@ interface ControlPanelProps {
   progress: number;
 }
 
-const getLoadingMessage = (action: string | null, file: File | null, selectedFiles: File[]): string => {
+const getLoadingMessage = (action: string | null, file: File | null, selectedFiles: File[], url: string): string => {
+    const safeUrl = url.length > 50 ? `${url.substring(0, 47)}...` : url;
     switch (action) {
         case 'processFiles': return `Processing ${selectedFiles.length} file(s)...`;
+        case 'processFilesWithLocalAI': return `Processing ${selectedFiles.length} file(s) with Local AI...`;
+        case 'processFilesWithGeminiAI': return `Processing ${selectedFiles.length} file(s) with Gemini AI...`;
         case 'staticEnhance': return `Applying static enhancements to ${file?.name}...`;
         case 'localAiEnhance': return `Enhancing ${file?.name} with Local AI...`;
-        case 'aiEnhance':
-        case 'aiCodeReview':
-            return `Analyzing ${file?.name} with Gemini AI...`;
+        case 'aiEnhance': return `Analyzing ${file?.name} with Gemini AI...`;
+        case 'aiCodeReview': return `Analyzing ${file?.name} with Gemini AI...`;
+        case 'localAiCodeReview': return `Analyzing ${file?.name} with Local AI...`;
         case 'cloudAcceleration': return `Accelerating ${file?.name} with Cloud AI...`;
         case 'scanEnvironment': return 'Scanning environment...';
         case 'processPrompt': return 'Processing prompt with AI...';
-        case 'processUrl': return 'Fetching and processing URL...';
-        case 'urlEnhance': return `Enhancing content from URL...`;
-        case 'trainFromUrl': return `Training AI from URL...`;
+        case 'processUrl': return `Fetching and processing ${safeUrl}...`;
+        case 'urlEnhance': return `Enhancing content from ${safeUrl}...`;
+        case 'trainFromUrl': return `Training AI from ${safeUrl}...`;
         case 'improveLocalAI': return 'Training AI from enhanced file...';
         case 'trainFromHistory': return 'Training AI from request history...';
         case 'trainFromSaved': return 'Training AI from saved requests...';
@@ -86,6 +91,7 @@ const getLoadingMessage = (action: string | null, file: File | null, selectedFil
         case 'gitClone': return 'Cloning from repository...';
         case 'geminiCommand': return 'Executing AI command...';
         case 'apiRequest': return 'Sending API request...';
+        case 'reviewApiHistory': return 'Reviewing API history with Gemini...';
         default: return 'Processing...';
     }
 };
@@ -98,7 +104,7 @@ const ControlPanel: React.FC<ControlPanelProps> = (props) => {
   const [prompt, setPrompt] = useState('');
   const [url, setUrl] = useState('');
   
-  const loadingMessage = getLoadingMessage(props.loadingAction, props.processingFile, selectedFiles);
+  const loadingMessage = getLoadingMessage(props.loadingAction, props.processingFile, selectedFiles, url);
 
   return (
     <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl flex flex-col h-full">
@@ -136,22 +142,22 @@ const ControlPanel: React.FC<ControlPanelProps> = (props) => {
 };
 
 const TabButton: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void; }> = ({ icon, label, isActive, onClick }) => (
-    <button onClick={onClick} className={`flex items-center justify-center space-x-2 flex-1 text-center py-2.5 px-2 font-semibold transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-accent/50 border-b-2 ${isActive ? 'text-brand-accent border-brand-accent' : 'text-brand-text-secondary hover:text-brand-text-primary border-transparent'}`} role="tab" aria-selected={isActive}>
+    <button onClick={onClick} className={`flex items-center justify-center space-x-2 flex-1 text-center py-2.5 px-2 font-semibold transition-colors duration-300 focus:outline-none border-b-2 ${isActive ? 'text-brand-accent border-brand-accent' : 'text-brand-text-secondary hover:text-brand-text-primary border-transparent'}`} role="tab" aria-selected={isActive}>
         {icon}
         <span className="hidden sm:inline text-sm">{label}</span>
     </button>
 );
 
-const FilesPanel: React.FC<ControlPanelProps & {selectedFiles: File[], setSelectedFiles: (f: File[])=>void, prompt: string, setPrompt: (s:string)=>void, url: string, setUrl: (s:string)=>void}> = ({ onProcessFiles, onProcessPrompt, onProcessUrl, onUrlEnhance, onTrainFromUrl, onStaticEnhance, onLocalAiEnhance, onAiEnhance, onAiCodeReview, onCreateNewFile, isLoading, loadingAction, selectedFiles, setSelectedFiles, prompt, setPrompt, url, setUrl }) => {
+const FilesPanel: React.FC<ControlPanelProps & {selectedFiles: File[], setSelectedFiles: (f: File[])=>void, prompt: string, setPrompt: (s:string)=>void, url: string, setUrl: (s:string)=>void}> = ({ onProcessFiles, onProcessPrompt, onProcessUrl, onUrlEnhance, onTrainFromUrl, onStaticEnhance, onLocalAiEnhance, onAiEnhance, onAiCodeReview, onLocalAiCodeReview, onCreateNewFile, isLoading, loadingAction, selectedFiles, setSelectedFiles, prompt, setPrompt, url, setUrl }) => {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const hasFileSelected = selectedFiles.length > 0;
+    const [batchEnhancementType, setBatchEnhancementType] = useState<'none' | 'local' | 'gemini'>('none');
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) setSelectedFiles(Array.from(event.target.files));
     };
     const triggerFileSelect = () => fileInputRef.current?.click();
-    const handleProcessFilesClick = () => { if (selectedFiles.length > 0) onProcessFiles(selectedFiles); };
     const handleProcessInput = () => {
         if (url.trim()) onProcessUrl(url.trim());
         else if (prompt.trim()) onProcessPrompt(prompt.trim());
@@ -178,9 +184,9 @@ const FilesPanel: React.FC<ControlPanelProps & {selectedFiles: File[], setSelect
         <div className="space-y-2">
             <CollapsibleSection title="Direct Input" icon={<TerminalIcon className="w-5 h-5"/>}>
                 <div className="pt-2">
-                    <textarea value={prompt} onChange={(e) => { setPrompt(e.target.value); setUrl(''); }} className="w-full h-24 p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition" placeholder="Enter prompt text..." aria-label="Text prompt for AI processing"/>
+                    <textarea value={prompt} onChange={(e) => { setPrompt(e.target.value); setUrl(''); }} className="w-full h-24 p-3 bg-brand-bg border border-brand-border rounded-md focus:outline-none transition" placeholder="Enter prompt text..." aria-label="Text prompt for AI processing"/>
                     <div className="relative flex py-2 items-center"><div className="flex-grow border-t border-brand-border"></div><span className="flex-shrink mx-4 text-brand-text-secondary uppercase text-xs">Or</span><div className="flex-grow border-t border-brand-border"></div></div>
-                    <input type="url" value={url} onChange={(e) => { setUrl(e.target.value); setPrompt(''); }} className="w-full p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition" placeholder="https://example.com" aria-label="URL for fetching and processing"/>
+                    <input type="url" value={url} onChange={(e) => { setUrl(e.target.value); setPrompt(''); }} className="w-full p-3 bg-brand-bg border border-brand-border rounded-md focus:outline-none transition" placeholder="https://example.com" aria-label="URL for fetching and processing"/>
                     <div className="mt-3 space-y-2">
                         <ActionButton onClick={handleProcessInput} disabled={(!prompt.trim() && !url.trim()) || isLoading} isLoading={loadingAction === 'processPrompt' || loadingAction === 'processUrl'}>Process Input</ActionButton>
                         <div className="grid grid-cols-2 gap-2">
@@ -197,23 +203,44 @@ const FilesPanel: React.FC<ControlPanelProps & {selectedFiles: File[], setSelect
                         <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" aria-hidden="true" />
                         {selectedFiles.length === 0 ? <div className="text-center"><UploadIcon className="w-8 h-8 mx-auto text-brand-text-secondary mb-2"/><p className="font-medium text-brand-text-secondary text-sm">{isDragging ? "Drop files here" : <>Drop files or <span className="text-brand-accent">browse</span></>}</p></div> : <ul className="text-sm text-brand-text-secondary space-y-1 max-h-24 w-full overflow-y-auto">{selectedFiles.map(f => <li key={f.name} className="truncate pr-2">{f.name} ({formatBytes(f.size)})</li>)}</ul>}
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
+                     <div className="mt-3 space-y-2">
                         <ActionButton onClick={onCreateNewFile} disabled={isLoading} isLoading={false}>New File</ActionButton>
-                        <ActionButton onClick={handleProcessFilesClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'processFiles'} icon={<ProcessIcon className="w-5 h-5"/>}>Batch Process</ActionButton>
+                        <div className="flex items-stretch space-x-2">
+                            <ActionButton 
+                                onClick={() => onProcessFiles(selectedFiles, batchEnhancementType)} 
+                                disabled={selectedFiles.length === 0 || isLoading} 
+                                isLoading={!!loadingAction?.startsWith('processFiles')} 
+                                icon={<ProcessIcon className="w-5 h-5"/>}
+                            >
+                                Batch Process
+                            </ActionButton>
+                            <select
+                                value={batchEnhancementType}
+                                onChange={e => setBatchEnhancementType(e.target.value as any)}
+                                className="bg-brand-bg border border-brand-border rounded-lg px-2 focus:outline-none text-sm w-full disabled:opacity-50"
+                                disabled={isLoading || selectedFiles.length === 0}
+                                aria-label="Select AI enhancement for batch processing"
+                            >
+                                <option value="none">w/ No AI</option>
+                                <option value="local">w/ Local AI</option>
+                                <option value="gemini">w/ Gemini</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </CollapsibleSection>
             
             <CollapsibleSection title="AI Actions on File" icon={<SparklesIcon className="w-5 h-5"/>}>
-                <div className="pt-2">
+                <div className="pt-2 space-y-2">
                     {!hasFileSelected && (
                         <p className="text-xs text-brand-text-secondary text-center py-2">Select a file from the 'File Management' section above to enable AI actions.</p>
                     )}
+                    <ActionButton onClick={() => onStaticEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'staticEnhance'} fullWidth>Static Enhance</ActionButton>
                     <div className="grid grid-cols-2 gap-2">
-                        <ActionButton onClick={() => onStaticEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'staticEnhance'}>Static Enhance</ActionButton>
-                        <ActionButton onClick={() => onLocalAiEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'localAiEnhance'}>Local AI Enhance</ActionButton>
-                        <ActionButton onClick={() => onAiEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'aiEnhance'}>AI Enhance</ActionButton>
-                        <ActionButton onClick={() => onAiCodeReview(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'aiCodeReview'} fullWidth>AI Review</ActionButton>
+                        <ActionButton onClick={() => onLocalAiEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'localAiEnhance'} icon={<CpuChipIcon className="w-5 h-5"/>}>Local AI Enhance</ActionButton>
+                        <ActionButton onClick={() => onAiEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'aiEnhance'} icon={<SparklesIcon className="w-5 h-5"/>}>Gemini Enhance</ActionButton>
+                        <ActionButton onClick={() => onLocalAiCodeReview(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'localAiCodeReview'}>Local AI Review</ActionButton>
+                        <ActionButton onClick={() => onAiCodeReview(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'aiCodeReview'}>Gemini Review</ActionButton>
                     </div>
                 </div>
             </CollapsibleSection>
@@ -249,7 +276,7 @@ const GitPanel: React.FC<ControlPanelProps> = ({ onGitClone, onGitPull, onGitPus
     );
 };
 
-const ApiPanel: React.FC<ControlPanelProps> = ({ onApiRequest, apiHistory, savedApiRequests, onSaveApiRequest, onDeleteSavedRequest, onClearApiHistory, isLoading, loadingAction }) => {
+const ApiPanel: React.FC<ControlPanelProps> = ({ onApiRequest, onReviewApiHistory, apiHistory, savedApiRequests, onSaveApiRequest, onDeleteSavedRequest, onClearApiHistory, isLoading, loadingAction }) => {
     const [request, setRequest] = useState<ApiRequest>({ method: 'GET', url: 'https://api.example.com/data', body: '' });
 
     const handleSend = () => {
@@ -265,6 +292,14 @@ const ApiPanel: React.FC<ControlPanelProps> = ({ onApiRequest, apiHistory, saved
         }
     };
 
+    const handleSaveFromHistory = (entry: ApiHistoryEntry) => {
+        const name = prompt("Enter a name for this request:", `Request from ${entry.timestamp}`);
+        if (name && name.trim()) {
+            onSaveApiRequest(name, { method: entry.method, url: entry.url, body: entry.body });
+        }
+    };
+
+
     return (
         <div className="space-y-4">
             {/* Request Form */}
@@ -272,7 +307,7 @@ const ApiPanel: React.FC<ControlPanelProps> = ({ onApiRequest, apiHistory, saved
                 <div>
                     <label className="text-sm font-semibold text-brand-text-secondary">Endpoint URL:</label>
                     <div className="flex items-center space-x-2">
-                        <select value={request.method} onChange={e => setRequest(r => ({...r, method: e.target.value as ApiRequest['method']}))} className="bg-brand-bg border border-brand-border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-brand-accent">
+                        <select value={request.method} onChange={e => setRequest(r => ({...r, method: e.target.value as ApiRequest['method']}))} className="bg-brand-bg border border-brand-border rounded-md p-2 focus:outline-none">
                             <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>PATCH</option>
                         </select>
                         <input type="url" value={request.url} onChange={e => setRequest(r => ({...r, url: e.target.value}))} placeholder="https://api.example.com" className="w-full text-sm p-2 bg-brand-bg border border-brand-border rounded-md"/>
@@ -280,7 +315,7 @@ const ApiPanel: React.FC<ControlPanelProps> = ({ onApiRequest, apiHistory, saved
                 </div>
                 <div>
                     <label className="text-sm font-semibold text-brand-text-secondary">Request Body (JSON):</label>
-                    <textarea value={request.body} onChange={e => setRequest(r => ({...r, body: e.target.value}))} disabled={request.method === 'GET'} className="w-full h-24 p-3 font-mono text-sm bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition disabled:opacity-50" placeholder='{ "key": "value" }'/>
+                    <textarea value={request.body} onChange={e => setRequest(r => ({...r, body: e.target.value}))} disabled={request.method === 'GET'} className="w-full h-24 p-3 font-mono text-sm bg-brand-bg border border-brand-border rounded-md focus:outline-none transition disabled:opacity-50" placeholder='{ "key": "value" }'/>
                 </div>
                 <div className="flex items-center space-x-2">
                     <ActionButton onClick={handleSend} disabled={!request.url.trim() || isLoading} isLoading={loadingAction === 'apiRequest'}>Send Request</ActionButton>
@@ -307,15 +342,26 @@ const ApiPanel: React.FC<ControlPanelProps> = ({ onApiRequest, apiHistory, saved
 
             {/* History */}
             <CollapsibleSection title="History" icon={<HistoryIcon className="w-5 h-5"/>} actionButton={
-                apiHistory.length > 0 && <button onClick={onClearApiHistory} className="text-xs text-brand-text-secondary hover:text-brand-accent">Clear</button>
+                apiHistory.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                        <button onClick={onReviewApiHistory} className="text-xs text-brand-text-secondary hover:text-brand-accent flex items-center space-x-1" title="Review with Gemini AI" disabled={isLoading}>
+                            <SparklesIcon className="w-4 h-4 text-brand-gemini"/>
+                            <span>Review</span>
+                        </button>
+                        <button onClick={onClearApiHistory} className="text-xs text-brand-text-secondary hover:text-brand-accent" disabled={isLoading}>Clear</button>
+                    </div>
+                )
             }>
                 {apiHistory.length > 0 ? (
                     <ul className="space-y-1 max-h-32 overflow-y-auto">
                         {apiHistory.map(entry => (
-                            <li key={entry.id}>
-                                <button onClick={() => setRequest({ method: entry.method, url: entry.url, body: entry.body })} className="w-full text-left text-sm p-1.5 rounded hover:bg-brand-bg/50 truncate">
+                            <li key={entry.id} className="group flex items-center justify-between text-sm p-1.5 rounded hover:bg-brand-bg/50">
+                                <button onClick={() => setRequest({ method: entry.method, url: entry.url, body: entry.body })} className="w-full text-left truncate">
                                     <span className={`font-mono font-semibold ${entry.method === 'GET' ? 'text-green-400' : 'text-yellow-400'}`}>{entry.method}</span>
                                     <span className="text-brand-text-secondary ml-2 truncate">{entry.url}</span>
+                                </button>
+                                <button onClick={() => handleSaveFromHistory(entry)} className="p-1 text-brand-text-secondary hover:text-brand-accent ml-2 opacity-0 group-hover:opacity-100 transition-opacity" title="Save this request">
+                                    <BookmarkIcon className="w-4 h-4"/>
                                 </button>
                             </li>
                         ))}
@@ -363,10 +409,10 @@ const SystemPanel: React.FC<ControlPanelProps> = ({ onScanEnvironment, onGetInst
             </div>
             <div>
                 <h3 className="text-sm font-semibold text-brand-text-secondary mb-2">Dotfile &amp; Config Editor</h3>
-                <select value={selectedConfig} onChange={e => setSelectedConfig(e.target.value)} className="w-full bg-brand-bg border border-brand-border rounded-md p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-brand-accent">
+                <select value={selectedConfig} onChange={e => setSelectedConfig(e.target.value)} className="w-full bg-brand-bg border border-brand-border rounded-md p-2 mb-2 focus:outline-none">
                     {configFiles.map(file => <option key={file} value={file}>{file}</option>)}
                 </select>
-                <textarea value={configContent} onChange={e => setConfigContent(e.target.value)} className="w-full h-40 p-3 font-mono text-sm bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition" disabled={isConfigLoading} />
+                <textarea value={configContent} onChange={e => setConfigContent(e.target.value)} className="w-full h-40 p-3 font-mono text-sm bg-brand-bg border border-brand-border rounded-md focus:outline-none transition" disabled={isConfigLoading} />
                 <ActionButton onClick={() => onSaveConfig(selectedConfig, configContent)} disabled={isConfigLoading || isLoading} isLoading={false}>Save {selectedConfig}</ActionButton>
             </div>
         </div>

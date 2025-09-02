@@ -31,7 +31,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, toggleChat, messages, onSendM
         <>
             <button
                 onClick={toggleChat}
-                className="fixed bottom-6 right-6 bg-brand-info text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-500 transition-transform transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-brand-bg z-50"
+                className="fixed bottom-6 right-6 bg-brand-info text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-500 transition-transform transform hover:scale-110 focus:outline-none z-50"
                 aria-label="Toggle Chatbot"
             >
                 <ChatIcon className="w-8 h-8" />
@@ -79,7 +79,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, toggleChat, messages, onSendM
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                                 placeholder="Ask the local AI..."
-                                className="flex-grow bg-brand-bg border border-brand-border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-brand-info"
+                                className="flex-grow bg-brand-bg border border-brand-border rounded-lg p-2 focus:outline-none"
                                 disabled={isLoading}
                             />
                             <button

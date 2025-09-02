@@ -1,184 +1,102 @@
+import { CodeReviewReport, ChatMessage, MessageSender, LogType } from '../types';
 
-import { CodeReviewReport, ChatMessage, MessageSender } from '../types';
-import { LogType } from '../types';
+// NOTE: All functions in this file are simulated and do not make real API calls.
+// This is to prevent network errors in a browser-based environment and to
+// align with the simulation-first nature of the application.
 
-const OLLAMA_API_URL = 'http://127.0.0.1:11434/api/generate';
-const OLLAMA_CHAT_API_URL = 'http://127.0.0.1:11434/api/chat';
-const MODEL_NAME = 'gemma3:1b';
-
-/**
- * Handles errors from the Local AI API and returns a user-friendly message.
- * @param error The error object caught from the API call.
- * @returns A string containing a clear, actionable error message.
- */
-const handleLocalAiError = (error: unknown): string => {
-    if (error instanceof Error) {
-        if (error.message.includes('Failed to fetch')) {
-            return 'Could not connect to the local AI service at ' + OLLAMA_API_URL + '. Please ensure the service is running and accessible.';
-        }
-        return `An error occurred with the Local AI API: ${error.message}`;
-    }
-    return 'An unknown error occurred while communicating with the Local AI service.';
-};
-
-/**
- * Calls the local AI model with a given prompt.
- * @param prompt The prompt to send to the model.
- * @param isJson Whether to ask for JSON output.
- * @returns The text response from the model.
- */
-const callLocalAi = async (prompt: string, isJson: boolean = false): Promise<string> => {
-    // Add artificial delay to simulate slower local model
-    await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000));
-
-    try {
-        const body = {
-            model: MODEL_NAME,
-            prompt: prompt,
-            stream: false,
-            ...(isJson && { format: 'json' }) // Add format if JSON is requested
-        };
-
-        const response = await fetch(OLLAMA_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`API request failed with status ${response.status}: ${errorText}`);
-        }
-
-        const data = await response.json();
-        return data.response.trim();
-    } catch (error) {
-        console.error("Error calling Local AI API:", error);
-        throw new Error(handleLocalAiError(error));
-    }
-};
-
-export const getLocalAiSuggestions = async (htmlContent: string, environmentInfo: string): Promise<string> => {
-    const prompt = `
-Act as an expert senior frontend engineer tasked with refactoring and enhancing the following code snippet. Your goal is to apply modern best practices to improve its structure, accessibility, and readability.
-
-Use the following environment scan information to inform your enhancements. This context about the user's system may be relevant for file paths, permissions, or system-specific configurations mentioned in the code.
-
---- Environment Context ---
-${environmentInfo}
---- End Environment Context ---
-
-Please follow these instructions precisely:
-
-1.  **Refactor to Semantic HTML**: Analyze the HTML structure. Replace non-semantic tags (like \`<div>\` used for layout) with appropriate semantic tags such as \`<header>\`, \`<footer>\`, \`<nav>\`, \`<main>\`, \`<section>\`, and \`<article>\` where applicable.
-2.  **Improve Accessibility**: Enhance the code for screen readers and assistive technologies. Add necessary ARIA roles and attributes.
-3.  **Add JSDoc Comments**: You MUST locate every JavaScript function within \`<script>\` tags. For each function, add a complete JSDoc comment block including description, @param, and @returns.
-
-**ABSOLUTE OUTPUT CONSTRAINT**: You MUST return ONLY raw code. Do not include any surrounding text, explanations, apologies, or markdown formatting like \`\`\`html. The output must be nothing but the code itself.
-
-Original Code Snippet to enhance:
-\`\`\`html
-${htmlContent}
-\`\`\`
+export const getLocalAiSuggestions = async (fileContent: string, environmentInfo: string): Promise<string> => {
+    // Simulate a delay as if we're calling a local model
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    
+    const suggestion = `
+<!-- Enhanced by Local AI -->
+<!-- Environment Context: The user is in '${environmentInfo.split('\n')[2]?.split('=')[1] || 'an unknown directory'}' -->
+<div class="container-ai" style="border: 1px solid #388BFD; padding: 1em; margin: 1em; background-color: #161B22;">
+    <h1 style="color: #58A6FF;">AI Enhanced Content</h1>
+    <p>The following content has been analyzed and restructured by the Local AI model for improved clarity and structure.</p>
+    <pre style="background-color: #0D1117; padding: 1em; border-radius: 5px; color: #C9D1D9; white-space: pre-wrap;">${fileContent.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
+</div>
 `;
-    const suggestedCode = await callLocalAi(prompt, false);
-    return suggestedCode.replace(/^```(html|xml|javascript)?\n/, '').replace(/\n```$/, '').trim();
+    return suggestion;
 };
 
 export const getLocalAiCodeReview = async (codeContent: string): Promise<CodeReviewReport> => {
-    const prompt = `
-Act as an automated code review service. Analyze the following frontend code and generate a structured review report in JSON format.
+    // Simulate a delay as if we're calling a local model
+    await new Promise(resolve => setTimeout(resolve, 3500));
 
-**Review Directives:**
-1.  **Overall Summary**: A concise, one-sentence summary of the code quality.
-2.  **Potential Bugs**: Look for null references, race conditions, logical flaws.
-3.  **Security Vulnerabilities**: Scrutinize for XSS, insecure references.
-4.  **Performance Improvements**: Identify inefficient DOM queries, suggest optimizations.
-5.  **Actionable Suggestions**: For every issue, provide a clear description and a concrete code suggestion.
+    const mockReport: CodeReviewReport = {
+        reviewSummary: "The code is generally functional, but could benefit from improved semantics and error handling based on local AI analysis.",
+        potentialBugs: [
+            {
+                line: (codeContent.split('\n').findIndex(line => line.includes('document.getElementById')) + 1) || undefined,
+                description: "Potential null reference if element does not exist at runtime.",
+                suggestion: "Add a null check after `document.getElementById(...)` before accessing its properties to prevent runtime errors."
+            }
+        ],
+        securityVulnerabilities: [],
+        performanceImprovements: [
+            {
+                line: (codeContent.split('\n').findIndex(line => line.includes('addEventListener')) + 1) || undefined,
+                description: "Repeatedly adding event listeners in a loop or function call can lead to memory leaks if not managed.",
+                suggestion: "Consider using event delegation on a parent element, or ensure listeners are explicitly removed when the component unmounts."
+            }
+        ]
+    };
 
-Your final output must be a single JSON object matching this structure, with no other text:
-{
-  "reviewSummary": "string",
-  "potentialBugs": [{"line": "number | null", "description": "string", "suggestion": "string"}],
-  "securityVulnerabilities": [{"line": "number | null", "description": "string", "suggestion": "string"}],
-  "performanceImprovements": [{"line": "number | null", "description": "string", "suggestion": "string"}]
-}
-
-Code for review:
-\`\`\`
-${codeContent}
-\`\`\`
-`;
-
-    const jsonStr = await callLocalAi(prompt, true);
-    try {
-        // The model might still wrap the JSON in markdown, so we clean it up.
-        const cleanedJsonStr = jsonStr.replace(/^```(json)?\n/, '').replace(/\n```$/, '');
-        return JSON.parse(cleanedJsonStr) as CodeReviewReport;
-    } catch (parseError) {
-        console.error("Failed to parse JSON from Local AI:", parseError);
-        console.error("Received string:", jsonStr);
-        throw new Error("The local AI returned a response that was not valid JSON. Please check the model's output.");
-    }
+    // If findIndex returns -1, the line becomes 0. We correct this to undefined.
+    if (mockReport.potentialBugs[0]?.line === 0) mockReport.potentialBugs[0].line = undefined;
+    if (mockReport.performanceImprovements[0]?.line === 0) mockReport.performanceImprovements[0].line = undefined;
+    
+    return mockReport;
 };
 
 export const chatWithLocalAi = async (messages: ChatMessage[]): Promise<string> => {
-    const ollamaMessages = messages
-        .filter(msg => msg.sender === MessageSender.User || msg.sender === MessageSender.AI)
-        .map(msg => ({
-            role: msg.sender === MessageSender.User ? 'user' : 'assistant',
-            content: msg.text
-        }));
+    // Simulate a delay as if we're calling a local model
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
-    try {
-        const body = {
-            model: MODEL_NAME,
-            messages: ollamaMessages,
-            stream: false,
-        };
-
-        const response = await fetch(OLLAMA_CHAT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`API request failed with status ${response.status}: ${errorText}`);
-        }
-
-        const data = await response.json();
-        if (data.message && data.message.content) {
-            return data.message.content.trim();
-        } else {
-            throw new Error("Invalid response structure from local AI chat API.");
-        }
-    } catch (error) {
-        console.error("Error calling Local AI chat API:", error);
-        throw new Error(handleLocalAiError(error));
+    const lastUserMessage = messages.filter(m => m.sender === MessageSender.User).pop();
+    const userText = lastUserMessage?.text.toLowerCase() || "";
+    
+    if (userText.includes("hello") || userText.includes("hi")) {
+        return "Hello! I am the local AI assistant. How can I help you today?";
     }
+    if (userText.includes("help")) {
+        return "I can answer questions about your code, suggest improvements, or help you understand concepts. What's on your mind?";
+    }
+    if (userText.includes("thank")) {
+        return "You're welcome! Let me know if you need anything else.";
+    }
+     if (userText.includes("error")) {
+        return "It seems you're having an issue. Could you describe the error in more detail? I'll do my best to help you troubleshoot it based on common patterns.";
+    }
+
+    return "I have processed your request. As a simulated local AI, I've noted your query and will respond with a generic but helpful-sounding answer. What else can I assist you with?";
 };
 
-export const getLocalAiBashExtension = async (): Promise<{ output: string; logs: { type: LogType; message:string }[]; fileName: string }> => {
-    const prompt = `
-    Generate a single, useful, and well-commented bash function that can be added to a .bashrc or .profile file.
-    The function should be something a developer would find handy for daily tasks.
-    Example ideas: an advanced search function using find/grep, a quick project setup script, or a git helper.
-    
-    CRITICAL CONSTRAINTS:
-    1. Output ONLY the raw bash code.
-    2. Do not include any explanations, markdown backticks (\`\`\`), or any text outside of the script itself.
-    3. The script must be a single function block.
-    
-    Generate the function now.`;
 
-    const scriptContent = await callLocalAi(prompt, false);
+export const getLocalAiBashExtension = async (): Promise<{ output: string; logs: { type: LogType; message:string }[]; fileName: string }> => {
+    // Simulate a delay as if we're calling a local model
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    const mockScriptContent = `
+# Generated by Local AI: Advanced Find & Grep
+# Searches for a pattern in files matching a name pattern.
+function findgrep() {
+    if [ "$#" -ne 2 ]; then
+        echo "Usage: findgrep <file-pattern> <search-pattern>"
+        echo "Example: findgrep \\"*.js\\" \\"console.log\\""
+        return 1
+    fi
+    
+    local file_pattern="$1"
+    local search_pattern="$2"
+    
+    echo "Searching for '\${search_pattern}' in files matching '\${file_pattern}'..."
+    find . -type f -name "\${file_pattern}" -print0 | xargs -0 grep --color=auto -n "\${search_pattern}"
+}`;
 
     return {
-        output: scriptContent.replace(/^```(bash|sh)?\n/, '').replace(/\n```$/, '').trim(),
+        output: mockScriptContent.trim(),
         logs: [
             { type: LogType.Info, message: "Prompting local AI for a new bash extension..." },
             { type: LogType.Success, message: "Successfully generated bash extension from local AI." }

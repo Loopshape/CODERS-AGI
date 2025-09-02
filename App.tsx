@@ -1,11 +1,10 @@
 
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender, ApiRequest, ApiResponse, ApiHistoryEntry, SavedApiRequest } from './types';
 import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush, gitClone, sendApiRequest, getConfig, saveConfig } from './services/scriptService';
-import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
-import { getLocalAiSuggestions, chatWithLocalAi, getLocalAiBashExtension } from './services/localAiService';
+import { getGeminiSuggestions, getGeminiCodeReview, getGeminiHistoryReview } from './services/geminiService';
+import { getLocalAiSuggestions, chatWithLocalAi, getLocalAiBashExtension, getLocalAiCodeReview } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
@@ -172,20 +171,23 @@ const App: React.FC = () => {
   }, [addLog, triggerErrorChat]);
 
 
-  const handleProcessFiles = useCallback((files: File[]) => {
+  const handleProcessFiles = useCallback((files: File[], enhancementType: 'none' | 'local' | 'gemini') => {
     if (files.length === 0) {
       addLog(LogType.Warn, "No files selected.");
       return;
     }
+    const actionName = enhancementType === 'none' ? 'processFiles' : `processFilesWith${enhancementType.charAt(0).toUpperCase() + enhancementType.slice(1)}AI`;
+    const initialLogMessage = `Processing ${files.length} file(s)${enhancementType !== 'none' ? ` with ${enhancementType.charAt(0).toUpperCase() + enhancementType.slice(1)} AI enhancement...` : '...'}`;
+    
     runAction(
-      'processFiles',
-      () => processFiles(files, setProgress),
+      actionName,
+      () => processFiles(files, setProgress, enhancementType),
       (result) => {
         setProcessedOutput(result.outputs);
         result.logs.forEach(log => addLog(log.type, log.message));
         setActiveOutput('code');
       },
-      { initialLog: `Processing ${files.length} file(s)...` }
+      { initialLog: initialLogMessage }
     );
   }, [runAction, addLog]);
 
@@ -246,7 +248,8 @@ const App: React.FC = () => {
           'localAiEnhance',
           async () => {
               const content = await file.text();
-              const envInfo = scanEnvironment().output; // get env context
+              // The local AI simulation uses environment info for context
+              const envInfo = scanEnvironment().output; 
               return getLocalAiSuggestions(content, envInfo);
           },
           (suggestion) => {
@@ -291,21 +294,50 @@ const App: React.FC = () => {
     );
   }, [runAction]);
 
+  const handleLocalAiCodeReview = useCallback((file: File) => {
+    runAction(
+      'localAiCodeReview',
+      async () => {
+        const content = await file.text();
+        return getLocalAiCodeReview(content);
+      },
+      (report) => {
+        const markdown = formatReviewAsMarkdown(report, file.name);
+        const newFileName = `local_review_for_${file.name}.md`;
+        setProcessedOutput([{ fileName: newFileName, content: markdown, history: [markdown], historyIndex: 0 }]);
+        setActiveOutput('code');
+      },
+      { file, initialLog: `Reviewing ${file.name} with Local AI...` }
+    );
+  }, [runAction]);
+
   const handleUrlEnhance = useCallback((url: string) => {
     runAction(
       'urlEnhance',
       async () => {
+        // Step 1: Fetch content from URL
+        addLog(LogType.Info, `Fetching content from ${url}...`);
         const { output: urlContent, logs: fetchLogs } = processUrlPrompt(url);
         fetchLogs.forEach(log => addLog(log.type, log.message));
-        return getGeminiSuggestions(urlContent);
+        
+        // Step 2: Enhance with Gemini AI
+        addLog(LogType.Gemini, 'Enhancing content with Gemini AI...');
+        const geminiSuggestion = await getGeminiSuggestions(urlContent);
+        
+        // Step 3: Forward to Local AI for further improvement
+        addLog(LogType.AI, 'Forwarding to Local AI for final improvements...');
+        const envInfo = scanEnvironment().output; // local AI needs env info
+        const finalSuggestion = await getLocalAiSuggestions(geminiSuggestion, envInfo);
+        
+        return finalSuggestion;
       },
-      (suggestion) => {
+      (finalSuggestion) => { // Step 4: Display final result
         const fileName = (url.split('/').pop() || 'index.html').split('?')[0];
-        const newFileName = `${fileName}.enhanced.html`;
-        setProcessedOutput([{ fileName: newFileName, content: suggestion, history: [suggestion], historyIndex: 0 }]);
+        const newFileName = `${fileName}.multiai_enhanced.html`;
+        setProcessedOutput([{ fileName: newFileName, content: finalSuggestion, history: [finalSuggestion], historyIndex: 0 }]);
         setActiveOutput('code');
       },
-      { initialLog: `Enhancing content from ${url} with Gemini AI...`}
+      { initialLog: `Starting multi-stage AI enhancement for ${url}...`}
     )
   }, [runAction, addLog]);
 
@@ -314,9 +346,21 @@ const App: React.FC = () => {
   }, [processedOutput]);
 
   const handleTrainingSimulation = useCallback((source: string) => {
+    let trainingDataInfo = '';
+    if (source === 'API history' && apiHistory.length > 0) {
+        const dataSample = JSON.stringify(apiHistory.slice(0, 2), null, 2);
+        trainingDataInfo = `Preparing training data from API history...\nSample:\n${dataSample}`;
+    } else if (source === 'saved API requests' && savedApiRequests.length > 0) {
+        const dataSample = JSON.stringify(savedApiRequests.slice(0, 2), null, 2);
+        trainingDataInfo = `Preparing training data from saved API requests...\nSample:\n${dataSample}`;
+    }
+    
     runAction(
       `trainLocalAI`,
       async () => {
+        if (trainingDataInfo) {
+          addLog(LogType.Info, trainingDataInfo);
+        }
         await new Promise(res => setTimeout(res, 500));
         setProgress(25); addLog(LogType.Info, "Analyzing data patterns...");
         await new Promise(res => setTimeout(res, 1000));
@@ -328,7 +372,7 @@ const App: React.FC = () => {
       () => {},
       { initialLog: `Training local AI from ${source}...` }
     );
-  }, [runAction, addLog]);
+  }, [runAction, addLog, apiHistory, savedApiRequests]);
 
   const handleImproveLocalAI = useCallback(() => {
       const enhancedFile = processedOutput?.find(f => f.fileName.includes('_enhanced.'));
@@ -394,6 +438,26 @@ const App: React.FC = () => {
       }
     )
   }, [runAction, addLog]);
+  
+  const handleReviewApiHistory = useCallback(() => {
+    if (apiHistory.length === 0) {
+        addLog(LogType.Warn, "API history is empty. Nothing to review.");
+        return;
+    }
+    runAction(
+        'reviewApiHistory',
+        () => {
+            const historyJson = JSON.stringify(apiHistory, null, 2);
+            return getGeminiHistoryReview(historyJson);
+        },
+        (report) => {
+            const newFileName = 'api_history_review.md';
+            setProcessedOutput([{ fileName: newFileName, content: report, history: [report], historyIndex: 0 }]);
+            setActiveOutput('code');
+        },
+        { initialLog: 'Reviewing API history with Gemini AI...' }
+    );
+  }, [runAction, apiHistory, addLog]);
   
   const handleSaveApiRequest = useCallback((name: string, request: ApiRequest) => {
     const newSavedRequest: SavedApiRequest = { name, request };
@@ -576,6 +640,7 @@ const App: React.FC = () => {
                 onAiEnhance={handleAiEnhance}
                 onLocalAiEnhance={handleLocalAiEnhance}
                 onAiCodeReview={handleAiCodeReview}
+                onLocalAiCodeReview={handleLocalAiCodeReview}
                 onStaticEnhance={handleStaticEnhance}
                 onUrlEnhance={handleUrlEnhance}
                 onImproveLocalAI={handleImproveLocalAI}
@@ -589,6 +654,7 @@ const App: React.FC = () => {
                 onCloudAccelerate={handleCloudAccelerate}
                 onApiRequest={handleApiRequest}
                 apiHistory={apiHistory}
+                onReviewApiHistory={handleReviewApiHistory}
                 savedApiRequests={savedApiRequests}
                 onSaveApiRequest={handleSaveApiRequest}
                 onDeleteSavedRequest={onDeleteSavedRequest}

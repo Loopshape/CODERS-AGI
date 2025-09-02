@@ -46,7 +46,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, onSave, 
                             value={fileName}
                             onChange={(e) => onFileNameChange(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            className="w-full bg-brand-bg border border-brand-border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                            className="w-full bg-brand-bg border border-brand-border rounded-md p-2 focus:outline-none"
                             autoFocus
                         />
                     </div>

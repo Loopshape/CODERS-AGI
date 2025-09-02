@@ -1,3 +1,4 @@
+
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
@@ -48,14 +49,14 @@ class ErrorBoundary extends Component<Props, State> {
             <div className="flex items-center justify-center space-x-4">
               <button
                 onClick={this.handleReload}
-                className="w-full sm:w-auto px-6 py-3 bg-brand-accent text-white font-bold rounded-lg hover:bg-brand-accent-hover transition-colors focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 focus:ring-offset-brand-surface"
+                className="w-full sm:w-auto px-6 py-3 bg-brand-accent text-white font-bold rounded-lg hover:bg-brand-accent-hover transition-colors focus:outline-none"
               >
                 Reload Page
               </button>
               {this.props.onImproveLocalAI && (
                   <button
                     onClick={this.props.onImproveLocalAI}
-                    className="w-full sm:w-auto px-6 py-3 bg-brand-info text-white font-bold rounded-lg hover:bg-brand-accent-hover transition-colors focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 focus:ring-offset-brand-surface"
+                    className="w-full sm:w-auto px-6 py-3 bg-brand-info text-white font-bold rounded-lg hover:bg-brand-accent-hover transition-colors focus:outline-none"
                   >
                     Improve Local AI
                   </button>

@@ -1,6 +1,9 @@
 
 
+
 import { LogType, ProcessedFile, ApiRequest, ApiResponse, ApiHistoryEntry, SavedApiRequest } from '../types';
+import { getGeminiSuggestions } from './geminiService';
+import { getLocalAiSuggestions } from './localAiService';
 
 export const UNIVERSAL_LAW = `:bof:
 ~... UNIVERSAL MASTERPLAN!
@@ -133,32 +136,62 @@ DIMENSION [ Z * 2PI / 3] down-up-up (as an energetic Channel)
 →→←→NUCLEUS←|→
 1 →← in the whole SPACE of the Cosmos 1 → ←`;
 
-export const processFiles = async (files: File[], onProgress: (p: number) => void): Promise<{ outputs: ProcessedFile[], logs: {type: LogType, message: string}[] }> => {
+export const processFiles = async (files: File[], onProgress: (p: number) => void, aiEnhancement: 'none' | 'local' | 'gemini' = 'none'): Promise<{ outputs: ProcessedFile[], logs: {type: LogType, message: string}[] }> => {
+    onProgress(10);
+    const logs: {type: LogType, message: string}[] = files.map(file => ({ type: LogType.Info, message: `Backing up ${file.name} to ${file.name}.bak` }));
+    await new Promise(res => setTimeout(res, 200));
     onProgress(20);
-    const logs = files.map(file => ({ type: LogType.Info, message: `Backing up ${file.name} to ${file.name}.bak` }));
-    await new Promise(res => setTimeout(res, 500));
-    onProgress(60);
     
-    const outputs: ProcessedFile[] = files.map(file => {
-        const content = `File: ${file.name}\nSize: ${file.size} bytes\n\n--- Fallback Content ---\n${UNIVERSAL_LAW}`;
-        return {
-            fileName: `${file.name}.processed`,
-            content: content,
-            history: [content],
-            historyIndex: 0
-        };
-    });
+    const outputs: ProcessedFile[] = [];
+    const totalFiles = files.length;
 
-    files.forEach(file => {
+    for (let i = 0; i < totalFiles; i++) {
+        const file = files[i];
         logs.push({ type: LogType.Info, message: `Processing ${file.name}...` });
-        logs.push({ type: LogType.Warn, message: `Local 'ollama' model not found. Using fallback.`});
-        logs.push({ type: LogType.Info, message: `Writing fallback content to ${file.name}.processed` });
-    })
+        
+        const fileContent = await file.text();
+        let processedContent = fileContent;
+        let enhancedFileName = file.name;
 
-    onProgress(90);
+        if (aiEnhancement !== 'none') {
+            const enhancementType = aiEnhancement === 'local' ? 'Local AI' : 'Gemini AI';
+            const logType = aiEnhancement === 'local' ? LogType.AI : LogType.Gemini;
+            logs.push({ type: logType, message: `Applying ${enhancementType} enhancement to ${file.name}...` });
+            try {
+                if (aiEnhancement === 'local') {
+                    const envInfo = scanEnvironment().output;
+                    processedContent = await getLocalAiSuggestions(fileContent, envInfo);
+                    enhancedFileName = file.name.replace(/(\.[\w\d_-]+)$/i, `.local_ai_enhanced$1`);
+                } else if (aiEnhancement === 'gemini') {
+                    processedContent = await getGeminiSuggestions(fileContent);
+                    enhancedFileName = file.name.replace(/(\.[\w\d_-]+)$/i, `.ai_enhanced$1`);
+                }
+                logs.push({ type: LogType.Success, message: `${enhancementType} enhancement successful for ${file.name}.` });
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown enhancement error';
+                logs.push({ type: LogType.Error, message: `Error during ${enhancementType} enhancement for ${file.name}: ${errorMessage}` });
+                processedContent = `/* AI Enhancement failed. Original content below. */\n\n${fileContent}`;
+                enhancedFileName = `${file.name}.failed_enhance`;
+            }
+        } else {
+             logs.push({ type: LogType.Warn, message: `No AI enhancement selected for ${file.name}. Simulating basic processing.`});
+             processedContent = `File: ${file.name}\nSize: ${file.size} bytes\n\n--- Fallback Content ---\n${UNIVERSAL_LAW}`;
+             enhancedFileName = `${file.name}.processed`;
+        }
+
+        outputs.push({
+            fileName: enhancedFileName,
+            content: processedContent,
+            history: [processedContent],
+            historyIndex: 0
+        });
+        
+        onProgress(20 + (70 * (i + 1) / totalFiles));
+    }
+    
     await new Promise(res => setTimeout(res, 300));
-
-    logs.push({ type: LogType.Success, message: 'Batch processing simulation complete.' });
+    onProgress(100);
+    logs.push({ type: LogType.Success, message: 'Batch processing complete.' });
     return { outputs, logs };
 };
 
@@ -460,33 +493,77 @@ export const gitClone = async (url: string): Promise<{ outputs: ProcessedFile[],
     return { outputs, logs };
 };
 
-export const sendApiRequest = async (request: ApiRequest) => {
+export const sendApiRequest = async (request: ApiRequest): Promise<{ output: string; logs: {type: LogType, message: string}[]; fileName: string }> => {
     const logs = [{ type: LogType.Info, message: `Sending ${request.method} request to ${request.url}` }];
-    await new Promise(res => setTimeout(res, 800)); // Simulate network latency
-
+    
     try {
-        const response: ApiResponse = {
-            status: 200,
-            statusText: 'OK',
-            headers: { 'Content-Type': 'application/json' },
-            body: {
-                message: 'This is a simulated response!',
-                requestMethod: request.method,
-                receivedBody: request.body ? JSON.parse(request.body) : null,
-            },
+        const headers: HeadersInit = {
+            'Accept': 'application/json, text/plain, */*',
         };
+        let body: BodyInit | undefined = undefined;
+
+        if (request.method !== 'GET' && request.body) {
+            try {
+                // Validate that the body is valid JSON before sending
+                JSON.parse(request.body);
+                headers['Content-Type'] = 'application/json';
+                body = request.body;
+            } catch (e) {
+                logs.push({ type: LogType.Error, message: `Invalid JSON in request body.` });
+                return {
+                    output: `Error: Invalid JSON in request body.\n\n${(e as Error).message}`,
+                    logs,
+                    fileName: 'api_error.txt',
+                };
+            }
+        }
+
+        const response = await fetch(request.url, {
+            method: request.method,
+            headers,
+            body,
+        });
 
         logs.push({ type: LogType.Success, message: `Received response: ${response.status} ${response.statusText}` });
+        
+        const responseHeaders: Record<string, string> = {};
+        response.headers.forEach((value, key) => {
+            responseHeaders[key] = value;
+        });
+        
+        const responseBodyText = await response.text();
+        let responseBody: any;
+        
+        try {
+            // Try to parse the response as JSON
+            responseBody = JSON.parse(responseBodyText);
+        } catch (e) {
+            // If parsing fails, treat it as plain text
+            responseBody = responseBodyText;
+        }
+
+        const apiResponse: ApiResponse = {
+            status: response.status,
+            statusText: response.statusText,
+            headers: responseHeaders,
+            body: responseBody,
+        };
+        
+        // Format the entire response object for display
+        const output = JSON.stringify(apiResponse, null, 2);
 
         return {
-            output: JSON.stringify(response, null, 2),
+            output,
             logs,
             fileName: 'api_response.json',
         };
-    } catch (e) {
-        logs.push({ type: LogType.Error, message: `Invalid JSON in request body.` });
+
+    } catch (error) {
+        // Catch network errors (e.g., CORS, DNS, connection refused)
+        const errorMessage = error instanceof Error ? error.message : 'An unknown network or fetch error occurred.';
+        logs.push({ type: LogType.Error, message: `API Request failed: ${errorMessage}` });
         return {
-            output: `Error: Invalid JSON in request body.`,
+            output: `Error: ${errorMessage}`,
             logs,
             fileName: 'api_error.txt',
         };

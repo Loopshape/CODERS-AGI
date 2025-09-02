@@ -20,7 +20,7 @@ const Header: React.FC<HeaderProps> = ({ onTogglePanel, isPanelOpen }) => {
       <div className="container mx-auto flex items-center justify-between space-x-4">
         <button 
           onClick={onTogglePanel} 
-          className="p-2 rounded-md hover:bg-brand-border transition-colors focus:outline-none focus:ring-2 focus:ring-brand-accent"
+          className="p-2 rounded-md hover:bg-brand-border transition-colors focus:outline-none"
           aria-label={isPanelOpen ? "Collapse control panel" : "Expand control panel"}
         >
           <PanelIcon className={`w-6 h-6 transition-colors ${isPanelOpen ? 'text-brand-accent' : 'text-brand-text-secondary'}`} />

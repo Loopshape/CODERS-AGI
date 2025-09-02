@@ -1,3 +1,5 @@
+
+
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from '../types';
 import { CodeIcon } from './icons/CodeIcon';
@@ -13,7 +15,7 @@ import { CpuChipIcon } from './icons/CpuChipIcon';
 import { UndoIcon } from './icons/UndoIcon';
 import { RedoIcon } from './icons/RedoIcon';
 import { ShareIcon } from './icons/ShareIcon';
-import { PencilIcon } from './icons/PencilIcon';
+import { PencilIcon } from './PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CogIcon } from './icons/CogIcon';
 
@@ -132,494 +134,274 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
         </div>
       )}
 
-      <div className="flex-grow overflow-auto" role="tabpanel">
+      <div className="flex-grow min-h-0 relative">
         {renderContent()}
       </div>
 
-      {isReviewModalOpen && (
-          <CodeReviewModal
-              report={reviewReport}
-              error={reviewError}
-              isLoading={isReviewLoading}
-              onClose={() => setIsReviewModalOpen(false)}
-          />
-      )}
+      {isReviewModalOpen && <LocalAIReviewModal report={reviewReport} error={reviewError} isLoading={isReviewLoading} onClose={() => setIsReviewModalOpen(false)} />}
     </div>
   );
 };
 
-const CodeReviewModal: React.FC<{ report: CodeReviewReport | null; error: string | null; isLoading: boolean; onClose: () => void; }> = ({ report, error, isLoading, onClose }) => {
-    const formatIssues = (title: string, icon: string, issues: CodeIssue[] | undefined) => {
-        if (!issues || issues.length === 0) {
-            return (
-                <div>
-                    <h4 className="text-md font-semibold text-brand-text-primary mt-4 mb-2 flex items-center">{icon} {title}</h4>
-                    <p className="text-sm text-brand-text-secondary">No issues found in this category.</p>
-                </div>
-            );
-        }
-        return (
-            <div>
-                <h4 className="text-md font-semibold text-brand-text-primary mt-4 mb-2 flex items-center">{icon} {title}</h4>
-                <ul className="space-y-3 text-sm">
-                    {issues.map((issue, index) => (
-                        <li key={index} className="p-2 bg-brand-bg/50 rounded-md border border-brand-border/50">
-                            <p className="text-brand-text-secondary"><strong className="text-brand-text-primary">Line {issue.line || 'N/A'}:</strong> {issue.description}</p>
-                            <p className="mt-1 text-green-400/80"><strong className="text-green-300">Suggestion:</strong> {issue.suggestion}</p>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        );
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose} role="dialog" aria-modal="true">
-            <div className="bg-brand-surface border border-brand-border rounded-lg shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                <header className="flex items-center justify-between p-4 border-b border-brand-border">
-                    <h3 className="text-lg font-bold flex items-center"><CpuChipIcon className="w-6 h-6 mr-2 text-brand-info"/> Local AI Code Review</h3>
-                    <button onClick={onClose} className="text-2xl text-brand-text-secondary hover:text-brand-text-primary">&times;</button>
-                </header>
-                <main className="p-6 overflow-y-auto">
-                    {isLoading && <div className="flex justify-center items-center h-48"><SpinnerIcon className="w-10 h-10 animate-spin text-brand-accent"/></div>}
-                    {error && <div className="text-brand-error bg-brand-error/10 p-4 rounded-md"><strong>Error:</strong> {error}</div>}
-                    {report && (
-                        <div className="space-y-4">
-                            <div>
-                                <h4 className="text-md font-semibold text-brand-text-primary mb-2 flex items-center">📝 Summary</h4>
-                                <p className="text-brand-text-secondary italic">{report.reviewSummary}</p>
-                            </div>
-                            <div className="border-t border-brand-border my-4"></div>
-                            {formatIssues('Potential Bugs', '🐛', report.potentialBugs)}
-                            {formatIssues('Security Vulnerabilities', '🛡️', report.securityVulnerabilities)}
-                            {formatIssues('Performance Improvements', '⚡', report.performanceImprovements)}
-                        </div>
-                    )}
-                </main>
-            </div>
-        </div>
-    );
-};
-
-interface EditorSettingsPopoverProps {
-    settings: EditorSettings;
-    onChange: (newSettings: Partial<EditorSettings>) => void;
-    onClose: () => void;
-    triggerRef: React.RefObject<HTMLButtonElement>;
-}
-
-const EditorSettingsPopover: React.FC<EditorSettingsPopoverProps> = ({ settings, onChange, onClose, triggerRef }) => {
-    const popoverRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (popoverRef.current && !popoverRef.current.contains(event.target as Node) && !triggerRef.current?.contains(event.target as Node)) {
-                onClose();
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [onClose, triggerRef]);
-
-    return (
-        <div ref={popoverRef} className="absolute top-12 right-0 bg-brand-surface border border-brand-border rounded-lg shadow-xl z-20 w-64 p-4 animate-fade-in">
-            <h4 className="text-sm font-semibold text-brand-text-primary mb-3">Editor Settings</h4>
-            <div className="space-y-4 text-sm">
-                <div className="flex items-center justify-between">
-                    <label htmlFor="theme-select" className="text-brand-text-secondary">Theme</label>
-                    <select id="theme-select" value={settings.theme} onChange={e => onChange({ theme: e.target.value as 'light' | 'dark' })} className="bg-brand-bg border border-brand-border rounded px-2 py-1 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent w-24">
-                        <option value="dark">Dark</option>
-                        <option value="light">Light</option>
-                    </select>
-                </div>
-                 <div className="flex items-center justify-between">
-                    <label htmlFor="font-size-input" className="text-brand-text-secondary">Font Size</label>
-                    <input type="number" id="font-size-input" value={settings.fontSize} onChange={e => onChange({ fontSize: Number(e.target.value) })} className="bg-brand-bg border border-brand-border rounded px-2 py-1 w-24 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent" />
-                </div>
-                 <div className="flex items-center justify-between">
-                    <label htmlFor="tab-size-input" className="text-brand-text-secondary">Tab Size</label>
-                    <input type="number" id="tab-size-input" value={settings.tabSize} min="1" max="8" onChange={e => onChange({ tabSize: Number(e.target.value) })} className="bg-brand-bg border border-brand-border rounded px-2 py-1 w-24 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent" />
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
-const OutputTabButton: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void; disabled?: boolean; }> = ({ icon, label, isActive, onClick, disabled = false }) => (
-    <button onClick={onClick} className={`flex items-center justify-center space-x-2 flex-1 text-center py-3 px-2 font-semibold transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-accent/50 border-b-2 ${disabled ? 'text-brand-text-secondary/50 cursor-not-allowed' : isActive ? 'text-brand-accent border-brand-accent' : 'text-brand-text-secondary hover:text-brand-text-primary border-transparent'}`} disabled={disabled} role="tab" aria-selected={isActive}>
-        {icon}
-        <span className="hidden sm:inline">{label}</span>
-    </button>
+const OutputTabButton: React.FC<{ icon: JSX.Element; label: string; isActive: boolean; onClick: () => void; disabled?: boolean }> = ({ icon, label, isActive, onClick, disabled }) => (
+  <button onClick={onClick} disabled={disabled} className={`flex items-center space-x-2 flex-1 justify-center py-2.5 px-4 font-semibold transition-colors duration-200 border-b-2 focus:outline-none disabled:text-brand-border disabled:cursor-not-allowed ${isActive ? 'text-brand-accent border-brand-accent' : 'text-brand-text-secondary hover:text-brand-text-primary border-transparent'}`} role="tab" aria-selected={isActive} aria-disabled={disabled}>
+    {React.cloneElement(icon, { className: 'w-5 h-5' })}
+    <span className="hidden sm:inline">{label}</span>
+  </button>
 );
 
 const FileTabButton: React.FC<{ fileName: string; isActive: boolean; onClick: () => void; onDelete: () => void; }> = ({ fileName, isActive, onClick, onDelete }) => {
-    const handleDelete = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (window.confirm(`Are you sure you want to delete ${fileName}?`)) {
-            onDelete();
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent tab selection when clicking delete
+    onDelete();
+  };
+  return (
+    <button onClick={onClick} className={`group flex items-center space-x-2 text-sm px-3 py-1.5 border-b-2 whitespace-nowrap ${isActive ? 'text-brand-text-primary bg-brand-surface border-brand-accent' : 'text-brand-text-secondary hover:bg-brand-bg border-transparent'}`} role="tab" aria-selected={isActive}>
+      <span>{fileName}</span>
+      <button onClick={handleDelete} className="text-brand-text-secondary hover:text-brand-error transition-opacity opacity-50 group-hover:opacity-100" aria-label={`Delete ${fileName}`}>
+        &times;
+      </button>
+    </button>
+  );
+}
+
+const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange: (newContent: string) => void; editorSettings: EditorSettings; onEditorSettingsChange: (newSettings: Partial<EditorSettings>) => void; onAnalyze: (content: string) => void; isAnalyzing: boolean; onUndo: ()=>void; onRedo: ()=>void; canUndo: boolean; canRedo: boolean; onRename: (newName: string) => void; }> = ({ content, fileName, onContentChange, editorSettings, onEditorSettingsChange, onAnalyze, isAnalyzing, onUndo, onRedo, canUndo, canRedo, onRename }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [tempName, setTempName] = useState(fileName);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      textareaRef.current?.focus();
+    }
+  }, [isEditing]);
+
+  const handleRename = () => {
+    if (tempName.trim() && tempName !== fileName) {
+      onRename(tempName);
+    }
+    setIsRenaming(false);
+  };
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+            setIsSettingsOpen(false);
         }
     };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    return (
-        <button
-            onClick={onClick}
-            className={`py-2 px-4 text-sm font-medium whitespace-nowrap transition-colors duration-200 focus:outline-none border-b-2 flex items-center group relative -mb-px ${isActive ? 'text-brand-accent border-brand-accent bg-brand-surface' : 'text-brand-text-secondary hover:text-brand-text-primary border-transparent hover:bg-brand-bg'}`}
-            role="tab"
-            aria-selected={isActive}
-        >
-            <span className="truncate max-w-[150px] pr-6">{fileName}</span>
-            <div onClick={handleDelete} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-brand-text-secondary/70 hover:bg-brand-border hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Delete ${fileName}`}>
-                <TrashIcon className="w-3.5 h-3.5" />
-            </div>
-        </button>
-    );
+  const language = useMemo(() => {
+    const extension = fileName.split('.').pop() || '';
+    const langMap: { [key: string]: string } = {
+      js: 'javascript',
+      ts: 'typescript',
+      jsx: 'jsx',
+      tsx: 'tsx',
+      html: 'html',
+      css: 'css',
+      json: 'json',
+      md: 'markdown',
+      sh: 'bash',
+      py: 'python',
+      sql: 'sql',
+      java: 'java',
+    };
+    return langMap[extension] || 'plaintext';
+  }, [fileName]);
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between p-2 border-b border-brand-border bg-brand-bg/50 shrink-0">
+        <div className="flex items-center space-x-2">
+            {isRenaming ? (
+              <input
+                type="text"
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                onBlur={handleRename}
+                onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+                className="bg-brand-bg text-sm p-1 rounded border border-brand-accent"
+                autoFocus
+              />
+            ) : (
+              <button onClick={() => setIsRenaming(true)} className="flex items-center space-x-2 p-1 rounded hover:bg-brand-border" title="Rename File">
+                  <span className="text-sm font-semibold">{fileName}</span>
+                  <PencilIcon className="w-4 h-4" />
+              </button>
+            )}
+        </div>
+        <div className="flex items-center space-x-2">
+          <button onClick={() => onAnalyze(content)} disabled={isAnalyzing} className="text-sm flex items-center space-x-1 px-2 py-1 rounded hover:bg-brand-border disabled:opacity-50" title="Review with Local AI">
+            {isAnalyzing ? <SpinnerIcon className="w-4 h-4 animate-spin"/> : <CpuChipIcon className="w-4 h-4 text-brand-info"/>}
+            <span>Analyze</span>
+          </button>
+          <button onClick={onUndo} disabled={!canUndo} className="p-1 rounded hover:bg-brand-border disabled:opacity-50" title="Undo"><UndoIcon className="w-4 h-4"/></button>
+          <button onClick={onRedo} disabled={!canRedo} className="p-1 rounded hover:bg-brand-border disabled:opacity-50" title="Redo"><RedoIcon className="w-4 h-4"/></button>
+          <DownloadButton content={content} fileName={fileName} />
+           <div className="relative" ref={settingsRef}>
+            <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="p-1 rounded hover:bg-brand-border" title="Editor Settings"><CogIcon className="w-5 h-5"/></button>
+             {isSettingsOpen && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-brand-surface border border-brand-border rounded-lg shadow-xl z-10 p-3 space-y-3">
+                    <div>
+                        <label className="text-xs">Font Size: {editorSettings.fontSize}px</label>
+                        <input type="range" min="10" max="24" value={editorSettings.fontSize} onChange={(e) => onEditorSettingsChange({ fontSize: parseInt(e.target.value) })} className="w-full h-1 bg-brand-border rounded-lg appearance-none cursor-pointer"/>
+                    </div>
+                    <div>
+                        <label className="text-xs">Tab Size</label>
+                         <input type="number" min="2" max="8" step="2" value={editorSettings.tabSize} onChange={(e) => onEditorSettingsChange({ tabSize: parseInt(e.target.value) })} className="w-full bg-brand-bg border border-brand-border rounded p-1"/>
+                    </div>
+                </div>
+             )}
+           </div>
+        </div>
+      </div>
+      <div className="flex-grow overflow-auto relative" onDoubleClick={() => setIsEditing(true)}>
+          {isEditing ? (
+              <textarea
+                  ref={textareaRef}
+                  value={content}
+                  onChange={(e) => onContentChange(e.target.value)}
+                  onBlur={() => setIsEditing(false)}
+                  className="absolute inset-0 w-full h-full bg-[#1e1e1e] text-white p-4 font-mono whitespace-pre resize-none focus:outline-none"
+                  style={{ fontSize: `${editorSettings.fontSize}px`, tabSize: editorSettings.tabSize, MozTabSize: editorSettings.tabSize, OTabSize: editorSettings.tabSize }}
+              />
+          ) : (
+            <SyntaxHighlighter language={language} style={vscDarkPlus} showLineNumbers customStyle={{ margin: 0, height: '100%', fontSize: `${editorSettings.fontSize}px` }} codeTagProps={{style: {fontFamily: 'monospace'}}} >
+                {content}
+            </SyntaxHighlighter>
+          )}
+      </div>
+      <div className="text-xs text-brand-text-secondary text-center py-1 border-t border-brand-border bg-brand-bg/50 shrink-0">
+        {isEditing ? 'Editing file... (blur to save)' : 'Double-click code to edit'}
+      </div>
+    </div>
+  );
 };
 
-const LoadingSkeleton: React.FC = () => (
-    <div className="p-6 animate-pulse" aria-label="Loading content">
-        <div className="h-4 bg-brand-border rounded w-1/4 mb-4"></div>
-        <div className="space-y-2">
-            <div className="h-4 bg-brand-border rounded w-full"></div>
-            <div className="h-4 bg-brand-border rounded w-full"></div>
-            <div className="h-4 bg-brand-border rounded w-3/4"></div>
-        </div>
-        <div className="h-4 bg-brand-border rounded w-1/3 mb-4 mt-8"></div>
-        <div className="space-y-2">
-            <div className="h-4 bg-brand-border rounded w-full"></div>
-            <div className="h-4 bg-brand-border rounded w-5/6"></div>
-        </div>
-    </div>
-);
+const TerminalView: React.FC<{ logs: LogEntry[], onCommand: (command: string) => void, isLoading: boolean }> = ({ logs, onCommand, isLoading }) => {
+  const endOfLogsRef = useRef<HTMLDivElement | null>(null);
+  const [command, setCommand] = useState('');
 
-const InitialState: React.FC = () => (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8 text-brand-text-secondary">
-        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-4 text-brand-border">
-            <path d="M7 8L3 12L7 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M17 8L21 12L17 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M14 4L10 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        <h3 className="text-xl font-bold text-brand-text-primary">Ready to Process</h3>
-        <p className="max-w-md">Select an action from the control panel to see the results here.</p>
+  useEffect(() => {
+    endOfLogsRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  const handleCommandSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (command.trim()) {
+        onCommand(command);
+        setCommand('');
+    }
+  };
+
+  const logTypeClasses: { [key in LogType]: string } = {
+    [LogType.Info]: 'text-brand-text-secondary',
+    [LogType.Success]: 'text-brand-success',
+    [LogType.Warn]: 'text-yellow-400',
+    [LogType.Error]: 'text-brand-error',
+    [LogType.AI]: 'text-brand-info',
+    [LogType.Gemini]: 'text-brand-gemini',
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-black font-mono text-sm">
+        <div className="flex-grow overflow-y-auto p-4 space-y-2">
+            {logs.map((log, index) => (
+            <div key={index} className="flex">
+                <span className="text-gray-500 mr-4">{log.timestamp}</span>
+                <span className={`font-bold w-16 ${logTypeClasses[log.type]}`}>{`[${log.type}]`}</span>
+                <p className={`flex-1 whitespace-pre-wrap ${logTypeClasses[log.type]}`}>{log.message}</p>
+            </div>
+            ))}
+            <div ref={endOfLogsRef} />
+        </div>
+        <form onSubmit={handleCommandSubmit} className="flex items-center p-2 border-t border-brand-border shrink-0">
+          <span className="text-brand-accent mr-2">{'>'}</span>
+          <input
+            type="text"
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+            className="w-full bg-transparent focus:outline-none text-brand-text-primary"
+            placeholder="Type a command and press Enter..."
+            disabled={isLoading}
+          />
+        </form>
     </div>
+  );
+};
+
+const LoadingSkeleton = () => (
+  <div className="p-4 space-y-3 animate-pulse">
+    <div className="h-4 bg-brand-border rounded w-1/4"></div>
+    <div className="h-3 bg-brand-border rounded w-full"></div>
+    <div className="h-3 bg-brand-border rounded w-5/6"></div>
+    <div className="h-3 bg-brand-border rounded w-3/4"></div>
+  </div>
 );
 
 const NoContent: React.FC<{ message: string }> = ({ message }) => (
-     <div className="flex flex-col items-center justify-center h-full text-center p-8 text-brand-text-secondary">
-        <p className="max-w-md">{message}</p>
+    <div className="flex items-center justify-center h-full text-brand-text-secondary text-center p-4">
+        <p>{message}</p>
     </div>
-)
+);
 
-const getLanguageFromFileName = (fileName: string): string => {
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    switch (extension) {
-        case 'js':
-        case 'jsx':
-            return 'javascript';
-        case 'ts':
-        case 'tsx':
-            return 'typescript';
-        case 'css':
-            return 'css';
-        case 'json':
-            return 'json';
-        case 'md':
-            return 'markdown';
-        case 'html':
-        case 'xml':
-            return 'markup';
-        case 'sh':
-            return 'bash';
-        default:
-            return 'clike';
-    }
+const InitialState = () => (
+  <div className="flex flex-col items-center justify-center h-full text-center text-brand-text-secondary p-8">
+      <CodeIcon className="w-16 h-16 mb-4 text-brand-border" />
+      <h2 className="text-xl font-bold text-brand-text-primary mb-2">AI / AGI / AIM Unified Tool</h2>
+      <p>Your processed files, logs, and previews will appear here.</p>
+      <p>Use the control panel on the left to get started.</p>
+  </div>
+);
+
+const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): string => {
+    let markdown = `# Local AI Code Review: ${fileName}\n\n`;
+    markdown += `## 📝 Summary\n${report.reviewSummary}\n\n`;
+
+    const formatIssues = (title: string, icon: string, issues: CodeIssue[]): string => {
+        if (!issues || issues.length === 0) return `## ${icon} ${title}\nNo issues found.\n\n`;
+        let section = `## ${icon} ${title}\n`;
+        issues.forEach(issue => {
+            section += `- **Line ${issue.line || 'N/A'}:** ${issue.description}\n`;
+            section += `  - **Suggestion:** \`${issue.suggestion}\`\n\n`;
+        });
+        return section;
+    };
+
+    markdown += formatIssues('🐛 Potential Bugs', 'bug', report.potentialBugs);
+    markdown += formatIssues('🛡️ Security Vulnerabilities', 'shield', report.securityVulnerabilities);
+    markdown += formatIssues('⚡ Performance Improvements', 'zap', report.performanceImprovements);
+
+    return markdown;
 };
 
-interface CodeDisplayProps {
-  content: string;
-  fileName: string;
-  onContentChange: (newContent: string) => void;
-  editorSettings: EditorSettings;
-  onEditorSettingsChange: (newSettings: Partial<EditorSettings>) => void;
-  onAnalyze: (content: string) => void;
-  isAnalyzing: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
-  onRename: (newName: string) => void;
-}
-
-const CodeDisplay: React.FC<CodeDisplayProps> = ({ content, fileName, onContentChange, editorSettings, onEditorSettingsChange, onAnalyze, isAnalyzing, onUndo, onRedo, canUndo, canRedo, onRename }) => {
-    const [copied, setCopied] = useState(false);
-    const [linkCopied, setLinkCopied] = useState(false);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const highlighterRef = useRef<HTMLDivElement>(null);
-    const [isRenaming, setIsRenaming] = useState(false);
-    const [editableFileName, setEditableFileName] = useState(fileName);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const settingsBtnRef = useRef<HTMLButtonElement>(null);
-
-    useEffect(() => {
-        setEditableFileName(fileName);
-        setIsRenaming(false);
-    }, [fileName]);
-
-    const handleRenameConfirm = () => {
-        if (editableFileName.trim() && editableFileName.trim() !== fileName) {
-            onRename(editableFileName.trim());
-        }
-        setIsRenaming(false);
-    };
-
-    const handleRenameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            handleRenameConfirm();
-        } else if (e.key === 'Escape') {
-            setEditableFileName(fileName);
-            setIsRenaming(false);
-        }
-    };
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(content);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
-    const handleShareLink = useCallback(() => {
-        try {
-            const base64Content = btoa(content);
-            const url = `${window.location.origin}${window.location.pathname}#/view/${base64Content}`;
-            navigator.clipboard.writeText(url);
-            setLinkCopied(true);
-            setTimeout(() => setLinkCopied(false), 2000);
-        } catch (error) {
-            console.error("Failed to create share link", error);
-        }
-    }, [content]);
-
-    const stats = useMemo(() => {
-        const lines = content.split('\n').length;
-        const words = content.trim().split(/\s+/).filter(Boolean).length;
-        const chars = content.length;
-        return { lines, words, chars };
-    }, [content]);
-
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.ctrlKey || event.metaKey) {
-                if (event.key === 'z') {
-                    event.preventDefault();
-                    if (event.shiftKey) {
-                        onRedo();
-                    } else {
-                        onUndo();
-                    }
-                } else if (event.key === 'y') {
-                    event.preventDefault();
-                    onRedo();
-                }
-            }
-        };
-        const textarea = textareaRef.current;
-        textarea?.addEventListener('keydown', handleKeyDown);
-        return () => textarea?.removeEventListener('keydown', handleKeyDown);
-    }, [onUndo, onRedo]);
-
-    const language = getLanguageFromFileName(fileName);
-    const themeStyle = editorSettings.theme === 'dark' ? vscDarkPlus : prismLight;
-    
-    const sharedEditorStyles = {
-        fontFamily: 'monospace',
-        fontSize: `${editorSettings.fontSize}px`,
-        lineHeight: 1.5,
-        padding: '1rem',
-        tabSize: editorSettings.tabSize,
-        WebkitTabSize: editorSettings.tabSize,
-        MozTabSize: editorSettings.tabSize,
-        whiteSpace: 'pre',
-        wordBreak: 'keep-all',
-        overflowWrap: 'normal'
-    } as React.CSSProperties;
-    
-    useEffect(() => {
-        const syncScroll = () => {
-            if (textareaRef.current && highlighterRef.current) {
-                highlighterRef.current.scrollTop = textareaRef.current.scrollTop;
-                highlighterRef.current.scrollLeft = textareaRef.current.scrollLeft;
-            }
-        };
-
-        const textarea = textareaRef.current;
-        textarea?.addEventListener('scroll', syncScroll);
-        return () => textarea?.removeEventListener('scroll', syncScroll);
-    }, []);
-
+const LocalAIReviewModal: React.FC<{ report: CodeReviewReport | null; error: string | null; isLoading: boolean; onClose: () => void }> = ({ report, error, isLoading, onClose }) => {
     return (
-        <div className="bg-brand-bg rounded-b-lg h-full flex flex-col">
-            <div className="relative flex justify-between items-center p-2 pl-3 bg-brand-surface border-b border-brand-border shrink-0">
-                <div className="flex items-center space-x-2 text-sm font-mono text-brand-text-secondary truncate pr-4">
-                    {isRenaming ? (
-                        <input
-                            type="text"
-                            value={editableFileName}
-                            onChange={(e) => setEditableFileName(e.target.value)}
-                            onBlur={handleRenameConfirm}
-                            onKeyDown={handleRenameKeyDown}
-                            className="bg-brand-bg border border-brand-accent rounded px-2 py-1 outline-none ring-2 ring-brand-accent"
-                            autoFocus
-                        />
-                    ) : (
-                        <span className="truncate" title={fileName}>{fileName}</span>
+        <div className="absolute inset-0 bg-black/70 z-20 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-brand-surface border border-brand-border rounded-lg shadow-2xl w-full max-w-2xl h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <header className="flex items-center justify-between p-3 border-b border-brand-border">
+                    <div className="flex items-center space-x-2">
+                        <CpuChipIcon className="w-6 h-6 text-brand-info" />
+                        <h3 className="font-bold">Local AI Code Review</h3>
+                    </div>
+                    <button onClick={onClose} className="text-2xl text-brand-text-secondary hover:text-brand-text-primary">&times;</button>
+                </header>
+                <main className="flex-grow p-4 overflow-y-auto">
+                    {isLoading && <div className="flex items-center justify-center h-full"><SpinnerIcon className="w-12 h-12 animate-spin text-brand-info"/></div>}
+                    {error && <div className="text-brand-error bg-brand-error/10 p-4 rounded-md">{error}</div>}
+                    {report && (
+                        <SyntaxHighlighter language="markdown" style={vscDarkPlus} customStyle={{ margin: 0, backgroundColor: 'transparent' }}>
+                            {formatReviewAsMarkdown(report, "current file")}
+                        </SyntaxHighlighter>
                     )}
-                    <button onClick={() => setIsRenaming(!isRenaming)} disabled={isRenaming} className="p-1 rounded hover:bg-brand-border disabled:opacity-50" aria-label="Rename file" title="Rename file">
-                        <PencilIcon className="w-4 h-4" />
-                    </button>
-                </div>
-                <div className="flex items-center space-x-2">
-                    {/* Actions Group */}
-                    <div className="flex items-center space-x-1 bg-brand-bg p-1 rounded-md">
-                        <button onClick={handleCopy} className="text-sm px-3 py-1 rounded-md hover:bg-brand-border transition-colors w-24 text-center">{copied ? 'Copied!' : 'Copy'}</button>
-                        <DownloadButton content={content} fileName={fileName} />
-                    </div>
-                    
-                    <div className="w-px h-6 bg-brand-border mx-1"></div>
-                    
-                    {/* AI & History Group */}
-                    <div className="flex items-center space-x-1 bg-brand-bg p-1 rounded-md">
-                        <button onClick={onUndo} disabled={!canUndo} className="p-1.5 rounded-md hover:bg-brand-border disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Undo" title="Undo (Ctrl+Z)"><UndoIcon className="w-5 h-5"/></button>
-                        <button onClick={onRedo} disabled={!canRedo} className="p-1.5 rounded-md hover:bg-brand-border disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Redo" title="Redo (Ctrl+Y)"><RedoIcon className="w-5 h-5"/></button>
-                        <div className="w-px h-5 bg-brand-border/50 mx-1"></div>
-                        <button onClick={() => onAnalyze(content)} disabled={isAnalyzing} className="p-1.5 rounded-md hover:bg-brand-border disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Analyze with Local AI" title="Analyze with Local AI">
-                            {isAnalyzing ? <SpinnerIcon className="w-5 h-5 animate-spin"/> : <CpuChipIcon className="w-5 h-5 text-brand-info" />}
-                        </button>
-                         <button onClick={handleShareLink} className="p-1.5 rounded-md hover:bg-brand-border" aria-label="Share" title={linkCopied ? 'Link Copied!' : 'Get sharable link'}>
-                            <ShareIcon className="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    <div className="w-px h-6 bg-brand-border mx-1"></div>
-
-                    {/* Settings */}
-                    <button ref={settingsBtnRef} onClick={() => setIsSettingsOpen(prev => !prev)} className="p-1.5 rounded-md hover:bg-brand-border" aria-label="Editor settings" title="Editor settings">
-                        <CogIcon className="w-5 h-5" />
-                    </button>
-                </div>
-                {isSettingsOpen && <EditorSettingsPopover settings={editorSettings} onChange={onEditorSettingsChange} onClose={() => setIsSettingsOpen(false)} triggerRef={settingsBtnRef}/>}
+                </main>
             </div>
-            <div className="relative flex-grow overflow-hidden">
-                <textarea
-                    ref={textareaRef}
-                    value={content}
-                    onChange={(e) => onContentChange(e.target.value)}
-                    spellCheck="false"
-                    aria-label={`Code editor for ${fileName}`}
-                    style={{
-                        ...sharedEditorStyles,
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        margin: 0,
-                        border: 'none',
-                        backgroundColor: 'transparent',
-                        resize: 'none',
-                        color: 'inherit',
-                        WebkitTextFillColor: 'transparent',
-                        caretColor: editorSettings.theme === 'dark' ? 'white' : 'black',
-                        outline: 'none',
-                        zIndex: 1,
-                    }}
-                />
-                <div ref={highlighterRef} style={{overflow: 'auto', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0}}>
-                    <SyntaxHighlighter
-                        language={language}
-                        style={themeStyle}
-                        customStyle={{ margin: 0, ...sharedEditorStyles, backgroundColor: 'transparent' }}
-                        showLineNumbers={true}
-                    >
-                        {content + '\n' /* Add newline to prevent scroll jump on last line */}
-                    </SyntaxHighlighter>
-                </div>
-            </div>
-            <div className="bg-brand-surface border-t border-brand-border text-xs text-brand-text-secondary px-4 py-1 flex justify-end space-x-4">
-                <span>Lines: {stats.lines}</span>
-                <span>Words: {stats.words}</span>
-                <span>Chars: {stats.chars}</span>
-            </div>
-        </div>
-    );
-};
-
-
-const logColorMap: { [key in LogType]: string } = {
-    [LogType.Info]: 'text-brand-info',
-    [LogType.Success]: 'text-brand-success',
-    [LogType.Warn]: 'text-yellow-500', // Adjusted for better visibility on dark bg
-    [LogType.Error]: 'text-brand-error',
-    [LogType.AI]: 'text-brand-gemini',
-    [LogType.Gemini]: 'text-brand-gemini',
-};
-
-const TerminalView: React.FC<{ logs: LogEntry[]; onCommand: (cmd: string) => void; isLoading: boolean; }> = ({ logs, onCommand, isLoading }) => {
-    const [input, setInput] = useState('');
-    const terminalEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [logs]);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!input.trim() || isLoading) return;
-        onCommand(input);
-        setInput('');
-    };
-    
-    const handleTerminalClick = () => {
-        inputRef.current?.focus();
-    };
-
-    return (
-        <div className="bg-brand-bg font-mono text-sm text-white min-h-full flex flex-col" onClick={handleTerminalClick}>
-            <div className="flex-grow p-4 overflow-y-auto" aria-live="polite">
-                <p className="text-brand-text-secondary">Welcome to the AI Unified Terminal. Type 'help' for commands.</p>
-                <br/>
-                {logs.map((log, index) => (
-                    <div key={index} className="flex items-start">
-                        {log.message.startsWith('>') ? (
-                            <>
-                                <span className="text-brand-accent mr-2" aria-hidden="true">~ $</span>
-                                <p className="flex-1 whitespace-pre-wrap text-brand-text-primary">{log.message.substring(2)}</p>
-                            </>
-                        ) : (
-                             <p className={`flex-1 whitespace-pre-wrap ${logColorMap[log.type] || 'text-brand-text-primary'}`}>
-                                <span className="text-brand-text-secondary mr-2">{log.timestamp}</span>
-                                [{log.type}] {log.message}
-                             </p>
-                        )}
-                    </div>
-                ))}
-                 <div ref={terminalEndRef} />
-            </div>
-            <form onSubmit={handleSubmit} className="flex items-center p-2 border-t border-brand-border bg-brand-surface">
-                <span className="text-brand-accent mr-2" aria-hidden="true">~ $</span>
-                <input
-                    ref={inputRef}
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Type a command or ask AI..."
-                    className="flex-grow bg-transparent outline-none text-brand-text-primary placeholder:text-brand-text-secondary"
-                    disabled={isLoading}
-                    aria-label="Terminal input"
-                    autoFocus
-                />
-                 {isLoading && <SpinnerIcon className="w-4 h-4 animate-spin text-brand-accent ml-2" />}
-            </form>
         </div>
     );
 };

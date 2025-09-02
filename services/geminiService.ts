@@ -175,3 +175,40 @@ ${codeContent}
         throw new Error(handleGeminiError(error));
     }
 };
+
+export const getGeminiHistoryReview = async (historyJson: string): Promise<string> => {
+  const prompt = `
+Act as a senior API development expert and code reviewer. Your task is to analyze the following JSON array, which represents a history of API requests. Provide a comprehensive review formatted as a markdown document.
+
+Your review should cover:
+1.  **Usage Patterns**: Identify common endpoints, frequent HTTP methods, and any recurring patterns in request bodies.
+2.  **API Design Suggestions**: Based on the patterns, suggest potential improvements to the API design itself. For example, if you see many similar GET requests, suggest a more flexible endpoint. If you see complex bodies, suggest simplification.
+3.  **Potential Issues**: Look for potential problems in the requests, such as:
+    *   Inconsistent URL naming conventions.
+    *   Lack of versioning (e.g., /v1/).
+    *   Security concerns like sensitive data in GET request URLs.
+    *   Inefficient data fetching patterns.
+4.  **Summary**: Provide a brief, high-level summary of your findings.
+
+**ABSOLUTE OUTPUT CONSTRAINT**: You MUST return ONLY the markdown report. Do not include any surrounding text, explanations, or markdown formatting like \`\`\`.
+
+API History to review:
+\`\`\`json
+${historyJson}
+\`\`\`
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    // The model should return markdown directly, but we'll trim just in case.
+    return response.text.trim();
+
+  } catch (error) {
+    console.error("Error calling Google GenAI API for history review:", error);
+    return handleGeminiError(error);
+  }
+};
