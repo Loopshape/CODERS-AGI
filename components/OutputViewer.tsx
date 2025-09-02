@@ -1,17 +1,17 @@
-
-
-
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { LogEntry, LogType, ProcessedFile } from '../types';
+import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from '../types';
 import { useTermuxDetection } from '../hooks/useTermuxDetection';
 import { CodeIcon } from './icons/CodeIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
 import DownloadButton from './DownloadButton';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
-import { prism as prismLight } from 'react-syntax-highlighter/dist/esm/styles/prism/prism';
+// Fix: Use default import for react-syntax-highlighter styles as they are not named exports.
+import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
+import prismLight from 'react-syntax-highlighter/dist/esm/styles/prism/prism';
+import { getLocalAiCodeReview } from '../services/localAiService';
+import { SpinnerIcon } from './icons/SpinnerIcon';
+import { CpuChipIcon } from './icons/CpuChipIcon';
 
 
 interface EditorSettings {
@@ -48,6 +48,27 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
   const isTermux = useTermuxDetection();
   const currentFile = processedOutput?.[activeFileIndex];
 
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewReport, setReviewReport] = useState<CodeReviewReport | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [isReviewLoading, setIsReviewLoading] = useState(false);
+  
+  const handleAnalyzeWithLocalAI = async (content: string) => {
+      setIsReviewLoading(true);
+      setReviewReport(null);
+      setReviewError(null);
+      setIsReviewModalOpen(true);
+      try {
+          const report = await getLocalAiCodeReview(content);
+          setReviewReport(report);
+      } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+          setReviewError(errorMessage);
+      } finally {
+          setIsReviewLoading(false);
+      }
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return <LoadingSkeleton />;
@@ -59,7 +80,7 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
 
     switch (activeOutput) {
       case 'code':
-        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} onContentChange={(newContent) => onContentChange(newContent, activeFileIndex)} editorSettings={editorSettings} /> : <NoContent message="No output to display. Process something first." />;
+        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} onContentChange={(newContent) => onContentChange(newContent, activeFileIndex)} editorSettings={editorSettings} onAnalyze={handleAnalyzeWithLocalAI} isAnalyzing={isReviewLoading} /> : <NoContent message="No output to display. Process something first." />;
       case 'preview':
         return currentFile && currentFile.content.trim().startsWith('<') ? <iframe srcDoc={currentFile.content} title="Live Preview" className="w-full h-full bg-white rounded-b-lg" /> : <NoContent message="No HTML content to preview." />;
       case 'logs':
@@ -99,8 +120,70 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
       <div className="flex-grow overflow-auto" role="tabpanel">
         {renderContent()}
       </div>
+
+      {isReviewModalOpen && (
+          <CodeReviewModal
+              report={reviewReport}
+              error={reviewError}
+              isLoading={isReviewLoading}
+              onClose={() => setIsReviewModalOpen(false)}
+          />
+      )}
     </div>
   );
+};
+
+const CodeReviewModal: React.FC<{ report: CodeReviewReport | null; error: string | null; isLoading: boolean; onClose: () => void; }> = ({ report, error, isLoading, onClose }) => {
+    const formatIssues = (title: string, icon: string, issues: CodeIssue[] | undefined) => {
+        if (!issues || issues.length === 0) {
+            return (
+                <div>
+                    <h4 className="text-md font-semibold text-brand-text-primary mt-4 mb-2 flex items-center">{icon} {title}</h4>
+                    <p className="text-sm text-brand-text-secondary">No issues found in this category.</p>
+                </div>
+            );
+        }
+        return (
+            <div>
+                <h4 className="text-md font-semibold text-brand-text-primary mt-4 mb-2 flex items-center">{icon} {title}</h4>
+                <ul className="space-y-3 text-sm">
+                    {issues.map((issue, index) => (
+                        <li key={index} className="p-2 bg-brand-bg/50 rounded-md border border-brand-border/50">
+                            <p className="text-brand-text-secondary"><strong className="text-brand-text-primary">Line {issue.line || 'N/A'}:</strong> {issue.description}</p>
+                            <p className="mt-1 text-green-400/80"><strong className="text-green-300">Suggestion:</strong> {issue.suggestion}</p>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose} role="dialog" aria-modal="true">
+            <div className="bg-brand-surface border border-brand-border rounded-lg shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <header className="flex items-center justify-between p-4 border-b border-brand-border">
+                    <h3 className="text-lg font-bold flex items-center"><CpuChipIcon className="w-6 h-6 mr-2 text-brand-info"/> Local AI Code Review</h3>
+                    <button onClick={onClose} className="text-2xl text-brand-text-secondary hover:text-brand-text-primary">&times;</button>
+                </header>
+                <main className="p-6 overflow-y-auto">
+                    {isLoading && <div className="flex justify-center items-center h-48"><SpinnerIcon className="w-10 h-10 animate-spin text-brand-accent"/></div>}
+                    {error && <div className="text-brand-error bg-brand-error/10 p-4 rounded-md"><strong>Error:</strong> {error}</div>}
+                    {report && (
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="text-md font-semibold text-brand-text-primary mb-2 flex items-center">📝 Summary</h4>
+                                <p className="text-brand-text-secondary italic">{report.reviewSummary}</p>
+                            </div>
+                            <div className="border-t border-brand-border my-4"></div>
+                            {formatIssues('Potential Bugs', '🐛', report.potentialBugs)}
+                            {formatIssues('Security Vulnerabilities', '🛡️', report.securityVulnerabilities)}
+                            {formatIssues('Performance Improvements', '⚡', report.performanceImprovements)}
+                        </div>
+                    )}
+                </main>
+            </div>
+        </div>
+    );
 };
 
 const EditorSettingsPanel: React.FC<{ settings: EditorSettings; onChange: (newSettings: Partial<EditorSettings>) => void }> = ({ settings, onChange }) => {
@@ -197,7 +280,7 @@ const getLanguageFromFileName = (fileName: string): string => {
     }
 };
 
-const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange: (newContent: string) => void; editorSettings: EditorSettings; }> = ({ content, fileName, onContentChange, editorSettings }) => {
+const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange: (newContent: string) => void; editorSettings: EditorSettings; onAnalyze: (content: string) => void; isAnalyzing: boolean; }> = ({ content, fileName, onContentChange, editorSettings, onAnalyze, isAnalyzing }) => {
     const [copied, setCopied] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const highlighterRef = useRef<HTMLDivElement>(null);
@@ -250,6 +333,10 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange
             <div className="flex justify-between items-center p-3 bg-brand-surface border-b border-brand-border shrink-0">
                 <span className="text-sm font-mono text-brand-text-secondary">{fileName}</span>
                 <div className="flex items-center space-x-2">
+                    <button onClick={() => onAnalyze(content)} disabled={isAnalyzing} className="text-sm bg-brand-info/20 text-brand-info px-3 py-1 rounded hover:bg-brand-info hover:text-white transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isAnalyzing ? <SpinnerIcon className="w-4 h-4 animate-spin"/> : <CpuChipIcon className="w-4 h-4" />}
+                        <span>Analyze Code</span>
+                    </button>
                     <button onClick={handleCopy} className="text-sm bg-brand-border/50 px-3 py-1 rounded hover:bg-brand-accent hover:text-white transition-colors">
                         {copied ? 'Copied!' : 'Copy'}
                     </button>

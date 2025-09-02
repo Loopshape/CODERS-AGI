@@ -1,6 +1,3 @@
-
-
-
 import { LogType, ProcessedFile } from '../types';
 
 export const UNIVERSAL_LAW = `:bof:
@@ -60,17 +57,50 @@ export const scanEnvironment = () => {
 USER=webapp_user
 HOME=/app/home
 SHELL=/bin/bash
-...
+TERM=xterm-256color
 
 [Disk Usage]
 Filesystem      Size  Used Avail Use% Mounted on
 overlay          50G   10G   40G  20% /
-...
+tmpfs            64M     0   64M   0% /dev
+shm             2.0G     0  2.0G   0% /dev/shm
 
-[Home Directory]
-total 8
+[Home Directory Listing (~)]
+total 12
 drwxr-xr-x 1 webapp_user webapp_user 4096 Jul 30 10:00 .
 drwxr-xr-x 1 root        root        4096 Jul 30 09:58 ..
+-rw-r--r-- 1 webapp_user webapp_user  220 Jul 30 10:01 .bash_logout
+-rw-r--r-- 1 webapp_user webapp_user 3771 Jul 30 10:02 .bashrc
+drwxr-xr-x 2 webapp_user webapp_user 4096 Jul 30 10:03 Documents
+drwxr-xr-x 2 webapp_user webapp_user 4096 Jul 30 10:04 Projects
+
+[Recursive Scan of Hidden Files (~/.*)]
+/app/home/.config:
+total 4
+drwxr-xr-x 2 webapp_user webapp_user 4096 Jul 30 10:05 .
+drwxr-xr-x 1 webapp_user webapp_user 4096 Jul 30 10:00 ..
+-rw-r--r-- 1 webapp_user webapp_user   56 Jul 30 10:06 git/config
+
+/app/home/.ssh:
+total 8
+drwx------ 2 webapp_user webapp_user 4096 Jul 30 10:07 .
+drwxr-xr-x 1 webapp_user webapp_user 4096 Jul 30 10:00 ..
+-rw------- 1 webapp_user webapp_user 1766 Jul 30 10:08 id_rsa
+-rw-r--r-- 1 webapp_user webapp_user  400 Jul 30 10:09 authorized_keys
+
+[Recursive Scan of User Directories (~/*)]
+/app/home/Documents:
+total 4
+drwxr-xr-x 2 webapp_user webapp_user 4096 Jul 30 10:03 .
+drwxr-xr-x 1 webapp_user webapp_user 4096 Jul 30 10:00 ..
+-rw-r--r-- 1 webapp_user webapp_user 1204 Jul 30 10:10 report.docx
+
+/app/home/Projects/WebApp:
+total 8
+drwxr-xr-x 3 webapp_user webapp_user 4096 Jul 30 10:11 .
+drwxr-xr-x 2 webapp_user webapp_user 4096 Jul 30 10:04 ..
+-rw-r--r-- 1 webapp_user webapp_user  350 Jul 30 10:12 package.json
+-rw-r--r-- 1 webapp_user webapp_user 2400 Jul 30 10:13 README.md
 `;
     return { output: output.trim(), logs, fileName: 'environment_scan.txt' };
 }
