@@ -14,16 +14,17 @@
     "install-deps": "npm install"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "axios": "^1.4.0",
     "chokidar": "^3.5.3",
     "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "genai": "^0.0.18",
     "glob": "^10.3.0"
   },
   "devDependencies": {
-    "vite": "^4.4.0",
     "@vitejs/plugin-react": "^4.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "vite": "^4.4.0"
   }
 }

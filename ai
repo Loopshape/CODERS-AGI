@@ -1,17 +1,133 @@
 #!/bin/bash
 
-NODE_SCRIPT="$HOME/.coders-agi/index.js"
+# AI/AGI/AIM Unified Processing Tool
+# A command-line interface for file processing and environment interaction via a local Ollama model.
 
-if [ ! -f "$NODE_SCRIPT" ]; then
-    echo "Error: Coders AGI not installed. Run: bash installer.sh"
-    exit 1
+# --- Load configuration ---
+CONFIG_FILE="$HOME/.config/ai-tool/config.env"
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
 fi
 
-# Check if Ollama is running, start if not
-if ! pgrep -f "ollama serve" >/dev/null 2>&1; then
-    echo "Starting Ollama..."
-    ollama serve >/dev/null 2>&1 &
-    sleep 3
-fi
+# --- Defaults ---
+OLLAMA_API_URL="${OLLAMA_API_URL:-http://127.0.0.1:11434/api/generate}"
+OLLAMA_MODEL="${OLLAMA_MODEL:-gemma:2b}" # Default to a common, smaller model
 
-node "$NODE_SCRIPT" "$@"
+# --- Helper Functions ---
+show_help() {
+    echo "AI/AGI/AIM Unified Processing Tool"
+    echo "Usage: ai [command] [options]"
+    echo
+    echo "Commands:"
+    echo "  scan                Scan the system environment and produce a report."
+    echo "  enhance [file]      Enhance a file using the local AI model."
+    echo "  review [file]       Perform a code review on a file using the AI model."
+    echo "  prompt \"<text>\"   Send a direct text prompt to the AI model."
+    echo "  git [clone|pull|push] [url]"
+    echo "                      Perform a git operation (simulated)."
+    echo "  config              Open the configuration file for editing."
+    echo "  help                Show this help message."
+    echo
+}
+
+call_ollama() {
+    local prompt_text=$1
+    local is_json_format=${2:-false}
+
+    if ! command -v jq &> /dev/null; then
+        echo "Error: 'jq' is not installed. Please install it to process AI responses." >&2
+        return 1
+    fi
+
+    local format_option=""
+    if [ "$is_json_format" = true ]; then
+        format_option=', "format": "json"'
+    fi
+
+    # Construct the JSON payload
+    local json_payload
+    json_payload=$(printf '{"model": "%s", "prompt": %s, "stream": false %s}' \
+        "$OLLAMA_MODEL" \
+        "$(jq -Rs . <<< "$prompt_text")" \
+        "$format_option")
+
+    # Make the API call and extract the 'response' field
+    curl -s "$OLLAMA_API_URL" -d "$json_payload" | jq -r '.response'
+}
+
+# --- Main Logic ---
+main() {
+    if [ "$#" -eq 0 ]; then
+        show_help
+        exit 1
+    fi
+
+    COMMAND=$1
+    shift
+
+    case $COMMAND in
+        scan)
+            echo "## Environment Scan Report"
+            echo "Date: $(date)"
+            echo "---"
+            echo "### System Variables"
+            env | grep -E '^(USER|HOME|SHELL|PWD)='
+            echo "---"
+            echo "### Disk Usage"
+            df -h / | tail -n 1
+            echo "---"
+            echo "### Directory Listing (~)"
+            ls -lA ~ | head -n 10
+            ;;
+        enhance)
+            if [ -z "$1" ]; then echo "Error: Please provide a file to enhance." >&2; exit 1; fi
+            local file_content
+            file_content=$(cat "$1")
+            local prompt="Enhance and refactor the following code, applying modern best practices. Return only the raw code.
+
+---
+
+$file_content"
+            call_ollama "$prompt"
+            ;;
+        review)
+            if [ -z "$1" ]; then echo "Error: Please provide a file to review." >&2; exit 1; fi
+            local file_content
+            file_content=$(cat "$1")
+            local prompt="Review the following code for bugs, vulnerabilities, and performance issues. Provide a summary and a list of suggestions in markdown format.
+
+---
+
+$file_content"
+            call_ollama "$prompt"
+            ;;
+        prompt)
+            if [ -z "$1" ]; then echo "Error: Please provide a prompt string." >&2; exit 1; fi
+            call_ollama "$1"
+            ;;
+        git)
+            echo "Simulating git operation: $@"
+            # In a real script, you would execute git commands here.
+            ;;
+        config)
+            if [ -n "$EDITOR" ]; then
+                "$EDITOR" "$CONFIG_FILE"
+            else
+                # Fallback for when $EDITOR is not set
+                echo "The EDITOR environment variable is not set. Please open this file manually:"
+                echo "$CONFIG_FILE"
+            fi
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            echo "Error: Unknown command '$COMMAND'"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main function with all provided arguments
+main "$@"
