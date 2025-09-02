@@ -1,12 +1,24 @@
 
 
-import React, { useState, useRef, useEffect } from 'react';
+
+
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { LogEntry, LogType, ProcessedFile } from '../types';
 import { useTermuxDetection } from '../hooks/useTermuxDetection';
 import { CodeIcon } from './icons/CodeIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
 import DownloadButton from './DownloadButton';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
+import { prism as prismLight } from 'react-syntax-highlighter/dist/esm/styles/prism/prism';
+
+
+interface EditorSettings {
+    fontSize: number;
+    theme: 'light' | 'dark';
+    tabSize: number;
+}
 
 interface OutputViewerProps {
   processedOutput: ProcessedFile[] | null;
@@ -17,6 +29,8 @@ interface OutputViewerProps {
   activeFileIndex: number;
   setActiveFileIndex: (index: number) => void;
   onContentChange: (newContent: string, index: number) => void;
+  editorSettings: EditorSettings;
+  onEditorSettingsChange: (newSettings: Partial<EditorSettings>) => void;
 }
 
 const OutputViewer: React.FC<OutputViewerProps> = ({ 
@@ -27,7 +41,9 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
     setActiveOutput,
     activeFileIndex,
     setActiveFileIndex,
-    onContentChange
+    onContentChange,
+    editorSettings,
+    onEditorSettingsChange
 }) => {
   const isTermux = useTermuxDetection();
   const currentFile = processedOutput?.[activeFileIndex];
@@ -43,7 +59,7 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
 
     switch (activeOutput) {
       case 'code':
-        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} onContentChange={(newContent) => onContentChange(newContent, activeFileIndex)} /> : <NoContent message="No output to display. Process something first." />;
+        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} onContentChange={(newContent) => onContentChange(newContent, activeFileIndex)} editorSettings={editorSettings} /> : <NoContent message="No output to display. Process something first." />;
       case 'preview':
         return currentFile && currentFile.content.trim().startsWith('<') ? <iframe srcDoc={currentFile.content} title="Live Preview" className="w-full h-full bg-white rounded-b-lg" /> : <NoContent message="No HTML content to preview." />;
       case 'logs':
@@ -63,6 +79,10 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
         <OutputTabButton icon={<TerminalIcon />} label={isTermux ? "Terminal" : "Logs"} isActive={activeOutput === 'logs'} onClick={() => setActiveOutput('logs')} />
       </div>
 
+      {activeOutput === 'code' && processedOutput && (
+          <EditorSettingsPanel settings={editorSettings} onChange={onEditorSettingsChange} />
+      )}
+
       {processedOutput && processedOutput.length > 1 && (activeOutput === 'code' || activeOutput === 'preview') && (
         <div className="flex border-b border-brand-border bg-brand-bg/50 px-2 shrink-0 overflow-x-auto" role="tablist" aria-label="Processed files">
           {processedOutput.map((file, index) => (
@@ -76,11 +96,33 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
         </div>
       )}
 
-      <div className="p-1 flex-grow overflow-auto" role="tabpanel">
+      <div className="flex-grow overflow-auto" role="tabpanel">
         {renderContent()}
       </div>
     </div>
   );
+};
+
+const EditorSettingsPanel: React.FC<{ settings: EditorSettings; onChange: (newSettings: Partial<EditorSettings>) => void }> = ({ settings, onChange }) => {
+    return (
+        <div className="bg-brand-bg/50 border-b border-brand-border p-2 flex items-center justify-end space-x-4 text-sm">
+            <div className="flex items-center space-x-2">
+                <label htmlFor="theme-select" className="text-brand-text-secondary">Theme:</label>
+                <select id="theme-select" value={settings.theme} onChange={e => onChange({ theme: e.target.value as 'light' | 'dark' })} className="bg-brand-surface border border-brand-border rounded px-2 py-1 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                </select>
+            </div>
+             <div className="flex items-center space-x-2">
+                <label htmlFor="font-size-input" className="text-brand-text-secondary">Font Size:</label>
+                <input type="number" id="font-size-input" value={settings.fontSize} onChange={e => onChange({ fontSize: Number(e.target.value) })} className="bg-brand-surface border border-brand-border rounded px-2 py-1 w-16 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent" />
+            </div>
+             <div className="flex items-center space-x-2">
+                <label htmlFor="tab-size-input" className="text-brand-text-secondary">Tab Size:</label>
+                <input type="number" id="tab-size-input" value={settings.tabSize} min="1" max="8" onChange={e => onChange({ tabSize: Number(e.target.value) })} className="bg-brand-surface border border-brand-border rounded px-2 py-1 w-16 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent" />
+            </div>
+        </div>
+    );
 };
 
 const OutputTabButton: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void; disabled?: boolean; }> = ({ icon, label, isActive, onClick, disabled = false }) => (
@@ -130,17 +172,82 @@ const NoContent: React.FC<{ message: string }> = ({ message }) => (
     </div>
 )
 
-const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange: (newContent: string) => void; }> = ({ content, fileName, onContentChange }) => {
+const getLanguageFromFileName = (fileName: string): string => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    switch (extension) {
+        case 'js':
+        case 'jsx':
+            return 'javascript';
+        case 'ts':
+        case 'tsx':
+            return 'typescript';
+        case 'css':
+            return 'css';
+        case 'json':
+            return 'json';
+        case 'md':
+            return 'markdown';
+        case 'html':
+        case 'xml':
+            return 'markup';
+        case 'sh':
+            return 'bash';
+        default:
+            return 'clike';
+    }
+};
+
+const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange: (newContent: string) => void; editorSettings: EditorSettings; }> = ({ content, fileName, onContentChange, editorSettings }) => {
     const [copied, setCopied] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const highlighterRef = useRef<HTMLDivElement>(null);
+
     const handleCopy = () => {
         navigator.clipboard.writeText(content);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const stats = useMemo(() => {
+        const lines = content.split('\n').length;
+        const words = content.trim().split(/\s+/).filter(Boolean).length;
+        const chars = content.length;
+        return { lines, words, chars };
+    }, [content]);
+
+    const language = getLanguageFromFileName(fileName);
+    const themeStyle = editorSettings.theme === 'dark' ? vscDarkPlus : prismLight;
+    
+    // Fix: Type assertion to allow vendor-prefixed properties not in default React CSSProperties.
+    const sharedEditorStyles = {
+        fontFamily: 'monospace',
+        fontSize: `${editorSettings.fontSize}px`,
+        lineHeight: 1.5,
+        padding: '1rem',
+        tabSize: editorSettings.tabSize,
+        WebkitTabSize: editorSettings.tabSize,
+        MozTabSize: editorSettings.tabSize,
+        whiteSpace: 'pre',
+        wordBreak: 'keep-all',
+        overflowWrap: 'normal'
+    } as React.CSSProperties;
+    
+    useEffect(() => {
+        const syncScroll = () => {
+            if (textareaRef.current && highlighterRef.current) {
+                highlighterRef.current.scrollTop = textareaRef.current.scrollTop;
+                highlighterRef.current.scrollLeft = textareaRef.current.scrollLeft;
+            }
+        };
+
+        const textarea = textareaRef.current;
+        textarea?.addEventListener('scroll', syncScroll);
+        return () => textarea?.removeEventListener('scroll', syncScroll);
+    }, []);
+
     return (
-        <div className="bg-brand-bg rounded-lg h-full flex flex-col">
-            <div className="flex justify-between items-center p-3 bg-brand-surface border-b border-brand-border rounded-t-lg">
+        <div className="bg-brand-bg rounded-b-lg h-full flex flex-col">
+            <div className="flex justify-between items-center p-3 bg-brand-surface border-b border-brand-border shrink-0">
                 <span className="text-sm font-mono text-brand-text-secondary">{fileName}</span>
                 <div className="flex items-center space-x-2">
                     <button onClick={handleCopy} className="text-sm bg-brand-border/50 px-3 py-1 rounded hover:bg-brand-accent hover:text-white transition-colors">
@@ -149,19 +256,51 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange
                     <DownloadButton content={content} fileName={fileName} />
                 </div>
             </div>
-            <div className="flex-grow overflow-auto">
+            <div className="relative flex-grow overflow-hidden">
                 <textarea
+                    ref={textareaRef}
                     value={content}
                     onChange={(e) => onContentChange(e.target.value)}
-                    className="w-full h-full bg-brand-bg text-brand-text-primary font-mono p-4 resize-none border-none focus:outline-none focus:ring-0 leading-relaxed"
-                    style={{fontSize: '0.875rem'}}
                     spellCheck="false"
                     aria-label={`Code editor for ${fileName}`}
+                    style={{
+                        ...sharedEditorStyles,
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        margin: 0,
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        resize: 'none',
+                        color: 'inherit',
+                        WebkitTextFillColor: 'transparent',
+                        caretColor: editorSettings.theme === 'dark' ? 'white' : 'black',
+                        outline: 'none',
+                        zIndex: 1,
+                    }}
                 />
+                <div ref={highlighterRef} style={{overflow: 'auto', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0}}>
+                    <SyntaxHighlighter
+                        language={language}
+                        style={themeStyle}
+                        customStyle={{ margin: 0, ...sharedEditorStyles, backgroundColor: 'transparent' }}
+                        showLineNumbers={true}
+                    >
+                        {content + '\n' /* Add newline to prevent scroll jump on last line */}
+                    </SyntaxHighlighter>
+                </div>
+            </div>
+            <div className="bg-brand-surface border-t border-brand-border text-xs text-brand-text-secondary px-4 py-1 flex justify-end space-x-4">
+                <span>Lines: {stats.lines}</span>
+                <span>Words: {stats.words}</span>
+                <span>Chars: {stats.chars}</span>
             </div>
         </div>
     );
 };
+
 
 const logColorMap: { [key in LogType]: string } = {
     [LogType.Info]: 'text-brand-info',

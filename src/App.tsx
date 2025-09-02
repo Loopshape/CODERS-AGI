@@ -2,20 +2,20 @@
 
 
 
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
-// FIX: Corrected import paths to be relative to the 'src' directory.
-import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from '../types';
-// Fix: Replace non-existent 'gitUpdate' with 'gitPull' and 'gitPush'.
-import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush } from '../services/scriptService';
-import { getGeminiSuggestions, getGeminiCodeReview } from '../services/geminiService';
-import { getLocalAiSuggestions } from '../services/localAiService';
-import { processHtml } from '../services/enhancementService';
-import Header from '../components/Header';
-import ControlPanel from '../components/ControlPanel';
-import OutputViewer from '../components/OutputViewer';
-import ErrorBoundary from '../components/ErrorBoundary';
-import CommandBar from '../components/CommandBar';
+import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
+import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush } from './services/scriptService';
+import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
+import { getLocalAiSuggestions } from './services/localAiService';
+import { processHtml } from './services/enhancementService';
+import Header from './components/Header';
+import ControlPanel from './components/ControlPanel';
+import OutputViewer from './components/OutputViewer';
+import ErrorBoundary from './components/ErrorBoundary';
+import CommandBar from './components/CommandBar';
+import Chatbot from './components/Chatbot';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -64,6 +64,15 @@ const App: React.FC = () => {
   const [activeOutput, setActiveOutput] = useState<'code' | 'preview' | 'logs'>('code');
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
   const [chat, setChat] = useState<Chat | null>(null);
+  const [editorSettings, setEditorSettings] = useState({
+    fontSize: 14,
+    theme: 'dark' as 'light' | 'dark',
+    tabSize: 4,
+  });
+
+  const handleEditorSettingsChange = useCallback((newSettings: Partial<typeof editorSettings>) => {
+    setEditorSettings(prev => ({ ...prev, ...newSettings }));
+  }, []);
 
 
   useEffect(() => {
@@ -84,7 +93,6 @@ const App: React.FC = () => {
     setLogs(prev => [...prev, { type, message, timestamp: new Date().toLocaleTimeString() }]);
   }, []);
   
-  // Fix: Update handleRequest to correctly handle both synchronous functions and async promises.
   const handleRequest = async (handler: () => ({ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }) | Promise<{ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }>, actionName: string, setActiveToLogs = false) => {
       setProcessingFile(null);
       setLoadingAction(actionName);
@@ -143,6 +151,7 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
+    // Fix: Add missing curly braces for the catch block to correct syntax error.
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       const errorLog: LogEntry = { type: LogType.Error, message: `Batch processing failed: ${errorMessage}`, timestamp: new Date().toLocaleTimeString() };
@@ -159,30 +168,29 @@ const App: React.FC = () => {
   
   const handleScanEnvironment = useCallback(() => {
       handleRequest(scanEnvironment, 'scanEnvironment', true);
-  }, []);
+  }, [handleRequest]);
   
   const handleProcessPrompt = useCallback((prompt: string) => {
       handleRequest(() => processPrompt(prompt), 'processPrompt');
-  }, []);
+  }, [handleRequest]);
 
   const handleProcessUrl = useCallback((url: string) => {
     handleRequest(() => processUrlPrompt(url), 'processUrl');
-  }, []);
+  }, [handleRequest]);
 
   const handleGetInstallerScript = useCallback(() => {
     const scriptData = getInstallScript();
     downloadFile(scriptData.output, scriptData.fileName);
     handleRequest(() => scriptData, 'getInstallerScript', true);
-  }, []);
+  }, [handleRequest]);
 
-  // Fix: Replaced handleGitUpdate with handleGitPull and handleGitPush to align with scriptService and ControlPanel props.
   const handleGitPull = useCallback((url: string) => {
     handleRequest(() => gitPull(url), 'gitPull', true);
-  }, []);
+  }, [handleRequest]);
 
   const handleGitPush = useCallback((url: string) => {
     handleRequest(() => gitPush(url), 'gitPush', true);
-  }, []);
+  }, [handleRequest]);
 
   const handleLocalAIEnhance = useCallback(async (file: File) => {
     if (!file) {
@@ -289,7 +297,6 @@ const App: React.FC = () => {
     }
 
     setProcessingFile(file);
-    // Fix: Use 'aiEnhance' as the loadingAction to match ControlPanel's expectation.
     setLoadingAction('aiEnhance');
     setProgress(10);
     setLogs([]);
@@ -338,7 +345,6 @@ const App: React.FC = () => {
     }
 
     setProcessingFile(file);
-    // Fix: Use 'aiCodeReview' as the loadingAction to match ControlPanel's expectation.
     setLoadingAction('aiCodeReview');
     setProgress(10);
     setLogs([]);
@@ -468,7 +474,6 @@ const App: React.FC = () => {
 
   }, [processedOutput, addLog]);
 
-  // FIX: Added handleTrainFromUrl to provide the missing prop to ControlPanel.
   const handleTrainFromUrl = useCallback(async (url: string) => {
     if (!url.trim()) {
         addLog(LogType.Warn, "Please provide a URL to train from.");
@@ -582,13 +587,13 @@ const App: React.FC = () => {
     });
   }, []);
 
+
   return (
     <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
       <div className="min-h-screen bg-brand-bg font-sans flex flex-col">
         <Header />
         <main role="main" className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           <div className="lg:col-span-5">
-            {/* Fix: Rename props to match what ControlPanel expects ('onAiEnhance', 'onAiCodeReview'). */}
             <ControlPanel 
                 onProcessFiles={handleProcessFiles}
                 onScanEnvironment={handleScanEnvironment}
@@ -603,7 +608,6 @@ const App: React.FC = () => {
                 onTrainFromUrl={handleTrainFromUrl}
                 hasEnhancedFile={hasEnhancedFile}
                 onGetInstallerScript={handleGetInstallerScript}
-                // Fix: Pass onGitPull and onGitPush instead of the incorrect onGitUpdate prop.
                 onGitPull={handleGitPull}
                 onGitPush={handleGitPush}
                 isLoading={isLoading}
@@ -613,7 +617,6 @@ const App: React.FC = () => {
             />
           </div>
           <div className="lg:col-span-7">
-            {/* FIX: Add onContentChange prop to satisfy OutputViewerProps requirement. */}
             <OutputViewer
               processedOutput={processedOutput}
               logs={logs}
@@ -623,6 +626,8 @@ const App: React.FC = () => {
               activeFileIndex={activeFileIndex}
               setActiveFileIndex={setActiveFileIndex}
               onContentChange={handleContentChange}
+              editorSettings={editorSettings}
+              onEditorSettingsChange={handleEditorSettingsChange}
             />
           </div>
         </main>
@@ -632,6 +637,7 @@ const App: React.FC = () => {
         <footer role="contentinfo" className="text-center p-4 border-t border-brand-border">
           <p className="text-sm text-brand-text-secondary">UI generated from bash script logic by a world-class senior frontend React engineer.</p>
         </footer>
+        <Chatbot />
       </div>
     </ErrorBoundary>
   );

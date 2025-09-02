@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
@@ -62,6 +63,16 @@ const App: React.FC = () => {
   const [activeOutput, setActiveOutput] = useState<'code' | 'preview' | 'logs'>('code');
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
   const [chat, setChat] = useState<Chat | null>(null);
+  // Fix: Add editor settings state and handler to satisfy OutputViewerProps.
+  const [editorSettings, setEditorSettings] = useState({
+    fontSize: 14,
+    theme: 'dark' as 'light' | 'dark',
+    tabSize: 4,
+  });
+
+  const handleEditorSettingsChange = useCallback((newSettings: Partial<typeof editorSettings>) => {
+    setEditorSettings(prev => ({ ...prev, ...newSettings }));
+  }, []);
 
 
   useEffect(() => {
@@ -614,6 +625,8 @@ const App: React.FC = () => {
               activeFileIndex={activeFileIndex}
               setActiveFileIndex={setActiveFileIndex}
               onContentChange={handleContentChange}
+              editorSettings={editorSettings}
+              onEditorSettingsChange={handleEditorSettingsChange}
             />
           </div>
         </main>
