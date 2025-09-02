@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from '../types';
 import { CodeIcon } from './icons/CodeIcon';
@@ -94,7 +93,7 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
       case 'code':
         return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} onContentChange={(newContent) => onContentChange(newContent, activeFileIndex)} editorSettings={editorSettings} onAnalyze={handleAnalyzeWithLocalAI} isAnalyzing={isReviewLoading} onUndo={() => onUndo(activeFileIndex)} onRedo={() => onRedo(activeFileIndex)} canUndo={canUndo} canRedo={canRedo} /> : <NoContent message="No output to display. Process something first." />;
       case 'preview':
-        return currentFile && currentFile.content.trim().startsWith('<') ? <iframe srcDoc={currentFile.content} title="Live Preview" className="w-full h-full bg-white rounded-b-lg" sandbox="allow-scripts allow-modals" /> : <NoContent message="No HTML content to preview." />;
+        return currentFile && currentFile.content.trim().startsWith('<') ? <iframe srcDoc={currentFile.content} title="Live Preview" className="w-full h-full bg-white rounded-b-lg" sandbox="allow-scripts allow-forms allow-modals allow-popups" /> : <NoContent message="No HTML content to preview." />;
       case 'logs':
         return <TerminalView logs={logs} onCommand={onCommand} isLoading={isLoadingCommand} />;
       default:

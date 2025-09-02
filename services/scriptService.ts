@@ -138,8 +138,7 @@ export const processFiles = async (files: File[], onProgress: (p: number) => voi
     await new Promise(res => setTimeout(res, 500));
     onProgress(60);
     
-    // Fix: Add missing history and historyIndex properties to conform to ProcessedFile type.
-    const outputs = files.map(file => {
+    const outputs: ProcessedFile[] = files.map(file => {
         const content = `File: ${file.name}\nSize: ${file.size} bytes\n\n--- Fallback Content ---\n${UNIVERSAL_LAW}`;
         return {
             fileName: `${file.name}.processed`,
@@ -297,7 +296,6 @@ export const gitClone = async (url: string): Promise<{ outputs: ProcessedFile[],
     logs.push({ type: LogType.Info, message: `Resolving deltas: 100% (25/25), done.`});
     logs.push({ type: LogType.Success, message: `Successfully cloned from ${url}.` });
 
-    // Fix: Add missing history and historyIndex properties to conform to ProcessedFile type.
     const readmeContent = `# ${repoName}\n\nThis is a simulated README file from the cloned repository.\n`;
     const indexContent = `<!DOCTYPE html><html><body><h1>Welcome to ${repoName}</h1></body></html>`;
     const outputs: ProcessedFile[] = [
