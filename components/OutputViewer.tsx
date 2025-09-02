@@ -577,7 +577,7 @@ const TerminalView: React.FC<{ logs: LogEntry[]; onCommand: (cmd: string) => voi
     };
 
     return (
-        <div className="bg-brand-bg font-mono text-sm text-white h-full flex flex-col" onClick={handleTerminalClick}>
+        <div className="bg-brand-bg font-mono text-sm text-white min-h-full flex flex-col" onClick={handleTerminalClick}>
             <div className="flex-grow p-4 overflow-y-auto" aria-live="polite">
                 <p className="text-brand-text-secondary">Welcome to the AI Unified Terminal. Type 'help' for commands.</p>
                 <br/>

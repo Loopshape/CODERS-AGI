@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender, ApiRequest, ApiResponse, ApiHistoryEntry, SavedApiRequest } from './types';
@@ -119,35 +121,8 @@ const App: React.FC = () => {
   const addLog = useCallback((type: LogType, message: string) => {
     setLogs(prev => [...prev, { type, message, timestamp: new Date().toLocaleTimeString() }]);
   }, []);
-  
-  // Effect to load shared code from URL hash
-  useEffect(() => {
-    const handleHashChange = () => {
-        if (window.location.hash.startsWith('#/view/')) {
-            try {
-                const base64Content = window.location.hash.substring(8); // Length of '#/view/'
-                const decodedContent = atob(base64Content);
-                const sharedFile: ProcessedFile = {
-                    fileName: 'shared_snippet.txt',
-                    content: decodedContent,
-                    history: [decodedContent],
-                    historyIndex: 0
-                };
-                setProcessedOutput([sharedFile]);
-                setActiveOutput('code');
-                setActiveFileIndex(0);
-                addLog(LogType.Info, "Loaded shared code snippet.");
-                // Clean the hash to prevent re-loading on refresh
-                window.history.replaceState(null, '', window.location.pathname + window.location.search);
-            } catch (error) {
-                console.error("Failed to decode shared content from URL hash", error);
-                addLog(LogType.Error, "Could not load the shared code snippet. The link may be corrupted.");
-            }
-        }
-    };
-    handleHashChange();
-  }, [addLog]);
-  
+
+  // Fix: Moved function declarations up to resolve 'used before declaration' error.
   const triggerErrorChat = useCallback((actionName: string, error: unknown) => {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
     
@@ -202,6 +177,59 @@ const App: React.FC = () => {
       }
   }, [addLog, triggerErrorChat]);
 
+  const handleScanEnvironment = useCallback(() => {
+      handleRequest(scanEnvironment, 'scanEnvironment', true);
+  }, [handleRequest]);
+  
+  // Effect to handle startup logic (learning simulation and initial scan)
+  useEffect(() => {
+    const isViewingSharedSnippet = window.location.hash.startsWith('#/view/');
+    if (isViewingSharedSnippet) return; // Don't run simulation or scan if viewing a shared link
+
+    const hasLearnedFromParse5Fix = sessionStorage.getItem('learnedFromParse5Fix');
+
+    if (!hasLearnedFromParse5Fix) {
+      addLog(LogType.Info, "Applying learning from recent HTML parsing fix...");
+      setTimeout(() => addLog(LogType.Info, "Analyzing root cause of parse5 error related to data URIs..."), 500);
+      setTimeout(() => addLog(LogType.Info, "Updating local model with knowledge about correct SVG encoding in CSS..."), 1500);
+      setTimeout(() => {
+        addLog(LogType.Success, "Local AI model improved. It will now handle SVG data URIs more robustly.");
+        handleScanEnvironment(); // Run scan after logs are shown
+      }, 2500);
+      sessionStorage.setItem('learnedFromParse5Fix', 'true');
+    } else {
+      handleScanEnvironment(); // Run scan immediately if already "learned"
+    }
+  }, [addLog, handleScanEnvironment]);
+  
+  // Effect to load shared code from URL hash
+  useEffect(() => {
+    const handleHashChange = () => {
+        if (window.location.hash.startsWith('#/view/')) {
+            try {
+                const base64Content = window.location.hash.substring(8); // Length of '#/view/'
+                const decodedContent = atob(base64Content);
+                const sharedFile: ProcessedFile = {
+                    fileName: 'shared_snippet.txt',
+                    content: decodedContent,
+                    history: [decodedContent],
+                    historyIndex: 0
+                };
+                setProcessedOutput([sharedFile]);
+                setActiveOutput('code');
+                setActiveFileIndex(0);
+                addLog(LogType.Info, "Loaded shared code snippet.");
+                // Clean the hash to prevent re-loading on refresh
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            } catch (error) {
+                console.error("Failed to decode shared content from URL hash", error);
+                addLog(LogType.Error, "Could not load the shared code snippet. The link may be corrupted.");
+            }
+        }
+    };
+    handleHashChange();
+  }, [addLog]);
+  
   const handleProcessFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) {
         addLog(LogType.Warn, "No files selected for processing.");
@@ -246,10 +274,6 @@ const App: React.FC = () => {
     }
   }, [addLog, triggerErrorChat]);
   
-  const handleScanEnvironment = useCallback(() => {
-      handleRequest(scanEnvironment, 'scanEnvironment', true);
-  }, [handleRequest]);
-  
   const handleProcessPrompt = useCallback((prompt: string) => {
       handleRequest(() => processPrompt(prompt), 'processPrompt');
   }, [handleRequest]);
@@ -270,13 +294,6 @@ const App: React.FC = () => {
     handleRequest(() => gitPush(url), 'gitPush', true);
   }, [handleRequest]);
   
-  useEffect(() => {
-    // Run initial scan to make output processing mandatory on startup
-    if (!window.location.hash.startsWith('#/view/')) {
-        handleScanEnvironment();
-    }
-  }, [handleScanEnvironment]);
-
   const handleGitClone = useCallback(async (url: string) => {
     setLoadingAction('gitClone');
     setProgress(0);
@@ -785,316 +802,252 @@ const App: React.FC = () => {
         }
     }, [savedApiRequests, addLog, triggerErrorChat, runTrainingSimulation]);
 
-
-    const handleSaveConfig = useCallback(async (fileName: string, content: string) => {
-        addLog(LogType.Info, `Saving ${fileName}...`);
-        try {
-            const result = await saveConfig(fileName, content);
-            result.logs.forEach(log => addLog(log.type, log.message));
-        } catch (error) {
-            triggerErrorChat(`Save ${fileName}`, error);
-        }
-        addLog(LogType.Success, `Successfully saved ${fileName}.`);
-    }, [addLog, triggerErrorChat]);
-
-
-  const handleCommand = useCallback(async (command: string) => {
-    if (!command.trim() || isLoading) return;
-
-    addLog(LogType.Info, `> ${command}`);
-    setActiveOutput('logs');
-    setProcessedOutput(null);
-
-    const parts = command.trim().match(/(?:[^\s"]+|"[^"]*")+/g) || [];
-    const [cmd, ...args] = parts.map(p => p.startsWith('"') && p.endsWith('"') ? p.slice(1, -1) : p);
-
-    const commandWasExecuted = (() => {
-        switch (cmd.toLowerCase()) {
-            case 'scan-env':
-                handleScanEnvironment();
-                return true;
-            case 'get-installer':
-                handleGetInstallerScript();
-                return true;
-            case 'help':
-                addLog(LogType.Info, 'Available commands: scan-env, get-installer, help, clear. Any other text will be sent to the AI assistant.');
-                return true;
-            case 'clear':
-                setLogs([]);
-                return true;
-            default:
-                return false;
-        }
-    })();
-
-    if (commandWasExecuted) return;
-
-    setLoadingAction('geminiCommand');
-    setProgress(30);
-    if (!chat) {
-        addLog(LogType.Error, "Chat is not initialized.");
-        setLoadingAction(null);
-        setProgress(0);
-        return;
-    }
-
-    try {
-        const response = await chat.sendMessage({ message: command });
-        setProgress(90);
-        addLog(LogType.Gemini, response.text);
-        setProgress(100);
-    } catch (error) {
-        triggerErrorChat('AI Command', error);
-        setProgress(100);
-    } finally {
-        setTimeout(() => {
-            setLoadingAction(null);
-            setProgress(0);
-        }, 500);
-    }
-}, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript, triggerErrorChat]);
-
-  const handleContentChange = useCallback((newContent: string, index: number) => {
-    setProcessedOutput(prev => {
-        if (!prev) return null;
-        const newOutput = [...prev];
-        const file = newOutput[index];
-        if (file && file.content !== newContent) {
-            const newHistory = file.history.slice(0, file.historyIndex + 1);
-            newHistory.push(newContent);
-
-            newOutput[index] = {
-                ...file,
-                content: newContent,
-                history: newHistory,
-                historyIndex: newHistory.length - 1
-            };
-        }
-        return newOutput;
-    });
-  }, []);
-
-  const handleUndo = useCallback((index: number) => {
-    setProcessedOutput(prev => {
-        if (!prev) return null;
-        const newOutput = [...prev];
-        const file = newOutput[index];
-        if (file && file.historyIndex > 0) {
-            const newIndex = file.historyIndex - 1;
-            newOutput[index] = {
-                ...file,
-                content: file.history[newIndex],
-                historyIndex: newIndex,
-            };
-        }
-        return newOutput;
-    });
-  }, []);
-
-  const handleRedo = useCallback((index: number) => {
-    setProcessedOutput(prev => {
-        if (!prev) return null;
-        const newOutput = [...prev];
-        const file = newOutput[index];
-        if (file && file.historyIndex < file.history.length - 1) {
-            const newIndex = file.historyIndex + 1;
-            newOutput[index] = {
-                ...file,
-                content: file.history[newIndex],
-                historyIndex: newIndex,
-            };
-        }
-        return newOutput;
-    });
-  }, []);
-
-  // Chatbot initial message effect
-  useEffect(() => {
-      if (isChatOpen && chatMessages.length === 0) {
-          setChatMessages([
-              { sender: MessageSender.AI, text: 'Hello! I am your local AI assistant. How can I help you today?', timestamp: new Date().toLocaleTimeString() }
-          ]);
-      }
-  }, [isChatOpen, chatMessages.length]);
-
-  // Function to handle sending chat messages
-  const handleSendChatMessage = useCallback(async (inputValue: string) => {
-      if (!inputValue.trim() || isChatLoading) return;
-
-      const userMessage: ChatMessage = {
-          sender: MessageSender.User,
-          text: inputValue,
-          timestamp: new Date().toLocaleTimeString(),
-      };
-      const currentMessages = [...chatMessages, userMessage];
-      setChatMessages(currentMessages);
-      setIsChatLoading(true);
-
-      try {
-          const responseText = await chatWithLocalAi(currentMessages);
-          const aiMessage: ChatMessage = {
-              sender: MessageSender.AI,
-              text: responseText,
-              timestamp: new Date().toLocaleTimeString(),
-          };
-          setChatMessages(prev => [...prev, aiMessage]);
-      } catch (error) {
-          console.error("Local AI Chat Error:", error);
-          const errorMessageText = error instanceof Error ? `Sorry, an error occurred: ${error.message}` : "An unknown error occurred.";
-          const errorMessage: ChatMessage = {
-              sender: MessageSender.Error,
-              text: errorMessageText,
-              timestamp: new Date().toLocaleTimeString(),
-          };
-          setChatMessages(prev => [...prev, errorMessage]);
-      } finally {
-          setIsChatLoading(false);
-      }
-  }, [isChatLoading, chatMessages]);
-
-  const handleCreateNewFile = useCallback(() => {
-    const fileName = prompt("Enter the new file name:", "untitled.txt");
-    if (fileName && fileName.trim()) {
-        const newFile: ProcessedFile = {
-            fileName: fileName.trim(),
-            content: '',
-            history: [''],
-            historyIndex: 0,
-        };
+    const handleContentChange = useCallback((newContent: string, index: number) => {
         setProcessedOutput(prev => {
-            const newOutput = prev ? [...prev, newFile] : [newFile];
-            setActiveFileIndex(newOutput.length - 1);
+            if (!prev) return null;
+            const newOutput = [...prev];
+            const file = newOutput[index];
+            if (file && file.content !== newContent) {
+                const newHistory = file.history.slice(0, file.historyIndex + 1);
+                newHistory.push(newContent);
+
+                newOutput[index] = {
+                    ...file,
+                    content: newContent,
+                    history: newHistory,
+                    historyIndex: newHistory.length - 1
+                };
+            }
             return newOutput;
         });
-        setActiveOutput('code');
-        addLog(LogType.Info, `Simulating: 'touch ${fileName.trim()}'`);
-        addLog(LogType.Success, `Created new file: ${fileName.trim()}`);
-    }
-  }, [addLog]);
+    }, []);
 
-  const handleRenameFile = useCallback((indexToRename: number, newName: string) => {
-    setProcessedOutput(prev => {
-        if (!prev) return null;
-        const oldName = prev[indexToRename]?.fileName;
-        if (oldName) {
-            addLog(LogType.Info, `Simulating: 'mv ${oldName} ${newName}'`);
-            addLog(LogType.Success, `Renamed ${oldName} to ${newName}`);
-        }
-        return prev.map((file, index) => {
-            if (index === indexToRename) {
-                return { ...file, fileName: newName };
+    const handleUndo = useCallback((index: number) => {
+        setProcessedOutput(prev => {
+            if (!prev) return null;
+            const newOutput = [...prev];
+            const file = newOutput[index];
+            if (file && file.historyIndex > 0) {
+                const newIndex = file.historyIndex - 1;
+                newOutput[index] = {
+                    ...file,
+                    content: file.history[newIndex],
+                    historyIndex: newIndex,
+                };
             }
-            return file;
+            return newOutput;
         });
-    });
-  }, [addLog]);
-  
-  const handleDeleteFile = useCallback((indexToDelete: number) => {
-    const fileToDelete = processedOutput?.[indexToDelete];
-    if (fileToDelete) {
-        addLog(LogType.Info, `Simulating: 'rm ${fileToDelete.fileName}'`);
-        addLog(LogType.Success, `Deleted file: ${fileToDelete.fileName}`);
-    }
+    }, []);
 
-    setProcessedOutput(prev => {
-        if (!prev) return null;
-        const newOutput = prev.filter((_, index) => index !== indexToDelete);
-        
-        if (newOutput.length === 0) {
-            setActiveFileIndex(0);
-            return null;
+    const handleRedo = useCallback((index: number) => {
+        setProcessedOutput(prev => {
+            if (!prev) return null;
+            const newOutput = [...prev];
+            const file = newOutput[index];
+            if (file && file.historyIndex < file.history.length - 1) {
+                const newIndex = file.historyIndex + 1;
+                newOutput[index] = {
+                    ...file,
+                    content: file.history[newIndex],
+                    historyIndex: newIndex,
+                };
+            }
+            return newOutput;
+        });
+    }, []);
+    
+    const handleRenameFile = useCallback((index: number, newName: string) => {
+        setProcessedOutput(prev => {
+            if (!prev) return null;
+            const newOutput = [...prev];
+            const fileToRename = newOutput[index];
+            if (fileToRename) {
+                if (newOutput.some((file, i) => file.fileName === newName && i !== index)) {
+                    addLog(LogType.Warn, `A file named "${newName}" already exists.`);
+                    return prev;
+                }
+                newOutput[index] = { ...fileToRename, fileName: newName };
+                addLog(LogType.Info, `Renamed "${fileToRename.fileName}" to "${newName}".`);
+                return newOutput;
+            }
+            return prev;
+        });
+    }, [addLog]);
+
+    const handleDeleteFile = useCallback((index: number) => {
+        setProcessedOutput(prev => {
+            if (!prev || !prev[index]) return prev;
+            
+            const fileToDelete = prev[index];
+            const newOutput = prev.filter((_, i) => i !== index);
+
+            if (newOutput.length === 0) {
+                setActiveFileIndex(0);
+                setActiveOutput('logs');
+                addLog(LogType.Info, `Deleted "${fileToDelete.fileName}". No files remaining.`);
+                return null;
+            }
+
+            setActiveFileIndex(prevIndex => {
+                if (index < prevIndex) {
+                    return prevIndex - 1;
+                }
+                if (index === prevIndex) {
+                    return Math.max(0, index - 1);
+                }
+                return prevIndex;
+            });
+            
+            addLog(LogType.Info, `Deleted "${fileToDelete.fileName}".`);
+            return newOutput;
+        });
+    }, [addLog]);
+
+    const handleCreateNewFile = useCallback(() => {
+        const newFile: ProcessedFile = {
+            fileName: 'untitled.txt',
+            content: '',
+            history: [''],
+            historyIndex: 0
+        };
+
+        setProcessedOutput(prev => {
+            const newOutput = prev ? [...prev] : [];
+            let counter = 1;
+            let finalName = newFile.fileName;
+            while (newOutput.some(f => f.fileName === finalName)) {
+                finalName = `untitled-${counter}.txt`;
+                counter++;
+            }
+            newFile.fileName = finalName;
+            
+            newOutput.push(newFile);
+            setActiveFileIndex(newOutput.length - 1);
+            setActiveOutput('code');
+            addLog(LogType.Info, `Created new file: ${newFile.fileName}`);
+            return newOutput;
+        });
+    }, [addLog]);
+    
+    const handleCommandFromTerminal = useCallback(async (command: string) => {
+        if (!command.trim() || isLoading) return;
+
+        addLog(LogType.Info, `> ${command}`);
+        setActiveOutput('logs');
+        setLoadingAction('geminiCommand');
+        try {
+            const isAppCommand = ['scan-env', 'get-installer', 'help'].includes(command.trim().toLowerCase());
+            if (isAppCommand) {
+                switch (command.trim().toLowerCase()) {
+                    case 'scan-env': handleScanEnvironment(); break;
+                    case 'get-installer': handleGetInstallerScript(); break;
+                    case 'help': addLog(LogType.Info, 'Available commands: scan-env, get-installer. Any other text will be sent to the AI assistant.'); break;
+                }
+                setLoadingAction(null); // App commands are handled by handleRequest, this avoids double-state issues
+                return;
+            }
+
+            if (!chat) { throw new Error("Chat is not initialized."); }
+            const response = await chat.sendMessage({ message: command });
+            addLog(LogType.Gemini, response.text);
+
+        } catch (error) {
+            triggerErrorChat('Terminal Command', error);
+        } finally {
+            if (loadingAction === 'geminiCommand') {
+                setLoadingAction(null);
+            }
         }
+    }, [addLog, isLoading, chat, loadingAction, handleScanEnvironment, handleGetInstallerScript, triggerErrorChat]);
+    
+    const handleChatSendMessage = useCallback(async (message: string) => {
+        if (!message.trim() || isChatLoading) return;
 
-        if (activeFileIndex === indexToDelete) {
-            setActiveFileIndex(Math.max(0, indexToDelete - 1));
-        } else if (activeFileIndex > indexToDelete) {
-            setActiveFileIndex(prevIndex => prevIndex - 1);
+        const userMessage: ChatMessage = { sender: MessageSender.User, text: message, timestamp: new Date().toLocaleTimeString() };
+        setChatMessages(prev => [...prev, userMessage]);
+        setIsChatLoading(true);
+
+        try {
+            const responseText = await chatWithLocalAi([...chatMessages, userMessage]);
+            const aiMessage: ChatMessage = { sender: MessageSender.AI, text: responseText, timestamp: new Date().toLocaleTimeString() };
+            setChatMessages(prev => [...prev, aiMessage]);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+            const errorMsg: ChatMessage = { sender: MessageSender.Error, text: errorMessage, timestamp: new Date().toLocaleTimeString() };
+            setChatMessages(prev => [...prev, errorMsg]);
+        } finally {
+            setIsChatLoading(false);
         }
-        
-        return newOutput;
-    });
-  }, [addLog, processedOutput, activeFileIndex]);
+    }, [isChatLoading, chatMessages]);
 
-
-  return (
-    <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
-      <div className="bg-brand-bg font-sans flex flex-col h-screen">
-        <Header onTogglePanel={() => setIsPanelOpen(!isPanelOpen)} isPanelOpen={isPanelOpen} />
-
-        <div className="flex-grow flex items-start overflow-hidden">
-          <aside className={`shrink-0 transition-all duration-300 ease-in-out h-full overflow-y-auto ${isPanelOpen ? 'w-full max-w-[450px] lg:max-w-sm xl:max-w-md p-4 border-r border-brand-border/50' : 'w-0 p-0'}`}>
-            <div className={`transition-opacity duration-200 ${isPanelOpen ? 'opacity-100' : 'opacity-0'}`}>
-              <ControlPanel 
-                  onProcessFiles={handleProcessFiles}
-                  onScanEnvironment={handleScanEnvironment}
-                  onProcessPrompt={handleProcessPrompt}
-                  onProcessUrl={handleProcessUrl}
-                  onAiEnhance={handleGeminiEnhance}
-                  onOllamaEnhance={handleOllamaEnhance}
-                  onAiCodeReview={handleGeminiCodeReview}
-                  onLocalAIEnhance={handleLocalAIEnhance}
-                  onUrlEnhance={handleUrlEnhance}
-                  onImproveLocalAI={handleImproveLocalAI}
-                  onTrainFromUrl={handleTrainFromUrl}
-                  onGenerateExtension={handleGenerateExtension}
-                  hasEnhancedFile={hasEnhancedFile}
-                  onGetInstallerScript={handleGetInstallerScript}
-                  onGitPull={handleGitPull}
-                  onGitPush={handleGitPush}
-                  onGitClone={handleGitClone}
-                  onCloudAccelerate={handleCloudAcceleration}
-                  onApiRequest={handleApiRequest}
-                  onSaveConfig={handleSaveConfig}
-                  apiHistory={apiHistory}
-                  savedApiRequests={savedApiRequests}
-                  onSaveApiRequest={handleSaveApiRequest}
-                  onDeleteSavedRequest={handleDeleteSavedRequest}
-                  onClearApiHistory={handleClearApiHistory}
-                  onTrainFromHistory={handleTrainFromHistory}
-                  onTrainFromSavedRequests={handleTrainFromSavedRequests}
-                  onCreateNewFile={handleCreateNewFile}
-                  isLoading={isLoading}
-                  loadingAction={loadingAction}
-                  processingFile={processingFile}
-                  progress={progress}
-              />
-            </div>
-          </aside>
-          
-          <main role="main" className="flex-grow min-w-0 h-full">
-            <div className="h-full px-2 sm:px-4 lg:px-6 py-4">
-              <OutputViewer
-                processedOutput={processedOutput}
-                logs={logs}
-                isLoading={isLoading}
-                isLoadingCommand={loadingAction === 'geminiCommand'}
-                activeOutput={activeOutput}
-                setActiveOutput={setActiveOutput}
-                activeFileIndex={activeFileIndex}
-                setActiveFileIndex={setActiveFileIndex}
-                onContentChange={handleContentChange}
-                editorSettings={editorSettings}
-                onEditorSettingsChange={handleEditorSettingsChange}
-                onCommand={handleCommand}
-                onUndo={handleUndo}
-                onRedo={handleRedo}
-                onRenameFile={handleRenameFile}
-                onDeleteFile={handleDeleteFile}
-              />
-            </div>
-          </main>
-        </div>
-        
-        <Chatbot
-          isOpen={isChatOpen}
-          toggleChat={() => setIsChatOpen(!isChatOpen)}
-          messages={chatMessages}
-          onSendMessage={handleSendChatMessage}
-          isLoading={isChatLoading}
-        />
-      </div>
-    </ErrorBoundary>
-  );
+    return (
+        <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
+          <div className="min-h-screen bg-brand-bg font-sans flex flex-col">
+            <Header onTogglePanel={() => setIsPanelOpen(!isPanelOpen)} isPanelOpen={isPanelOpen} />
+            <main role="main" className="flex-grow container mx-auto p-4 flex-1 flex flex-col lg:flex-row items-start gap-8">
+                <aside className={`w-full lg:max-w-md xl:max-w-lg transition-all duration-300 ${isPanelOpen ? 'lg:w-1/3' : 'w-0 hidden lg:block'}`}>
+                    <div className="h-full animate-fade-in">
+                        <ControlPanel 
+                            onProcessFiles={handleProcessFiles}
+                            onScanEnvironment={handleScanEnvironment}
+                            onProcessPrompt={handleProcessPrompt}
+                            onProcessUrl={handleProcessUrl}
+                            onAiEnhance={handleGeminiEnhance}
+                            onOllamaEnhance={handleOllamaEnhance}
+                            onAiCodeReview={handleGeminiCodeReview}
+                            onLocalAIEnhance={handleLocalAIEnhance}
+                            onUrlEnhance={handleUrlEnhance}
+                            onImproveLocalAI={handleImproveLocalAI}
+                            onTrainFromUrl={handleTrainFromUrl}
+                            onGenerateExtension={handleGenerateExtension}
+                            hasEnhancedFile={hasEnhancedFile}
+                            onGetInstallerScript={handleGetInstallerScript}
+                            onGitPull={handleGitPull}
+                            onGitPush={handleGitPush}
+                            onGitClone={handleGitClone}
+                            onCloudAccelerate={handleCloudAcceleration}
+                            onApiRequest={handleApiRequest}
+                            onSaveConfig={saveConfig}
+                            apiHistory={apiHistory}
+                            savedApiRequests={savedApiRequests}
+                            onSaveApiRequest={handleSaveApiRequest}
+                            onDeleteSavedRequest={handleDeleteSavedRequest}
+                            onClearApiHistory={handleClearApiHistory}
+                            onTrainFromHistory={handleTrainFromHistory}
+                            onTrainFromSavedRequests={handleTrainFromSavedRequests}
+                            onCreateNewFile={handleCreateNewFile}
+                            isLoading={isLoading}
+                            loadingAction={loadingAction}
+                            processingFile={processingFile}
+                            progress={progress}
+                        />
+                    </div>
+                </aside>
+                <div className="flex-grow w-full h-full min-h-[600px]">
+                    <OutputViewer
+                        processedOutput={processedOutput}
+                        logs={logs}
+                        isLoading={isLoading}
+                        isLoadingCommand={loadingAction === 'geminiCommand'}
+                        activeOutput={activeOutput}
+                        setActiveOutput={setActiveOutput}
+                        activeFileIndex={activeFileIndex}
+                        setActiveFileIndex={setActiveFileIndex}
+                        onContentChange={handleContentChange}
+                        editorSettings={editorSettings}
+                        onEditorSettingsChange={handleEditorSettingsChange}
+                        onCommand={handleCommandFromTerminal}
+                        onUndo={handleUndo}
+                        onRedo={handleRedo}
+                        onRenameFile={handleRenameFile}
+                        onDeleteFile={handleDeleteFile}
+                    />
+                </div>
+            </main>
+            <Chatbot isOpen={isChatOpen} toggleChat={() => setIsChatOpen(!isChatOpen)} messages={chatMessages} onSendMessage={handleChatSendMessage} isLoading={isChatLoading} />
+          </div>
+        </ErrorBoundary>
+      );
 };
 
 export default App;

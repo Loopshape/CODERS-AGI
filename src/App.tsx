@@ -152,7 +152,6 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
-    // Fix: Add missing curly braces for the catch block to correct syntax error.
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       const errorLog: LogEntry = { type: LogType.Error, message: `Batch processing failed: ${errorMessage}`, timestamp: new Date().toLocaleTimeString() };

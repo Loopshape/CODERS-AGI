@@ -1,6 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 
-// Fix: Add onImproveLocalAI to props interface
 interface Props {
   children: ReactNode;
   onImproveLocalAI?: () => void;
@@ -46,7 +45,6 @@ class ErrorBoundary extends Component<Props, State> {
                 </pre>
               </details>
             )}
-            {/* Fix: Add flex container and the "Improve Local AI" button */}
             <div className="flex items-center justify-center space-x-4">
               <button
                 onClick={this.handleReload}
