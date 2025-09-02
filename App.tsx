@@ -1,9 +1,10 @@
 
 
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
-import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitUpdate } from './services/scriptService';
+import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
 import { getLocalAiSuggestions } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
@@ -171,8 +172,12 @@ const App: React.FC = () => {
     handleRequest(() => scriptData, 'getInstallerScript', true);
   }, []);
 
-  const handleGitUpdate = useCallback((url: string) => {
-    handleRequest(() => gitUpdate(url), 'gitUpdate', true);
+  const handleGitPull = useCallback((url: string) => {
+    handleRequest(() => gitPull(url), 'gitPull', true);
+  }, []);
+
+  const handleGitPush = useCallback((url: string) => {
+    handleRequest(() => gitPush(url), 'gitPush', true);
   }, []);
 
   const handleLocalAIEnhance = useCallback(async (file: File) => {
@@ -591,7 +596,8 @@ const App: React.FC = () => {
                 onTrainFromUrl={handleTrainFromUrl}
                 hasEnhancedFile={hasEnhancedFile}
                 onGetInstallerScript={handleGetInstallerScript}
-                onGitUpdate={handleGitUpdate}
+                onGitPull={handleGitPull}
+                onGitPush={handleGitPush}
                 isLoading={isLoading}
                 loadingAction={loadingAction}
                 processingFile={processingFile}

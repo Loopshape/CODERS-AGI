@@ -1,4 +1,6 @@
 
+
+
 import { LogType, ProcessedFile } from '../types';
 
 export const UNIVERSAL_LAW = `:bof:
@@ -250,12 +252,23 @@ inside the distro, then restart your shell:
     return { output: installerScript, logs, fileName: 'ai-installer.sh' };
 };
 
-export const gitUpdate = (url: string) => {
+export const gitPull = (url: string) => {
     const logs = [
         { type: LogType.Info, message: `Simulating: git pull from ${url}` },
         { type: LogType.Info, message: 'Fetching origin...' },
         { type: LogType.Success, message: 'Already up to date.' }
     ];
     const output = `From ${url}\n * branch main -> FETCH_HEAD\nAlready up to date.`;
-    return { output, logs, fileName: 'git_update.log' };
+    return { output, logs, fileName: 'git_pull.log' };
+};
+
+export const gitPush = (url: string) => {
+    const logs = [
+        { type: LogType.Info, message: `Simulating: git push to ${url}` },
+        { type: LogType.Info, message: 'Enumerating objects: 5, done.' },
+        { type: LogType.Info, message: 'Writing objects: 100% (3/3), done.' },
+        { type: LogType.Success, message: `To ${url}\n   abcdef..123456  main -> main` }
+    ];
+    const output = `Pushing to ${url}\nDone.`;
+    return { output, logs, fileName: 'git_push.log' };
 };

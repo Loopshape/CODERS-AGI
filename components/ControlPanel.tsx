@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useRef } from 'react';
 import ProgressBar from './ProgressBar';
 import { SpinnerIcon } from './icons/SpinnerIcon';
@@ -15,6 +16,8 @@ const ScanIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>);
 const UploadIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>);
+const DownloadIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>);
 const GitIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" /></svg>);
 const SystemIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -35,7 +38,8 @@ interface ControlPanelProps {
   onTrainFromUrl: (url: string) => void;
   hasEnhancedFile: boolean;
   onGetInstallerScript: () => void;
-  onGitUpdate: (url: string) => void;
+  onGitPull: (url: string) => void;
+  onGitPush: (url: string) => void;
   isLoading: boolean;
   loadingAction: string | null;
   processingFile: File | null;
@@ -56,7 +60,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onTrainFromUrl,
     hasEnhancedFile,
     onGetInstallerScript,
-    onGitUpdate,
+    onGitPull,
+    onGitPush,
     isLoading,
     loadingAction,
     processingFile,
@@ -68,7 +73,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [url, setUrl] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [repoUrl, setRepoUrl] = useState('https://github.com/your-org/ai-tool-repo.git');
+  const [repoUrl, setRepoUrl] = useState('git@github.com:Loopshape/CODERS-AGI.git');
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -246,13 +251,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         )}
         {activeTab === 'updates' && (
             <div className="space-y-6 animate-fade-in">
-                 <ActionCard title="Source Control & Updates" description="Update the tool from a remote repository and generate an installer for the latest version." icon={<GitIcon className="w-6 h-6 mr-3 text-brand-accent"/>}>
+                 <ActionCard title="Source Control & Updates" description="Pull changes from the remote repository or push local changes. Then, generate an installer for the latest version." icon={<GitIcon className="w-6 h-6 mr-3 text-brand-accent"/>}>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-brand-text-secondary">Repository URL:</label>
-                        <input type="text" value={repoUrl} onChange={e => setRepoUrl(e.target.value)} placeholder="https://github.com/user/repo.git" className="w-full p-2 bg-brand-bg border border-brand-border rounded-md"/>
-                        <ActionButton onClick={() => onGitUpdate(repoUrl)} disabled={isLoading} isLoading={loadingAction === 'gitUpdate'}>
-                          Update from Repository
-                        </ActionButton>
+                        <input type="text" value={repoUrl} onChange={e => setRepoUrl(e.target.value)} placeholder="git@github.com:user/repo.git" className="w-full p-2 bg-brand-bg border border-brand-border rounded-md"/>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <ActionButton onClick={() => onGitPull(repoUrl)} disabled={isLoading} isLoading={loadingAction === 'gitPull'} icon={<DownloadIcon className="w-5 h-5"/>}>
+                              Pull from Repository
+                            </ActionButton>
+                            <ActionButton onClick={() => onGitPush(repoUrl)} disabled={isLoading} isLoading={loadingAction === 'gitPush'} icon={<UploadIcon className="w-5 h-5"/>}>
+                              Push to Repository
+                            </ActionButton>
+                        </div>
                     </div>
 
                     <div className="relative flex py-2 items-center">
