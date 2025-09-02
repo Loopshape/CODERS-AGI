@@ -45,6 +45,30 @@ const downloadFile = (content: string, fileName: string, mimeType: string = 'app
     URL.revokeObjectURL(url);
 };
 
+const executeTrainingSimulation = async (
+  trainingSource: string,
+  addLog: (type: LogType, message: string) => void,
+  setProgress: (p: number) => void
+) => {
+  addLog(LogType.Info, `Starting local AI training with data from ${trainingSource}...`);
+  
+  await new Promise(res => setTimeout(res, 500));
+  setProgress(25);
+  addLog(LogType.Info, "Analyzing data patterns...");
+  
+  await new Promise(res => setTimeout(res, 1000));
+  setProgress(50);
+  addLog(LogType.Info, "Updating model weights...");
+
+  await new Promise(res => setTimeout(res, 1000));
+  setProgress(85);
+  addLog(LogType.Info, "Fine-tuning parameters...");
+
+  await new Promise(res => setTimeout(res, 800));
+  setProgress(100);
+  addLog(LogType.Success, `Local AI model successfully improved with data from ${trainingSource}.`);
+};
+
 
 const App: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -349,7 +373,7 @@ const App: React.FC = () => {
     return processedOutput?.some(file => file.fileName.includes('.enhanced.')) ?? false;
   }, [processedOutput]);
 
-  const handleImproveLocalAI = useCallback((errorInfo?: string) => {
+  const handleImproveLocalAI = useCallback(async (errorInfo?: string) => {
       const enhancedFile = processedOutput?.find(file => file.fileName.includes('.enhanced.'));
       const trainingSource = errorInfo ? 'an application error report' : enhancedFile?.fileName;
 
@@ -359,36 +383,56 @@ const App: React.FC = () => {
       }
 
       setLoadingAction('improveLocalAI');
-      setProgress(0);
+      setProgress(10);
       setLogs([]);
       setActiveOutput('logs');
-      addLog(LogType.Info, `Starting local AI training with data from ${trainingSource}...`);
       
-      const runTrainingSimulation = async () => {
-          await new Promise(res => setTimeout(res, 500));
-          setProgress(25);
-          addLog(LogType.Info, "Analyzing data patterns...");
-          
-          await new Promise(res => setTimeout(res, 1000));
-          setProgress(50);
-          addLog(LogType.Info, "Updating model weights...");
-
-          await new Promise(res => setTimeout(res, 1000));
-          setProgress(85);
-          addLog(LogType.Info, "Fine-tuning parameters...");
-
-          await new Promise(res => setTimeout(res, 800));
-          setProgress(100);
-          addLog(LogType.Success, `Local AI model successfully improved with data from ${trainingSource}.`);
-
-          await new Promise(res => setTimeout(res, 500));
-          setLoadingAction(null);
-          setProgress(0);
-      };
-
-      runTrainingSimulation();
-
+      try {
+        await executeTrainingSimulation(trainingSource, addLog, setProgress);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        addLog(LogType.Error, `Local AI improvement failed: ${errorMessage}`);
+        setProgress(100);
+      } finally {
+        setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
+        }, 500);
+      }
   }, [processedOutput, addLog]);
+
+  const handleTrainFromUrl = useCallback(async (url: string) => {
+    if (!url.trim()) {
+        addLog(LogType.Warn, "Please provide a URL to train from.");
+        return;
+    }
+
+    setLoadingAction('trainFromUrl');
+    setProgress(10);
+    setLogs([]);
+    setProcessedOutput(null);
+    setActiveFileIndex(0);
+    addLog(LogType.AI, `Preparing to train local AI from ${url}...`);
+    setActiveOutput('logs');
+
+    try {
+      const { logs: fetchLogs } = processUrlPrompt(url);
+      fetchLogs.forEach(log => addLog(log.type, log.message));
+      addLog(LogType.Info, `Content fetched successfully. Starting training simulation.`);
+      
+      await executeTrainingSimulation(url, addLog, setProgress);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      addLog(LogType.Error, `Training from URL failed: ${errorMessage}`);
+      setProgress(100);
+    } finally {
+       setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
+        }, 500);
+    }
+  }, [addLog]);
 
   const handleCommand = useCallback(async (command: string) => {
     if (!command.trim() || isLoading) return;
@@ -452,6 +496,7 @@ const App: React.FC = () => {
                 onLocalAIEnhance={handleLocalAIEnhance}
                 onUrlEnhance={handleUrlEnhance}
                 onImproveLocalAI={handleImproveLocalAI}
+                onTrainFromUrl={handleTrainFromUrl}
                 hasEnhancedFile={hasEnhancedFile}
                 onGetInstallerScript={handleGetInstallerScript}
                 onGitUpdate={handleGitUpdate}

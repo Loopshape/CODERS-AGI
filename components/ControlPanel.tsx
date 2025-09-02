@@ -30,6 +30,7 @@ interface ControlPanelProps {
   onLocalAIEnhance: (file: File) => void;
   onUrlEnhance: (url: string) => void;
   onImproveLocalAI: () => void;
+  onTrainFromUrl: (url: string) => void;
   hasEnhancedFile: boolean;
   onGetInstallerScript: () => void;
   onGitUpdate: (url: string) => void;
@@ -49,6 +50,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onLocalAIEnhance,
     onUrlEnhance,
     onImproveLocalAI,
+    onTrainFromUrl,
     hasEnhancedFile,
     onGetInstallerScript,
     onGitUpdate,
@@ -174,13 +176,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <textarea value={prompt} onChange={(e) => { setPrompt(e.target.value); setUrl(''); }} className="w-full h-24 p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition" placeholder="Enter prompt text..." aria-label="Text prompt for AI processing"/>
                 <div className="relative flex py-2 items-center"><div className="flex-grow border-t border-brand-border"></div><span className="flex-shrink mx-4 text-brand-text-secondary uppercase text-sm">Or</span><div className="flex-grow border-t border-brand-border"></div></div>
                 <input type="url" value={url} onChange={(e) => { setUrl(e.target.value); setPrompt(''); }} className="w-full p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition" placeholder="https://example.com" aria-label="URL for fetching and processing"/>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <ActionButton onClick={handleProcessInput} disabled={(!prompt.trim() && !url.trim()) || isLoading} isLoading={loadingAction === 'processPrompt' || loadingAction === 'processUrl'}>
-                      Process Input
-                  </ActionButton>
-                  <ActionButton onClick={() => onUrlEnhance(url)} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'urlEnhance'}>
-                      Enhance URL
-                  </ActionButton>
+                <div className="mt-3 space-y-2">
+                    <ActionButton onClick={handleProcessInput} disabled={(!prompt.trim() && !url.trim()) || isLoading} isLoading={loadingAction === 'processPrompt' || loadingAction === 'processUrl'}>
+                        Process Input
+                    </ActionButton>
+                    <div className="grid grid-cols-2 gap-2">
+                        <ActionButton onClick={() => onUrlEnhance(url)} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'urlEnhance'} icon={<SparklesIcon className="w-5 h-5"/>}>
+                            Enhance URL
+                        </ActionButton>
+                        <ActionButton onClick={() => onTrainFromUrl(url)} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'trainFromUrl'} icon={<SparklesIcon className="w-5 h-5"/>}>
+                            Train AI
+                        </ActionButton>
+                    </div>
                 </div>
              </ActionCard>
 

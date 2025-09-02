@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 // FIX: Corrected import paths to be relative to the 'src' directory.
@@ -410,6 +411,55 @@ const App: React.FC = () => {
 
   }, [processedOutput, addLog]);
 
+  // FIX: Added handleTrainFromUrl to provide the missing prop to ControlPanel.
+  const handleTrainFromUrl = useCallback(async (url: string) => {
+    if (!url.trim()) {
+        addLog(LogType.Warn, "Please provide a URL to train from.");
+        return;
+    }
+
+    setLoadingAction('trainFromUrl');
+    setProgress(10);
+    setLogs([]);
+    setProcessedOutput(null);
+    setActiveFileIndex(0);
+    addLog(LogType.Gemini, `Preparing to train local AI from ${url}...`);
+    setActiveOutput('logs');
+
+    try {
+      const { logs: fetchLogs } = processUrlPrompt(url);
+      fetchLogs.forEach(log => addLog(log.type, log.message));
+      addLog(LogType.Info, `Content fetched successfully. Starting training simulation.`);
+      
+      // Simulating training
+      await new Promise(res => setTimeout(res, 500));
+      setProgress(25);
+      addLog(LogType.Info, "Analyzing data patterns...");
+      
+      await new Promise(res => setTimeout(res, 1000));
+      setProgress(50);
+      addLog(LogType.Info, "Updating model weights...");
+
+      await new Promise(res => setTimeout(res, 1000));
+      setProgress(85);
+      addLog(LogType.Info, "Fine-tuning parameters...");
+
+      await new Promise(res => setTimeout(res, 800));
+      setProgress(100);
+      addLog(LogType.Success, `Local AI model successfully improved with data from ${url}.`);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      addLog(LogType.Error, `Training from URL failed: ${errorMessage}`);
+      setProgress(100);
+    } finally {
+       setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
+        }, 500);
+    }
+  }, [addLog]);
+
   const handleCommand = useCallback(async (command: string) => {
     if (!command.trim() || isLoading) return;
 
@@ -481,6 +531,7 @@ const App: React.FC = () => {
                 onLocalAIEnhance={handleLocalAIEnhance}
                 onUrlEnhance={handleUrlEnhance}
                 onImproveLocalAI={handleImproveLocalAI}
+                onTrainFromUrl={handleTrainFromUrl}
                 hasEnhancedFile={hasEnhancedFile}
                 onGetInstallerScript={handleGetInstallerScript}
                 onGitUpdate={handleGitUpdate}
