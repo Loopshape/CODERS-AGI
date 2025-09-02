@@ -26,6 +26,7 @@ interface ControlPanelProps {
   onProcessPrompt: (prompt: string) => void;
   onProcessUrl: (url: string) => void;
   onAiEnhance: (file: File) => void;
+  onOllamaEnhance: (file: File) => void;
   onAiCodeReview: (file: File) => void;
   onLocalAIEnhance: (file: File) => void;
   onUrlEnhance: (url: string) => void;
@@ -46,6 +47,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onProcessPrompt,
     onProcessUrl,
     onAiEnhance,
+    onOllamaEnhance,
     onAiCodeReview,
     onLocalAIEnhance,
     onUrlEnhance,
@@ -227,6 +229,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </ActionButton>
                     <ActionButton onClick={() => onLocalAIEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'localAIEnhance'}>
                         Local Enhance
+                    </ActionButton>
+                    <ActionButton onClick={() => onOllamaEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'ollamaEnhance'}>
+                        Local AI Enhance
                     </ActionButton>
                     <ActionButton onClick={() => onAiEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'aiEnhance'}>
                         AI Enhance

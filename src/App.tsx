@@ -6,6 +6,7 @@ import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from '../types';
 import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitUpdate } from '../services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from '../services/geminiService';
+import { getLocalAiSuggestions } from '../services/localAiService';
 import { processHtml } from '../services/enhancementService';
 import Header from '../components/Header';
 import ControlPanel from '../components/ControlPanel';
@@ -208,6 +209,54 @@ const App: React.FC = () => {
 
       setProcessedOutput([{ fileName: newFileName, content: enhancedContent }]);
       addLog(LogType.Success, `Successfully applied local enhancements.`);
+      setActiveOutput('code');
+      setProgress(100);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      addLog(LogType.Error, `Local AI enhancement failed: ${errorMessage}`);
+      setActiveOutput('logs');
+      setProgress(100);
+    } finally {
+       setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
+            setProcessingFile(null);
+        }, 500);
+    }
+  }, [addLog]);
+
+  const handleOllamaEnhance = useCallback(async (file: File) => {
+    if (!file) {
+      addLog(LogType.Warn, "No file selected for Local AI enhancement.");
+      return;
+    }
+
+    setProcessingFile(file);
+    setLoadingAction('ollamaEnhance');
+    setProgress(10);
+    setLogs([]);
+    setProcessedOutput(null);
+    setActiveFileIndex(0);
+    addLog(LogType.AI, `Preparing to enhance ${file.name} with Local AI...`);
+    setActiveOutput('logs');
+
+    try {
+      setProgress(25);
+      const fileContent = await file.text();
+      addLog(LogType.Info, `Read file content, sending to Local AI for enhancement.`);
+      setProgress(50);
+      
+      const suggestion = await getLocalAiSuggestions(fileContent);
+      setProgress(90);
+
+      const parts = file.name.split('.');
+      const extension = parts.length > 1 ? parts.pop() as string : '';
+      const baseName = parts.join('.');
+      const newFileName = extension ? `${baseName}.local_enhanced.${extension}` : `${file.name}.local_enhanced`;
+
+      setProcessedOutput([{ fileName: newFileName, content: suggestion }]);
+      addLog(LogType.Success, `Successfully received enhancement from Local AI.`);
       setActiveOutput('code');
       setProgress(100);
 
@@ -527,6 +576,7 @@ const App: React.FC = () => {
                 onProcessPrompt={handleProcessPrompt}
                 onProcessUrl={handleProcessUrl}
                 onAiEnhance={handleGeminiEnhance}
+                onOllamaEnhance={handleOllamaEnhance}
                 onAiCodeReview={handleGeminiCodeReview}
                 onLocalAIEnhance={handleLocalAIEnhance}
                 onUrlEnhance={handleUrlEnhance}

@@ -1,8 +1,10 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+// FIX: Add gemini service imports to support AI enhancement and code review features.
+import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
 import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitUpdate } from './services/scriptService';
-import { getLocalAiSuggestions, getLocalAiCodeReview } from './services/localAiService';
+import { getLocalAiSuggestions } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
@@ -230,14 +232,15 @@ const App: React.FC = () => {
     }
   }, [addLog]);
 
-  const handleAiEnhance = useCallback(async (file: File) => {
+  // FIX: Added handler for onOllamaEnhance prop. This function handles local AI enhancements via Ollama.
+  const handleOllamaEnhance = useCallback(async (file: File) => {
     if (!file) {
-      addLog(LogType.Warn, "No file selected for AI enhancement.");
+      addLog(LogType.Warn, "No file selected for Local AI enhancement.");
       return;
     }
 
     setProcessingFile(file);
-    setLoadingAction('aiEnhance');
+    setLoadingAction('ollamaEnhance');
     setProgress(10);
     setLogs([]);
     setProcessedOutput(null);
@@ -257,7 +260,7 @@ const App: React.FC = () => {
       const parts = file.name.split('.');
       const extension = parts.length > 1 ? parts.pop() as string : '';
       const baseName = parts.join('.');
-      const newFileName = extension ? `${baseName}.enhanced.${extension}` : `${file.name}.enhanced`;
+      const newFileName = extension ? `${baseName}.local_enhanced.${extension}` : `${file.name}.local_enhanced`;
 
       setProcessedOutput([{ fileName: newFileName, content: suggestion }]);
       addLog(LogType.Success, `Successfully received enhancement from Local AI.`);
@@ -277,7 +280,57 @@ const App: React.FC = () => {
         }, 500);
     }
   }, [addLog]);
+
+  // FIX: Re-purposed handleAiEnhance to use the Gemini AI service for higher-quality enhancements.
+  const handleAiEnhance = useCallback(async (file: File) => {
+    if (!file) {
+      addLog(LogType.Warn, "No file selected for Gemini AI enhancement.");
+      return;
+    }
+
+    setProcessingFile(file);
+    setLoadingAction('aiEnhance');
+    setProgress(10);
+    setLogs([]);
+    setProcessedOutput(null);
+    setActiveFileIndex(0);
+    addLog(LogType.Gemini, `Preparing to enhance ${file.name} with Gemini AI...`);
+    setActiveOutput('logs');
+
+    try {
+      setProgress(25);
+      const fileContent = await file.text();
+      addLog(LogType.Info, `Read file content, sending to Gemini AI for enhancement.`);
+      setProgress(50);
+      
+      const suggestion = await getGeminiSuggestions(fileContent);
+      setProgress(90);
+
+      const parts = file.name.split('.');
+      const extension = parts.length > 1 ? parts.pop() as string : '';
+      const baseName = parts.join('.');
+      const newFileName = extension ? `${baseName}.enhanced.${extension}` : `${file.name}.enhanced`;
+
+      setProcessedOutput([{ fileName: newFileName, content: suggestion }]);
+      addLog(LogType.Success, `Successfully received enhancement from Gemini AI.`);
+      setActiveOutput('code');
+      setProgress(100);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      addLog(LogType.Error, `Gemini AI enhancement failed: ${errorMessage}`);
+      setActiveOutput('logs');
+      setProgress(100);
+    } finally {
+       setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
+            setProcessingFile(null);
+        }, 500);
+    }
+  }, [addLog]);
   
+  // FIX: Updated handleAiCodeReview to use the Gemini AI service for more comprehensive code analysis.
   const handleAiCodeReview = useCallback(async (file: File) => {
     if (!file) {
       addLog(LogType.Warn, "No file selected for AI Code Review.");
@@ -290,29 +343,29 @@ const App: React.FC = () => {
     setLogs([]);
     setProcessedOutput(null);
     setActiveFileIndex(0);
-    addLog(LogType.AI, `Starting code review for ${file.name} with Local AI...`);
+    addLog(LogType.Gemini, `Starting code review for ${file.name} with Gemini AI...`);
     setActiveOutput('logs');
 
     try {
       setProgress(25);
       const fileContent = await file.text();
-      addLog(LogType.Info, `Read file content, sending to Local AI for review.`);
+      addLog(LogType.Info, `Read file content, sending to Gemini AI for review.`);
       setProgress(50);
       
-      const reviewReport = await getLocalAiCodeReview(fileContent);
+      const reviewReport = await getGeminiCodeReview(fileContent);
       setProgress(90);
 
       const reviewMarkdown = formatReviewAsMarkdown(reviewReport, file.name);
       const newFileName = `review_for_${file.name}.md`;
 
       setProcessedOutput([{ fileName: newFileName, content: reviewMarkdown }]);
-      addLog(LogType.Success, `Successfully received code review from Local AI.`);
+      addLog(LogType.Success, `Successfully received code review from Gemini AI.`);
       setActiveOutput('code');
       setProgress(100);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      addLog(LogType.Error, `Local AI code review failed: ${errorMessage}`);
+      addLog(LogType.Error, `Gemini AI code review failed: ${errorMessage}`);
       setActiveOutput('logs');
       setProgress(100);
     } finally {
@@ -324,23 +377,24 @@ const App: React.FC = () => {
     }
   }, [addLog]);
 
+  // FIX: Updated handleUrlEnhance to leverage the Gemini AI service for analyzing and enhancing web content.
   const handleUrlEnhance = useCallback(async (url: string) => {
     setLoadingAction('urlEnhance');
     setProgress(10);
     setLogs([]);
     setProcessedOutput(null);
     setActiveFileIndex(0);
-    addLog(LogType.AI, `Fetching from ${url} to enhance with Local AI...`);
+    addLog(LogType.Gemini, `Fetching from ${url} to enhance with Gemini AI...`);
     setActiveOutput('logs');
 
     try {
       setProgress(25);
       const { output: urlContent, logs: fetchLogs } = processUrlPrompt(url);
       fetchLogs.forEach(log => addLog(log.type, log.message));
-      addLog(LogType.Info, `Content fetched. Sending to Local AI for analysis.`);
+      addLog(LogType.Info, `Content fetched. Sending to Gemini AI for analysis.`);
       setProgress(50);
 
-      const suggestion = await getLocalAiSuggestions(urlContent);
+      const suggestion = await getGeminiSuggestions(urlContent);
       setProgress(90);
       
       let fileName = 'index.html';
@@ -352,7 +406,7 @@ const App: React.FC = () => {
       }
       
       setProcessedOutput([{ fileName: `${fileName}.enhanced.html`, content: suggestion }]);
-      addLog(LogType.Success, `Successfully received enhancement from Local AI for content from ${url}.`);
+      addLog(LogType.Success, `Successfully received enhancement from Gemini AI for content from ${url}.`);
       setActiveOutput('code');
       setProgress(100);
 
@@ -378,7 +432,8 @@ const App: React.FC = () => {
       const trainingSource = errorInfo ? 'an application error report' : enhancedFile?.fileName;
 
       if (!trainingSource) {
-          addLog(LogType.Warn, "No training data available. Run 'AI Enhance' on a file or encounter an error to improve the AI.");
+          // FIX: Updated warning message to reflect the correct action for generating training data.
+          addLog(LogType.Warn, "No training data available. Run 'Gemini AI Enhance' on a file or encounter an error to improve the AI.");
           return;
       }
 
@@ -486,12 +541,14 @@ const App: React.FC = () => {
         <Header />
         <main role="main" className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           <div className="lg:col-span-5">
+            {/* FIX: Added the missing 'onOllamaEnhance' prop to satisfy the ControlPanel's requirements. */}
             <ControlPanel 
                 onProcessFiles={handleProcessFiles}
                 onScanEnvironment={handleScanEnvironment}
                 onProcessPrompt={handleProcessPrompt}
                 onProcessUrl={handleProcessUrl}
                 onAiEnhance={handleAiEnhance}
+                onOllamaEnhance={handleOllamaEnhance}
                 onAiCodeReview={handleAiCodeReview}
                 onLocalAIEnhance={handleLocalAIEnhance}
                 onUrlEnhance={handleUrlEnhance}
