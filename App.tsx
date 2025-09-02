@@ -1,6 +1,8 @@
 
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { GoogleGenAI, Chat } from "@google/genai";
+// FIX: Add GenerateContentResponse to import to correctly type Gemini API chat responses.
+import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender, ApiRequest, ApiResponse, ApiHistoryEntry, SavedApiRequest } from './types';
 import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush, gitClone, sendApiRequest, getConfig, saveConfig } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview, getGeminiHistoryReview } from './services/geminiService';
@@ -179,7 +181,8 @@ const App: React.FC = () => {
     const actionName = enhancementType === 'none' ? 'processFiles' : `processFilesWith${enhancementType.charAt(0).toUpperCase() + enhancementType.slice(1)}AI`;
     const initialLogMessage = `Processing ${files.length} file(s)${enhancementType !== 'none' ? ` with ${enhancementType.charAt(0).toUpperCase() + enhancementType.slice(1)} AI enhancement...` : '...'}`;
     
-    runAction(
+    // FIX: Add explicit generic type to runAction to fix type inference issues.
+    runAction<{ outputs: ProcessedFile[], logs: {type: LogType, message: string}[] }>(
       actionName,
       () => processFiles(files, setProgress, enhancementType),
       (result) => {
@@ -192,7 +195,8 @@ const App: React.FC = () => {
   }, [runAction, addLog]);
 
   const handleScanEnvironment = useCallback(() => {
-    runAction(
+    // FIX: Add explicit generic type to runAction to fix type inference issues.
+    runAction<{ output: string, logs: {type: LogType, message: string}[], fileName: string }>(
       'scanEnvironment',
       async () => scanEnvironment(),
       (result) => {
@@ -203,7 +207,8 @@ const App: React.FC = () => {
   }, [runAction, addLog]);
   
   const handleProcessPrompt = useCallback((prompt: string) => {
-    runAction(
+    // FIX: Add explicit generic type to runAction to fix type inference issues.
+    runAction<{ output: string, logs: {type: LogType, message: string}[], fileName: string }>(
       'processPrompt',
       async () => processPrompt(prompt),
       (result) => {
@@ -215,7 +220,8 @@ const App: React.FC = () => {
   }, [runAction, addLog]);
 
   const handleProcessUrl = useCallback((url: string) => {
-    runAction(
+    // FIX: Add explicit generic type to runAction to fix type inference issues.
+    runAction<{ output: string, logs: {type: LogType, message: string}[], fileName: string }>(
       'processUrl',
       async () => processUrlPrompt(url),
       (result) => {
@@ -227,7 +233,8 @@ const App: React.FC = () => {
   }, [runAction, addLog]);
   
   const handleStaticEnhance = useCallback((file: File) => {
-      runAction(
+      // FIX: Add explicit generic type to runAction to fix type inference issues.
+      runAction<{ enhancedContent: string; logs: string[] }>(
         'staticEnhance',
         async () => {
             const content = await file.text();
@@ -244,7 +251,7 @@ const App: React.FC = () => {
   }, [runAction, addLog]);
 
   const handleLocalAiEnhance = useCallback((file: File) => {
-      runAction(
+      runAction<string>(
           'localAiEnhance',
           async () => {
               const content = await file.text();
@@ -262,7 +269,7 @@ const App: React.FC = () => {
   }, [runAction]);
 
   const handleAiEnhance = useCallback((file: File) => {
-      runAction(
+      runAction<string>(
           'aiEnhance',
           async () => {
               const content = await file.text();
@@ -278,7 +285,7 @@ const App: React.FC = () => {
   }, [runAction]);
 
   const handleAiCodeReview = useCallback((file: File) => {
-    runAction(
+    runAction<CodeReviewReport>(
       'aiCodeReview',
       async () => {
         const content = await file.text();
@@ -295,7 +302,7 @@ const App: React.FC = () => {
   }, [runAction]);
 
   const handleLocalAiCodeReview = useCallback((file: File) => {
-    runAction(
+    runAction<CodeReviewReport>(
       'localAiCodeReview',
       async () => {
         const content = await file.text();
@@ -312,7 +319,7 @@ const App: React.FC = () => {
   }, [runAction]);
 
   const handleUrlEnhance = useCallback((url: string) => {
-    runAction(
+    runAction<string>(
       'urlEnhance',
       async () => {
         // Step 1: Fetch content from URL
@@ -355,7 +362,7 @@ const App: React.FC = () => {
         trainingDataInfo = `Preparing training data from saved API requests...\nSample:\n${dataSample}`;
     }
     
-    runAction(
+    runAction<void>(
       `trainLocalAI`,
       async () => {
         if (trainingDataInfo) {
@@ -392,7 +399,8 @@ const App: React.FC = () => {
   const handleTrainFromSavedRequests = useCallback(() => handleTrainingSimulation('saved API requests'), [handleTrainingSimulation]);
 
   const handleGenerateExtension = useCallback(() => {
-    runAction(
+    // FIX: Add explicit generic type to runAction to fix type inference issues.
+    runAction<{ output: string, logs: {type: LogType, message: string}[], fileName: string }>(
       'generateExtension',
       getLocalAiBashExtension,
       (result) => {
@@ -404,7 +412,8 @@ const App: React.FC = () => {
   }, [runAction, addLog]);
 
   const handleGetInstallerScript = useCallback(() => {
-     runAction(
+    // FIX: Add explicit generic type to runAction to fix type inference issues.
+     runAction<{ output: string, logs: {type: LogType, message: string}[], fileName: string }>(
         'getInstallerScript',
         async () => getInstallScript(),
         (result) => {
@@ -424,7 +433,8 @@ const App: React.FC = () => {
   }, [processingFile, loadingAction, addLog, handleAiEnhance]);
 
   const handleApiRequest = useCallback((request: ApiRequest) => {
-    runAction(
+    // FIX: Add explicit generic type to runAction to fix type inference issues.
+    runAction<{ output: string; logs: {type: LogType, message: string}[]; fileName: string }>(
       'apiRequest',
       async () => {
         const newHistoryEntry: ApiHistoryEntry = { ...request, id: new Date().toISOString(), timestamp: new Date().toLocaleString() };
@@ -444,7 +454,7 @@ const App: React.FC = () => {
         addLog(LogType.Warn, "API history is empty. Nothing to review.");
         return;
     }
-    runAction(
+    runAction<string>(
         'reviewApiHistory',
         () => {
             const historyJson = JSON.stringify(apiHistory, null, 2);
@@ -589,7 +599,8 @@ const App: React.FC = () => {
         actionName: string, 
         setActiveToLogs = false
     ) => {
-        runAction(
+        // FIX: Add explicit generic type to runAction to fix type inference issues.
+        runAction<{ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }>(
             actionName,
             async () => handler(),
             (result) => {
@@ -613,7 +624,8 @@ const App: React.FC = () => {
       addLog(LogType.Warn, "No repository URL provided.");
       return;
     }
-    runAction(
+    // FIX: Add explicit generic type to runAction to fix type inference issues.
+    runAction<{ outputs: ProcessedFile[], logs: {type: LogType, message: string}[] }>(
         'gitClone',
         () => gitClone(url),
         (result) => {
@@ -624,6 +636,51 @@ const App: React.FC = () => {
         { initialLog: `Cloning repository from ${url}...` }
     );
   }, [runAction, addLog]);
+
+  const handleCommand = useCallback(async (command: string) => {
+    if (!command.trim() || isLoading) return;
+
+    addLog(LogType.Info, `> ${command}`);
+    setProcessedOutput(null);
+    setActiveOutput('logs');
+
+    const parts = command.trim().match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+    const [cmd, ...args] = parts.map(p => p.startsWith('"') && p.endsWith('"') ? p.slice(1, -1) : p);
+
+    switch (cmd.toLowerCase()) {
+        case 'scan-env':
+            handleScanEnvironment();
+            return;
+        case 'get-installer':
+            handleGetInstallerScript();
+            return;
+        case 'help':
+            addLog(LogType.Info, 'Available commands: scan-env, get-installer, git-clone <url>. Other text is sent to the AI.');
+            return;
+        case 'git-clone':
+            if (args[0]) handleGitClone(args[0]);
+            else addLog(LogType.Warn, "Usage: git-clone <repository_url>");
+            return;
+    }
+
+    setLoadingAction('geminiCommand');
+    if (!chat) {
+        addLog(LogType.Error, "Chat is not initialized.");
+        setLoadingAction(null);
+        return;
+    }
+
+    try {
+        // FIX: Explicitly type the response to ensure `response.text` is a string.
+        const response: GenerateContentResponse = await chat.sendMessage({ message: command });
+        addLog(LogType.Gemini, response.text);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        addLog(LogType.Error, `AI command failed: ${errorMessage}`);
+    } finally {
+        setLoadingAction(null);
+    }
+  }, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript, handleGitClone]);
 
 
   return (
@@ -682,7 +739,7 @@ const App: React.FC = () => {
               onContentChange={handleContentChange}
               editorSettings={editorSettings}
               onEditorSettingsChange={handleEditorSettingsChange}
-              onCommand={(cmd) => addLog(LogType.Info, `> ${cmd}`)} // Placeholder, actual logic in chatbot/commandbar
+              onCommand={handleCommand}
               onUndo={handleUndo}
               onRedo={handleRedo}
               onRenameFile={handleRenameFile}

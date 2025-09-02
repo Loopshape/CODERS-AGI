@@ -15,7 +15,7 @@ import { CpuChipIcon } from './icons/CpuChipIcon';
 import { UndoIcon } from './icons/UndoIcon';
 import { RedoIcon } from './icons/RedoIcon';
 import { ShareIcon } from './icons/ShareIcon';
-import { PencilIcon } from './PencilIcon';
+import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CogIcon } from './icons/CogIcon';
 
