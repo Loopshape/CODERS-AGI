@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender, ApiRequest, ApiResponse, ApiHistoryEntry, SavedApiRequest } from './types';
@@ -336,25 +333,25 @@ const App: React.FC = () => {
     }
   }, [addLog, triggerErrorChat]);
 
-  const handleLocalAIEnhance = useCallback(async (file: File) => {
+  const handleStaticEnhance = useCallback(async (file: File) => {
     if (!file) {
-      addLog(LogType.Warn, "No file selected for Local AI enhancement.");
+      addLog(LogType.Warn, "No file selected for Static enhancement.");
       return;
     }
 
     setProcessingFile(file);
-    setLoadingAction('localAIEnhance');
+    setLoadingAction('staticEnhance');
     setProgress(10);
     setLogs([]);
     setProcessedOutput(null);
     setActiveFileIndex(0);
-    addLog(LogType.Info, `Preparing to enhance ${file.name} with Local AI...`);
+    addLog(LogType.Info, `Applying static enhancement rules to ${file.name}...`);
     setActiveOutput('logs');
 
     try {
       setProgress(25);
       const fileContent = await file.text();
-      addLog(LogType.Info, `Read file content, applying local enhancement rules.`);
+      addLog(LogType.Info, `Read file content, applying static enhancement rules.`);
       setProgress(50);
       
       const { enhancedContent, logs: enhancementLogs } = processHtml(fileContent);
@@ -365,15 +362,15 @@ const App: React.FC = () => {
       const parts = file.name.split('.');
       const extension = parts.length > 1 ? parts.pop() as string : '';
       const baseName = parts.join('.');
-      const newFileName = extension ? `${baseName}.local_enhanced.${extension}` : `${file.name}.local_enhanced`;
+      const newFileName = extension ? `${baseName}.static_enhanced.${extension}` : `${file.name}.static_enhanced`;
 
       setProcessedOutput([{ fileName: newFileName, content: enhancedContent, history: [enhancedContent], historyIndex: 0 }]);
-      addLog(LogType.Success, `Successfully applied local enhancements.`);
+      addLog(LogType.Success, `Successfully applied static enhancements.`);
       setActiveOutput('code');
       setProgress(100);
 
     } catch (error) {
-      triggerErrorChat('Local AI Enhancement', error);
+      triggerErrorChat('Static Enhancement', error);
       setProgress(100);
     } finally {
        setTimeout(() => {
@@ -384,19 +381,19 @@ const App: React.FC = () => {
     }
   }, [addLog, triggerErrorChat]);
 
-  const handleOllamaEnhance = useCallback(async (file: File) => {
+  const handleLocalAiEnhance = useCallback(async (file: File) => {
     if (!file) {
-      addLog(LogType.Warn, "No file selected for Ollama enhancement.");
+      addLog(LogType.Warn, "No file selected for Local AI enhancement.");
       return;
     }
 
     setProcessingFile(file);
-    setLoadingAction('ollamaEnhance');
+    setLoadingAction('localAiEnhance');
     setProgress(10);
     setLogs([]);
     setProcessedOutput(null);
     setActiveFileIndex(0);
-    addLog(LogType.AI, `Preparing to enhance ${file.name} with Ollama...`);
+    addLog(LogType.AI, `Preparing to enhance ${file.name} with Local AI...`);
     setActiveOutput('logs');
 
     try {
@@ -408,7 +405,7 @@ const App: React.FC = () => {
 
       setProgress(40);
       const fileContent = await file.text();
-      addLog(LogType.Info, `Read file content, sending to Ollama with context for enhancement.`);
+      addLog(LogType.Info, `Read file content, sending to Local AI with context for enhancement.`);
       setProgress(50);
       
       const suggestion = await getLocalAiSuggestions(fileContent, envScanOutput);
@@ -417,15 +414,15 @@ const App: React.FC = () => {
       const parts = file.name.split('.');
       const extension = parts.length > 1 ? parts.pop() as string : '';
       const baseName = parts.join('.');
-      const newFileName = extension ? `${baseName}.ollama_enhanced.${extension}` : `${file.name}.ollama_enhanced`;
+      const newFileName = extension ? `${baseName}.local_ai_enhanced.${extension}` : `${file.name}.local_ai_enhanced`;
 
       setProcessedOutput([{ fileName: newFileName, content: suggestion, history: [suggestion], historyIndex: 0 }]);
-      addLog(LogType.Success, `Successfully received enhancement from Ollama.`);
+      addLog(LogType.Success, `Successfully received enhancement from Local AI.`);
       setActiveOutput('code');
       setProgress(100);
 
     } catch (error) {
-      triggerErrorChat('Ollama Enhancement', error);
+      triggerErrorChat('Local AI Enhancement', error);
       setProgress(100);
     } finally {
        setTimeout(() => {
@@ -993,9 +990,9 @@ const App: React.FC = () => {
                             onProcessPrompt={handleProcessPrompt}
                             onProcessUrl={handleProcessUrl}
                             onAiEnhance={handleGeminiEnhance}
-                            onOllamaEnhance={handleOllamaEnhance}
+                            onLocalAiEnhance={handleLocalAiEnhance}
                             onAiCodeReview={handleGeminiCodeReview}
-                            onLocalAIEnhance={handleLocalAIEnhance}
+                            onStaticEnhance={handleStaticEnhance}
                             onUrlEnhance={handleUrlEnhance}
                             onImproveLocalAI={handleImproveLocalAI}
                             onTrainFromUrl={handleTrainFromUrl}

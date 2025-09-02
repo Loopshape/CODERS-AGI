@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import ProgressBar from './ProgressBar';
 import { SpinnerIcon } from './icons/SpinnerIcon';
@@ -32,9 +33,9 @@ interface ControlPanelProps {
   onProcessPrompt: (prompt: string) => void;
   onProcessUrl: (url: string) => void;
   onAiEnhance: (file: File) => void;
-  onOllamaEnhance: (file: File) => void;
+  onLocalAiEnhance: (file: File) => void;
   onAiCodeReview: (file: File) => void;
-  onLocalAIEnhance: (file: File) => void;
+  onStaticEnhance: (file: File) => void;
   onUrlEnhance: (url: string) => void;
   onImproveLocalAI: () => void;
   onTrainFromUrl: (url: string) => void;
@@ -64,8 +65,8 @@ interface ControlPanelProps {
 const getLoadingMessage = (action: string | null, file: File | null, selectedFiles: File[]): string => {
     switch (action) {
         case 'processFiles': return `Processing ${selectedFiles.length} file(s)...`;
-        case 'localAIEnhance': return `Applying local enhancements to ${file?.name}...`;
-        case 'ollamaEnhance': return `Enhancing ${file?.name} with Ollama...`;
+        case 'staticEnhance': return `Applying static enhancements to ${file?.name}...`;
+        case 'localAiEnhance': return `Enhancing ${file?.name} with Local AI...`;
         case 'aiEnhance':
         case 'aiCodeReview':
             return `Analyzing ${file?.name} with Gemini AI...`;
@@ -102,10 +103,10 @@ const ControlPanel: React.FC<ControlPanelProps> = (props) => {
   return (
     <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl flex flex-col h-full">
       <div className="flex border-b border-brand-border shrink-0 px-2">
-        <TabButton icon={<FileCodeIcon />} label="Files" isActive={activeTab === 'files'} onClick={() => setActiveTab('files')} />
-        <TabButton icon={<GitBranchIcon />} label="Git" isActive={activeTab === 'git'} onClick={() => setActiveTab('git')} />
-        <TabButton icon={<GlobeIcon />} label="API" isActive={activeTab === 'api'} onClick={() => setActiveTab('api')} />
-        <TabButton icon={<CogIcon />} label="System" isActive={activeTab === 'system'} onClick={() => setActiveTab('system')} />
+        <TabButton icon={<FileCodeIcon className="w-5 h-5"/>} label="Files" isActive={activeTab === 'files'} onClick={() => setActiveTab('files')} />
+        <TabButton icon={<GitBranchIcon className="w-5 h-5"/>} label="Git" isActive={activeTab === 'git'} onClick={() => setActiveTab('git')} />
+        <TabButton icon={<GlobeIcon className="w-5 h-5"/>} label="API" isActive={activeTab === 'api'} onClick={() => setActiveTab('api')} />
+        <TabButton icon={<CogIcon className="w-5 h-5"/>} label="System" isActive={activeTab === 'system'} onClick={() => setActiveTab('system')} />
       </div>
 
       <div className="p-4 space-y-4 overflow-y-auto flex-grow">
@@ -120,7 +121,7 @@ const ControlPanel: React.FC<ControlPanelProps> = (props) => {
             <div className="animate-fade-in text-center space-y-2">
                 <p className="text-sm text-brand-text-secondary truncate px-2">{loadingMessage}</p>
                 <ProgressBar progress={props.progress} />
-                {(props.loadingAction === 'ollamaEnhance' || props.loadingAction === 'localAIEnhance') && (
+                {(props.loadingAction === 'localAiEnhance' || props.loadingAction === 'staticEnhance') && (
                   <div className="pt-2">
                     <button onClick={props.onCloudAccelerate} className="text-sm text-brand-gemini font-semibold hover:text-brand-accent transition-colors duration-200 animate-pulse">
                       ⚡ This is slow... Accelerate with Cloud AI?
@@ -141,7 +142,7 @@ const TabButton: React.FC<{ icon: React.ReactNode; label: string; isActive: bool
     </button>
 );
 
-const FilesPanel: React.FC<ControlPanelProps & {selectedFiles: File[], setSelectedFiles: (f: File[])=>void, prompt: string, setPrompt: (s:string)=>void, url: string, setUrl: (s:string)=>void}> = ({ onProcessFiles, onProcessPrompt, onProcessUrl, onUrlEnhance, onTrainFromUrl, onLocalAIEnhance, onOllamaEnhance, onAiEnhance, onAiCodeReview, onCreateNewFile, isLoading, loadingAction, selectedFiles, setSelectedFiles, prompt, setPrompt, url, setUrl }) => {
+const FilesPanel: React.FC<ControlPanelProps & {selectedFiles: File[], setSelectedFiles: (f: File[])=>void, prompt: string, setPrompt: (s:string)=>void, url: string, setUrl: (s:string)=>void}> = ({ onProcessFiles, onProcessPrompt, onProcessUrl, onUrlEnhance, onTrainFromUrl, onStaticEnhance, onLocalAiEnhance, onAiEnhance, onAiCodeReview, onCreateNewFile, isLoading, loadingAction, selectedFiles, setSelectedFiles, prompt, setPrompt, url, setUrl }) => {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const hasFileSelected = selectedFiles.length > 0;
@@ -209,8 +210,8 @@ const FilesPanel: React.FC<ControlPanelProps & {selectedFiles: File[], setSelect
                         <p className="text-xs text-brand-text-secondary text-center py-2">Select a file from the 'File Management' section above to enable AI actions.</p>
                     )}
                     <div className="grid grid-cols-2 gap-2">
-                        <ActionButton onClick={() => onLocalAIEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'localAIEnhance'}>Local Enhance</ActionButton>
-                        <ActionButton onClick={() => onOllamaEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'ollamaEnhance'}>Ollama Enhance</ActionButton>
+                        <ActionButton onClick={() => onStaticEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'staticEnhance'}>Static Enhance</ActionButton>
+                        <ActionButton onClick={() => onLocalAiEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'localAiEnhance'}>Local AI Enhance</ActionButton>
                         <ActionButton onClick={() => onAiEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'aiEnhance'}>AI Enhance</ActionButton>
                         <ActionButton onClick={() => onAiCodeReview(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'aiCodeReview'} fullWidth>AI Review</ActionButton>
                     </div>
