@@ -1,8 +1,8 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
-import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender, ApiRequest, ApiResponse } from './types';
-import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush, gitClone, sendApiRequest, getConfig, saveConfig } from './services/scriptService';
+import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender, ApiRequest, ApiResponse, ApiHistoryEntry, SavedApiRequest } from './types';
+import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush, gitClone, sendApiRequest, getConfig, saveConfig, trainLocalAiFromApiHistory } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
 import { getLocalAiSuggestions, chatWithLocalAi, getLocalAiBashExtension } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
@@ -14,6 +14,9 @@ import Chatbot from './components/Chatbot';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const EDITOR_SETTINGS_KEY = 'ai-tool-gui-editor-settings';
+const API_HISTORY_KEY = 'ai-tool-gui-api-history';
+const SAVED_API_REQUESTS_KEY = 'ai-tool-gui-saved-requests';
+
 
 const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): string => {
     let markdown = `# Code Review for ${fileName}\n\n`;
@@ -48,22 +51,32 @@ const App: React.FC = () => {
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
   const [chat, setChat] = useState<Chat | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  
+  // Editor and API settings states
   const [editorSettings, setEditorSettings] = useState(() => {
     try {
         const storedSettings = localStorage.getItem(EDITOR_SETTINGS_KEY);
-        if (storedSettings) {
-            return JSON.parse(storedSettings);
-        }
-    } catch (error) {
-        console.error("Failed to parse editor settings from localStorage", error);
-    }
-    return {
-        fontSize: 14,
-        theme: 'dark' as 'light' | 'dark',
-        tabSize: 4,
-    };
+        if (storedSettings) return JSON.parse(storedSettings);
+    } catch (error) { console.error("Failed to parse editor settings from localStorage", error); }
+    return { fontSize: 14, theme: 'dark' as 'light' | 'dark', tabSize: 4 };
+  });
+
+  const [apiHistory, setApiHistory] = useState<ApiHistoryEntry[]>(() => {
+    try {
+        const storedHistory = localStorage.getItem(API_HISTORY_KEY);
+        if (storedHistory) return JSON.parse(storedHistory);
+    } catch (error) { console.error("Failed to parse API history from localStorage", error); }
+    return [];
   });
   
+  const [savedApiRequests, setSavedApiRequests] = useState<SavedApiRequest[]>(() => {
+    try {
+        const storedRequests = localStorage.getItem(SAVED_API_REQUESTS_KEY);
+        if (storedRequests) return JSON.parse(storedRequests);
+    } catch (error) { console.error("Failed to parse saved API requests from localStorage", error); }
+    return [];
+  });
+
   // Chatbot states
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -74,14 +87,18 @@ const App: React.FC = () => {
     setEditorSettings(prev => ({ ...prev, ...newSettings }));
   }, []);
   
-  // Effect to save settings whenever they change
+  // Effects to save settings to localStorage
   useEffect(() => {
-    try {
-        localStorage.setItem(EDITOR_SETTINGS_KEY, JSON.stringify(editorSettings));
-    } catch (error) {
-        console.error("Failed to save editor settings to localStorage", error);
-    }
+    try { localStorage.setItem(EDITOR_SETTINGS_KEY, JSON.stringify(editorSettings)); } catch (error) { console.error("Failed to save editor settings", error); }
   }, [editorSettings]);
+
+  useEffect(() => {
+    try { localStorage.setItem(API_HISTORY_KEY, JSON.stringify(apiHistory)); } catch (error) { console.error("Failed to save API history", error); }
+  }, [apiHistory]);
+
+  useEffect(() => {
+    try { localStorage.setItem(SAVED_API_REQUESTS_KEY, JSON.stringify(savedApiRequests)); } catch (error) { console.error("Failed to save API requests", error); }
+  }, [savedApiRequests]);
 
 
   useEffect(() => {
@@ -695,8 +712,63 @@ const App: React.FC = () => {
   }, [handleRequest]);
   
     const handleApiRequest = useCallback(async (request: ApiRequest) => {
+        const newHistoryEntry: ApiHistoryEntry = {
+            ...request,
+            id: Date.now().toString(),
+            timestamp: new Date().toISOString(),
+        };
+        setApiHistory(prev => [newHistoryEntry, ...prev].slice(0, 20)); // Keep last 20
+
         handleRequest(() => sendApiRequest(request), 'apiRequest', true);
     }, [handleRequest]);
+    
+    const handleSaveApiRequest = useCallback((name: string, request: ApiRequest) => {
+        const newSavedRequest: SavedApiRequest = { name, request };
+        setSavedApiRequests(prev => {
+            const existingIndex = prev.findIndex(r => r.name === name);
+            if (existingIndex > -1) {
+                const newArr = [...prev];
+                newArr[existingIndex] = newSavedRequest;
+                return newArr;
+            }
+            return [...prev, newSavedRequest];
+        });
+        addLog(LogType.Success, `API request saved as "${name}".`);
+    }, [addLog]);
+
+    const handleDeleteSavedRequest = useCallback((name: string) => {
+        setSavedApiRequests(prev => prev.filter(r => r.name !== name));
+        addLog(LogType.Info, `Deleted saved request "${name}".`);
+    }, [addLog]);
+
+    const handleClearApiHistory = useCallback(() => {
+        setApiHistory([]);
+        addLog(LogType.Info, 'API request history cleared.');
+    }, [addLog]);
+
+    const handleTrainFromHistory = useCallback(async () => {
+        if (apiHistory.length === 0) {
+            addLog(LogType.Warn, "No API history available to train from.");
+            return;
+        }
+        setLoadingAction('trainFromHistory');
+        setProgress(0);
+        setLogs([]);
+        setActiveOutput('logs');
+        addLog(LogType.Info, `Starting local AI training from ${apiHistory.length} API requests...`);
+
+        try {
+            const result = await trainLocalAiFromApiHistory(apiHistory);
+            result.logs.forEach(log => addLog(log.type, log.message));
+        } catch(error) {
+            triggerErrorChat('Train from History', error);
+        } finally {
+            setTimeout(() => {
+                setLoadingAction(null);
+                setProgress(0);
+            }, 500);
+        }
+    }, [apiHistory, addLog, triggerErrorChat]);
 
     const handleSaveConfig = useCallback(async (fileName: string, content: string) => {
         addLog(LogType.Info, `Saving ${fileName}...`);
@@ -894,6 +966,12 @@ const App: React.FC = () => {
                   onCloudAccelerate={handleCloudAcceleration}
                   onApiRequest={handleApiRequest}
                   onSaveConfig={handleSaveConfig}
+                  apiHistory={apiHistory}
+                  savedApiRequests={savedApiRequests}
+                  onSaveApiRequest={handleSaveApiRequest}
+                  onDeleteSavedRequest={handleDeleteSavedRequest}
+                  onClearApiHistory={handleClearApiHistory}
+                  onTrainFromHistory={handleTrainFromHistory}
                   isLoading={isLoading}
                   loadingAction={loadingAction}
                   processingFile={processingFile}

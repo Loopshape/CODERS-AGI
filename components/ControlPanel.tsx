@@ -8,8 +8,12 @@ import { FileCodeIcon } from './icons/FileCodeIcon';
 import { GitBranchIcon } from './icons/GitBranchIcon';
 import { GlobeIcon } from './icons/GlobeIcon';
 import { CogIcon } from './icons/CogIcon';
-import { ApiRequest } from '../types';
+import { ApiRequest, ApiHistoryEntry, SavedApiRequest } from '../types';
 import { getConfig, getGitStatus } from '../services/scriptService';
+import { SaveIcon } from './icons/SaveIcon';
+import { TrashIcon } from './icons/TrashIcon';
+import { HistoryIcon } from './icons/HistoryIcon';
+import { BookmarkIcon } from './icons/BookmarkIcon';
 
 const ProcessIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>);
@@ -43,6 +47,12 @@ interface ControlPanelProps {
   onCloudAccelerate: () => void;
   onApiRequest: (request: ApiRequest) => void;
   onSaveConfig: (fileName: string, content: string) => void;
+  apiHistory: ApiHistoryEntry[];
+  savedApiRequests: SavedApiRequest[];
+  onSaveApiRequest: (name: string, request: ApiRequest) => void;
+  onDeleteSavedRequest: (name: string) => void;
+  onClearApiHistory: () => void;
+  onTrainFromHistory: () => void;
   isLoading: boolean;
   loadingAction: string | null;
   processingFile: File | null;
@@ -64,6 +74,7 @@ const getLoadingMessage = (action: string | null, file: File | null, selectedFil
         case 'urlEnhance': return `Enhancing content from URL...`;
         case 'trainFromUrl': return `Training AI from URL...`;
         case 'improveLocalAI': return 'Improving local AI model...';
+        case 'trainFromHistory': return 'Training AI from request history...';
         case 'generateExtension': return 'Generating bash extension with Local AI...';
         case 'getInstallerScript': return 'Generating installer...';
         case 'gitPull': return 'Pulling from repository...';
@@ -219,7 +230,7 @@ const GitPanel: React.FC<ControlPanelProps> = ({ onGitClone, onGitPull, onGitPus
     );
 };
 
-const ApiPanel: React.FC<ControlPanelProps> = ({ onApiRequest, isLoading, loadingAction }) => {
+const ApiPanel: React.FC<ControlPanelProps> = ({ onApiRequest, apiHistory, savedApiRequests, onSaveApiRequest, onDeleteSavedRequest, onClearApiHistory, isLoading, loadingAction }) => {
     const [request, setRequest] = useState<ApiRequest>({ method: 'GET', url: 'https://api.example.com/data', body: '' });
 
     const handleSend = () => {
@@ -227,27 +238,76 @@ const ApiPanel: React.FC<ControlPanelProps> = ({ onApiRequest, isLoading, loadin
             onApiRequest(request);
         }
     };
+    
+    const handleSave = () => {
+        const name = prompt("Enter a name for this request:", "My API Request");
+        if (name && name.trim()) {
+            onSaveApiRequest(name, request);
+        }
+    };
+
     return (
-        <div className="space-y-3">
-            <div>
-                <label className="text-sm font-semibold text-brand-text-secondary">Endpoint URL:</label>
+        <div className="space-y-4">
+            {/* Request Form */}
+            <div className="p-3 border border-brand-border rounded-lg bg-brand-bg/30 space-y-3">
+                <div>
+                    <label className="text-sm font-semibold text-brand-text-secondary">Endpoint URL:</label>
+                    <div className="flex items-center space-x-2">
+                        <select value={request.method} onChange={e => setRequest(r => ({...r, method: e.target.value as ApiRequest['method']}))} className="bg-brand-bg border border-brand-border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-brand-accent">
+                            <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>PATCH</option>
+                        </select>
+                        <input type="url" value={request.url} onChange={e => setRequest(r => ({...r, url: e.target.value}))} placeholder="https://api.example.com" className="w-full text-sm p-2 bg-brand-bg border border-brand-border rounded-md"/>
+                    </div>
+                </div>
+                <div>
+                    <label className="text-sm font-semibold text-brand-text-secondary">Request Body (JSON):</label>
+                    <textarea value={request.body} onChange={e => setRequest(r => ({...r, body: e.target.value}))} disabled={request.method === 'GET'} className="w-full h-24 p-3 font-mono text-sm bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition disabled:opacity-50" placeholder='{ "key": "value" }'/>
+                </div>
                 <div className="flex items-center space-x-2">
-                    <select value={request.method} onChange={e => setRequest(r => ({...r, method: e.target.value as ApiRequest['method']}))} className="bg-brand-bg border border-brand-border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-brand-accent">
-                        <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option><option>PATCH</option>
-                    </select>
-                    <input type="url" value={request.url} onChange={e => setRequest(r => ({...r, url: e.target.value}))} placeholder="https://api.example.com" className="w-full text-sm p-2 bg-brand-bg border border-brand-border rounded-md"/>
+                    <ActionButton onClick={handleSend} disabled={!request.url.trim() || isLoading} isLoading={loadingAction === 'apiRequest'}>Send Request</ActionButton>
+                    <button onClick={handleSave} disabled={!request.url.trim() || isLoading} className="p-2 bg-brand-info rounded-lg hover:bg-blue-500 transition-colors disabled:opacity-50" aria-label="Save Request"><SaveIcon className="w-5 h-5 text-white"/></button>
                 </div>
             </div>
-            <div>
-                <label className="text-sm font-semibold text-brand-text-secondary">Request Body (JSON):</label>
-                <textarea value={request.body} onChange={e => setRequest(r => ({...r, body: e.target.value}))} disabled={request.method === 'GET'} className="w-full h-32 p-3 font-mono text-sm bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition disabled:opacity-50" placeholder='{ "key": "value" }'/>
-            </div>
-            <ActionButton onClick={handleSend} disabled={!request.url.trim() || isLoading} isLoading={loadingAction === 'apiRequest'}>Send Request</ActionButton>
+
+            {/* Saved Requests */}
+            <CollapsibleSection title="Saved Requests" icon={<BookmarkIcon className="w-5 h-5"/>}>
+                {savedApiRequests.length > 0 ? (
+                    <ul className="space-y-1 max-h-32 overflow-y-auto">
+                        {savedApiRequests.map(saved => (
+                            <li key={saved.name} className="flex items-center justify-between text-sm p-1.5 rounded hover:bg-brand-bg/50">
+                                <button onClick={() => setRequest(saved.request)} className="flex-grow text-left truncate">
+                                    <span className="font-semibold text-brand-text-primary">{saved.name}</span>
+                                    <span className="text-brand-text-secondary ml-2 truncate">{saved.request.method} {saved.request.url}</span>
+                                </button>
+                                <button onClick={() => onDeleteSavedRequest(saved.name)} className="p-1 text-brand-text-secondary hover:text-brand-error ml-2"><TrashIcon className="w-4 h-4"/></button>
+                            </li>
+                        ))}
+                    </ul>
+                ) : <p className="text-xs text-brand-text-secondary text-center py-2">No saved requests yet.</p>}
+            </CollapsibleSection>
+
+            {/* History */}
+            <CollapsibleSection title="History" icon={<HistoryIcon className="w-5 h-5"/>} actionButton={
+                apiHistory.length > 0 && <button onClick={onClearApiHistory} className="text-xs text-brand-text-secondary hover:text-brand-accent">Clear</button>
+            }>
+                {apiHistory.length > 0 ? (
+                    <ul className="space-y-1 max-h-32 overflow-y-auto">
+                        {apiHistory.map(entry => (
+                            <li key={entry.id}>
+                                <button onClick={() => setRequest({ method: entry.method, url: entry.url, body: entry.body })} className="w-full text-left text-sm p-1.5 rounded hover:bg-brand-bg/50 truncate">
+                                    <span className={`font-mono font-semibold ${entry.method === 'GET' ? 'text-green-400' : 'text-yellow-400'}`}>{entry.method}</span>
+                                    <span className="text-brand-text-secondary ml-2 truncate">{entry.url}</span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                ) : <p className="text-xs text-brand-text-secondary text-center py-2">Request history is empty.</p>}
+            </CollapsibleSection>
         </div>
     );
 };
 
-const SystemPanel: React.FC<ControlPanelProps> = ({ onScanEnvironment, onGetInstallerScript, onGenerateExtension, onImproveLocalAI, onSaveConfig, hasEnhancedFile, isLoading, loadingAction }) => {
+const SystemPanel: React.FC<ControlPanelProps> = ({ onScanEnvironment, onGetInstallerScript, onGenerateExtension, onImproveLocalAI, onSaveConfig, hasEnhancedFile, onTrainFromHistory, apiHistory, isLoading, loadingAction }) => {
     const configFiles = ['.bashrc', '.env', '.gitconfig', 'settings.json'];
     const [selectedConfig, setSelectedConfig] = useState(configFiles[0]);
     const [configContent, setConfigContent] = useState('');
@@ -269,7 +329,8 @@ const SystemPanel: React.FC<ControlPanelProps> = ({ onScanEnvironment, onGetInst
                     <ActionButton onClick={onScanEnvironment} disabled={isLoading} isLoading={loadingAction === 'scanEnvironment'}>Scan Environment</ActionButton>
                     <ActionButton onClick={onGetInstallerScript} disabled={isLoading} isLoading={loadingAction === 'getInstallerScript'}>Get Installer</ActionButton>
                     <ActionButton onClick={onGenerateExtension} disabled={isLoading} isLoading={loadingAction === 'generateExtension'} icon={<CpuChipIcon className="w-5 h-5"/>}>Generate Extension</ActionButton>
-                    <ActionButton onClick={() => onImproveLocalAI()} disabled={!hasEnhancedFile || isLoading} isLoading={loadingAction === 'improveLocalAI'}>Train Local AI</ActionButton>
+                    <ActionButton onClick={() => onImproveLocalAI()} disabled={!hasEnhancedFile || isLoading} isLoading={loadingAction === 'improveLocalAI'}>Train from File</ActionButton>
+                    <ActionButton onClick={onTrainFromHistory} disabled={apiHistory.length === 0 || isLoading} isLoading={loadingAction === 'trainFromHistory'} fullWidth>Train AI from History</ActionButton>
                 </div>
             </div>
             <div>
@@ -283,6 +344,23 @@ const SystemPanel: React.FC<ControlPanelProps> = ({ onScanEnvironment, onGetInst
         </div>
     );
 };
+
+const CollapsibleSection: React.FC<{title: string, icon: React.ReactNode, actionButton?: React.ReactNode, children: React.ReactNode}> = ({ title, icon, actionButton, children }) => {
+    const [isOpen, setIsOpen] = useState(true);
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-1">
+                <button onClick={() => setIsOpen(!isOpen)} className="flex items-center space-x-2 text-sm font-semibold text-brand-text-secondary hover:text-brand-text-primary">
+                    {icon}
+                    <span>{title}</span>
+                    <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
+                {actionButton}
+            </div>
+            {isOpen && <div className="pl-1 animate-fade-in">{children}</div>}
+        </div>
+    )
+}
 
 interface ActionButtonProps { onClick: () => void; disabled: boolean; isLoading: boolean; children: React.ReactNode; icon?: React.ReactNode; fullWidth?: boolean; }
 const ActionButton: React.FC<ActionButtonProps> = ({ onClick, disabled, isLoading, children, icon, fullWidth}) => (

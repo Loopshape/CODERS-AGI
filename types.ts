@@ -55,6 +55,17 @@ export interface ApiRequest {
     body?: string;
 }
 
+export interface ApiHistoryEntry extends ApiRequest {
+    id: string;
+    timestamp: string;
+}
+
+export interface SavedApiRequest {
+    name: string;
+    request: ApiRequest;
+}
+
+
 export interface ApiResponse {
     status: number;
     statusText: string;
