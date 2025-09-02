@@ -79,7 +79,8 @@ const App: React.FC = () => {
     setLogs(prev => [...prev, { type, message, timestamp: new Date().toLocaleTimeString() }]);
   }, []);
   
-  const handleRequest = async (handler: () => { output: string; logs: { type: LogType; message: string; }[]; fileName: string; }, actionName: string, setActiveToLogs = false) => {
+  // Fix: Update handleRequest to correctly handle both synchronous functions and async promises.
+  const handleRequest = async (handler: () => ({ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }) | Promise<{ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }>, actionName: string, setActiveToLogs = false) => {
       setProcessingFile(null);
       setLoadingAction(actionName);
       setProgress(10);
@@ -91,7 +92,7 @@ const App: React.FC = () => {
       setProgress(40);
       
       try {
-          const result = handler();
+          const result = await Promise.resolve(handler());
           await new Promise(res => setTimeout(res, 300));
           setProgress(90);
           setProcessedOutput([{ fileName: result.fileName, content: result.output }]);
@@ -153,25 +154,25 @@ const App: React.FC = () => {
   
   const handleScanEnvironment = useCallback(() => {
       handleRequest(scanEnvironment, 'scanEnvironment', true);
-  }, [addLog]);
+  }, []);
   
   const handleProcessPrompt = useCallback((prompt: string) => {
       handleRequest(() => processPrompt(prompt), 'processPrompt');
-  }, [addLog]);
+  }, []);
 
   const handleProcessUrl = useCallback((url: string) => {
     handleRequest(() => processUrlPrompt(url), 'processUrl');
-  }, [addLog]);
+  }, []);
 
   const handleGetInstallerScript = useCallback(() => {
     const scriptData = getInstallScript();
     downloadFile(scriptData.output, scriptData.fileName);
     handleRequest(() => scriptData, 'getInstallerScript', true);
-  }, [addLog]);
+  }, []);
 
   const handleGitUpdate = useCallback((url: string) => {
     handleRequest(() => gitUpdate(url), 'gitUpdate', true);
-  }, [addLog]);
+  }, []);
 
   const handleLocalAIEnhance = useCallback(async (file: File) => {
     if (!file) {
@@ -230,7 +231,8 @@ const App: React.FC = () => {
     }
 
     setProcessingFile(file);
-    setLoadingAction('geminiEnhance');
+    // Fix: Use 'aiEnhance' as the loadingAction to match ControlPanel's expectation.
+    setLoadingAction('aiEnhance');
     setProgress(10);
     setLogs([]);
     setProcessedOutput(null);
@@ -278,7 +280,8 @@ const App: React.FC = () => {
     }
 
     setProcessingFile(file);
-    setLoadingAction('geminiCodeReview');
+    // Fix: Use 'aiCodeReview' as the loadingAction to match ControlPanel's expectation.
+    setLoadingAction('aiCodeReview');
     setProgress(10);
     setLogs([]);
     setProcessedOutput(null);
@@ -467,13 +470,14 @@ const App: React.FC = () => {
         <Header />
         <main role="main" className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           <div className="lg:col-span-5">
+            {/* Fix: Rename props to match what ControlPanel expects ('onAiEnhance', 'onAiCodeReview'). */}
             <ControlPanel 
                 onProcessFiles={handleProcessFiles}
                 onScanEnvironment={handleScanEnvironment}
                 onProcessPrompt={handleProcessPrompt}
                 onProcessUrl={handleProcessUrl}
-                onGeminiEnhance={handleGeminiEnhance}
-                onGeminiCodeReview={handleGeminiCodeReview}
+                onAiEnhance={handleGeminiEnhance}
+                onAiCodeReview={handleGeminiCodeReview}
                 onLocalAIEnhance={handleLocalAIEnhance}
                 onUrlEnhance={handleUrlEnhance}
                 onImproveLocalAI={handleImproveLocalAI}

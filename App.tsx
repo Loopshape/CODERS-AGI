@@ -1,17 +1,14 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
 import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitUpdate } from './services/scriptService';
-import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
+import { getLocalAiSuggestions, getLocalAiCodeReview } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
 import OutputViewer from './components/OutputViewer';
 import ErrorBoundary from './components/ErrorBoundary';
 import CommandBar from './components/CommandBar';
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): string => {
     let markdown = `# Code Review for ${fileName}\n\n`;
@@ -57,20 +54,6 @@ const App: React.FC = () => {
   const [processingFile, setProcessingFile] = useState<File | null>(null);
   const [activeOutput, setActiveOutput] = useState<'code' | 'preview' | 'logs'>('code');
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
-  const [chat, setChat] = useState<Chat | null>(null);
-
-
-  useEffect(() => {
-    if (!chat) {
-        const newChat = ai.chats.create({
-            model: 'gemini-2.5-flash',
-            config: {
-                systemInstruction: 'You are a helpful assistant for a frontend developer using a web-based file processing tool. Keep your answers concise and helpful.',
-            },
-        });
-        setChat(newChat);
-    }
-  }, [chat]);
 
   const isLoading = useMemo(() => loadingAction !== null, [loadingAction]);
 
@@ -78,7 +61,7 @@ const App: React.FC = () => {
     setLogs(prev => [...prev, { type, message, timestamp: new Date().toLocaleTimeString() }]);
   }, []);
   
-  const handleRequest = async (handler: () => { output: string; logs: { type: LogType; message: string; }[]; fileName: string; }, actionName: string, setActiveToLogs = false) => {
+  const handleRequest = async (handler: () => ({ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }) | Promise<{ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }>, actionName: string, setActiveToLogs = false) => {
       setProcessingFile(null);
       setLoadingAction(actionName);
       setProgress(10);
@@ -90,7 +73,7 @@ const App: React.FC = () => {
       setProgress(40);
       
       try {
-          const result = handler();
+          const result = await Promise.resolve(handler());
           await new Promise(res => setTimeout(res, 300));
           setProgress(90);
           setProcessedOutput([{ fileName: result.fileName, content: result.output }]);
@@ -223,28 +206,28 @@ const App: React.FC = () => {
     }
   }, [addLog]);
 
-  const handleGeminiEnhance = useCallback(async (file: File) => {
+  const handleAiEnhance = useCallback(async (file: File) => {
     if (!file) {
-      addLog(LogType.Warn, "No file selected for Gemini AI enhancement.");
+      addLog(LogType.Warn, "No file selected for AI enhancement.");
       return;
     }
 
     setProcessingFile(file);
-    setLoadingAction('geminiEnhance');
+    setLoadingAction('aiEnhance');
     setProgress(10);
     setLogs([]);
     setProcessedOutput(null);
     setActiveFileIndex(0);
-    addLog(LogType.Gemini, `Preparing to enhance ${file.name} with Gemini AI...`);
+    addLog(LogType.AI, `Preparing to enhance ${file.name} with Local AI...`);
     setActiveOutput('logs');
 
     try {
       setProgress(25);
       const fileContent = await file.text();
-      addLog(LogType.Info, `Read file content, sending to Gemini AI for enhancement.`);
+      addLog(LogType.Info, `Read file content, sending to Local AI for enhancement.`);
       setProgress(50);
       
-      const suggestion = await getGeminiSuggestions(fileContent);
+      const suggestion = await getLocalAiSuggestions(fileContent);
       setProgress(90);
 
       const parts = file.name.split('.');
@@ -253,14 +236,13 @@ const App: React.FC = () => {
       const newFileName = extension ? `${baseName}.enhanced.${extension}` : `${file.name}.enhanced`;
 
       setProcessedOutput([{ fileName: newFileName, content: suggestion }]);
-      addLog(LogType.Success, `Successfully received enhancement from Gemini AI.`);
+      addLog(LogType.Success, `Successfully received enhancement from Local AI.`);
       setActiveOutput('code');
       setProgress(100);
 
-// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      addLog(LogType.Error, `Gemini AI enhancement failed: ${errorMessage}`);
+      addLog(LogType.Error, `Local AI enhancement failed: ${errorMessage}`);
       setActiveOutput('logs');
       setProgress(100);
     } finally {
@@ -272,42 +254,41 @@ const App: React.FC = () => {
     }
   }, [addLog]);
   
-  const handleGeminiCodeReview = useCallback(async (file: File) => {
+  const handleAiCodeReview = useCallback(async (file: File) => {
     if (!file) {
-      addLog(LogType.Warn, "No file selected for Gemini Code Review.");
+      addLog(LogType.Warn, "No file selected for AI Code Review.");
       return;
     }
 
     setProcessingFile(file);
-    setLoadingAction('geminiCodeReview');
+    setLoadingAction('aiCodeReview');
     setProgress(10);
     setLogs([]);
     setProcessedOutput(null);
     setActiveFileIndex(0);
-    addLog(LogType.Gemini, `Starting code review for ${file.name} with Gemini AI...`);
+    addLog(LogType.AI, `Starting code review for ${file.name} with Local AI...`);
     setActiveOutput('logs');
 
     try {
       setProgress(25);
       const fileContent = await file.text();
-      addLog(LogType.Info, `Read file content, sending to Gemini AI for review.`);
+      addLog(LogType.Info, `Read file content, sending to Local AI for review.`);
       setProgress(50);
       
-      const reviewReport = await getGeminiCodeReview(fileContent);
+      const reviewReport = await getLocalAiCodeReview(fileContent);
       setProgress(90);
 
       const reviewMarkdown = formatReviewAsMarkdown(reviewReport, file.name);
       const newFileName = `review_for_${file.name}.md`;
 
       setProcessedOutput([{ fileName: newFileName, content: reviewMarkdown }]);
-      addLog(LogType.Success, `Successfully received code review from Gemini AI.`);
+      addLog(LogType.Success, `Successfully received code review from Local AI.`);
       setActiveOutput('code');
       setProgress(100);
 
-// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      addLog(LogType.Error, `Gemini AI code review failed: ${errorMessage}`);
+      addLog(LogType.Error, `Local AI code review failed: ${errorMessage}`);
       setActiveOutput('logs');
       setProgress(100);
     } finally {
@@ -325,17 +306,17 @@ const App: React.FC = () => {
     setLogs([]);
     setProcessedOutput(null);
     setActiveFileIndex(0);
-    addLog(LogType.Gemini, `Fetching from ${url} to enhance with Gemini AI...`);
+    addLog(LogType.AI, `Fetching from ${url} to enhance with Local AI...`);
     setActiveOutput('logs');
 
     try {
       setProgress(25);
       const { output: urlContent, logs: fetchLogs } = processUrlPrompt(url);
       fetchLogs.forEach(log => addLog(log.type, log.message));
-      addLog(LogType.Info, `Content fetched. Sending to Gemini AI for analysis.`);
+      addLog(LogType.Info, `Content fetched. Sending to Local AI for analysis.`);
       setProgress(50);
 
-      const suggestion = await getGeminiSuggestions(urlContent);
+      const suggestion = await getLocalAiSuggestions(urlContent);
       setProgress(90);
       
       let fileName = 'index.html';
@@ -347,11 +328,10 @@ const App: React.FC = () => {
       }
       
       setProcessedOutput([{ fileName: `${fileName}.enhanced.html`, content: suggestion }]);
-      addLog(LogType.Success, `Successfully received enhancement from Gemini AI for content from ${url}.`);
+      addLog(LogType.Success, `Successfully received enhancement from Local AI for content from ${url}.`);
       setActiveOutput('code');
       setProgress(100);
 
-// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `URL enhancement process failed: ${errorMessage}`);
@@ -374,7 +354,7 @@ const App: React.FC = () => {
       const trainingSource = errorInfo ? 'an application error report' : enhancedFile?.fileName;
 
       if (!trainingSource) {
-          addLog(LogType.Warn, "No training data available. Run 'Gemini AI Enhance' on a file or encounter an error to improve the AI.");
+          addLog(LogType.Warn, "No training data available. Run 'AI Enhance' on a file or encounter an error to improve the AI.");
           return;
       }
 
@@ -441,7 +421,16 @@ const App: React.FC = () => {
                 setProgress(0);
             }, 500);
             break;
+        case 'ollama':
+            // Redirect 'ollama run ...' commands to the prompt processor
+            if (args.length > 0 && args[0].toLowerCase() === 'run') {
+                handleProcessPrompt(command);
+            } else {
+                addLog(LogType.Warn, `Unsupported ollama command. Only 'ollama run' is supported via this interface.`);
+            }
+            break;
         default:
+            // Treat any other command as a direct prompt to the local AI
             handleProcessPrompt(command);
             break;
     }
@@ -458,8 +447,8 @@ const App: React.FC = () => {
                 onScanEnvironment={handleScanEnvironment}
                 onProcessPrompt={handleProcessPrompt}
                 onProcessUrl={handleProcessUrl}
-                onGeminiEnhance={handleGeminiEnhance}
-                onGeminiCodeReview={handleGeminiCodeReview}
+                onAiEnhance={handleAiEnhance}
+                onAiCodeReview={handleAiCodeReview}
                 onLocalAIEnhance={handleLocalAIEnhance}
                 onUrlEnhance={handleUrlEnhance}
                 onImproveLocalAI={handleImproveLocalAI}
@@ -485,7 +474,7 @@ const App: React.FC = () => {
           </div>
         </main>
         <div className="container mx-auto px-4 md:px-6 lg:px-8 mt-auto pb-4">
-            <CommandBar onCommand={handleCommand} isLoading={loadingAction === 'geminiCommand' || loadingAction === 'commandError'} />
+            <CommandBar onCommand={handleCommand} isLoading={loadingAction === 'processPrompt' || loadingAction === 'commandError'} />
         </div>
         <footer role="contentinfo" className="text-center p-4 border-t border-brand-border">
           <p className="text-sm text-brand-text-secondary">UI generated from bash script logic by a world-class senior frontend React engineer.</p>

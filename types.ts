@@ -4,6 +4,8 @@ export enum LogType {
   Success = 'Success',
   Warn = 'Warn',
   Error = 'Error',
+  AI = 'AI',
+  // Fix: Add Gemini to LogType enum to resolve usage errors.
   Gemini = 'Gemini',
 }
 

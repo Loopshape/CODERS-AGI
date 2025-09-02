@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import ProgressBar from './ProgressBar';
 import { SpinnerIcon } from './icons/SpinnerIcon';
@@ -24,8 +25,8 @@ interface ControlPanelProps {
   onScanEnvironment: () => void;
   onProcessPrompt: (prompt: string) => void;
   onProcessUrl: (url: string) => void;
-  onGeminiEnhance: (file: File) => void;
-  onGeminiCodeReview: (file: File) => void;
+  onAiEnhance: (file: File) => void;
+  onAiCodeReview: (file: File) => void;
   onLocalAIEnhance: (file: File) => void;
   onUrlEnhance: (url: string) => void;
   onImproveLocalAI: () => void;
@@ -43,8 +44,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onScanEnvironment,
     onProcessPrompt,
     onProcessUrl,
-    onGeminiEnhance,
-    onGeminiCodeReview,
+    onAiEnhance,
+    onAiCodeReview,
     onLocalAIEnhance,
     onUrlEnhance,
     onImproveLocalAI,
@@ -158,7 +159,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                 <ActionCard 
                     title="Improve Local AI"
-                    description="Use the last Gemini-enhanced file as training data to improve the local AI's performance and accuracy."
+                    description="Use the last AI-enhanced file as training data to improve the local AI's performance and accuracy."
                     icon={<SparklesIcon className="w-6 h-6 mr-3 text-brand-success"/>}
                 >
                     <ActionButton onClick={onImproveLocalAI} disabled={!hasEnhancedFile || isLoading} isLoading={loadingAction === 'improveLocalAI'}>
@@ -183,7 +184,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
              </ActionCard>
 
-             <ActionCard title="File Processing" description="Select a file to be processed by Local or Gemini AI.">
+             <ActionCard title="File Processing" description="Select a file to be processed by Local or Generative AI.">
                 <div 
                     onClick={triggerFileSelect} onDragEnter={handleDragEnter} onDragLeave={handleDragLeave}
                     onDragOver={handleDragOver} onDrop={handleDrop}
@@ -220,11 +221,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <ActionButton onClick={() => onLocalAIEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'localAIEnhance'}>
                         Local Enhance
                     </ActionButton>
-                    <ActionButton onClick={() => onGeminiEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'geminiEnhance'}>
-                        Gemini Enhance
+                    <ActionButton onClick={() => onAiEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'aiEnhance'}>
+                        AI Enhance
                     </ActionButton>
-                    <ActionButton onClick={() => onGeminiCodeReview(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'geminiCodeReview'}>
-                        Gemini Review
+                    <ActionButton onClick={() => onAiCodeReview(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'aiCodeReview'}>
+                        AI Review
                     </ActionButton>
                 </div>
             </ActionCard>

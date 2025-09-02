@@ -1,3 +1,4 @@
+
 import { LogType, ProcessedFile } from '../types';
 
 export const UNIVERSAL_LAW = `:bof:
@@ -5,6 +6,13 @@ redo complete layout and design an advanced symetrics to proximity accordance fo
 of a mockup as given optically acknowledged for a more robust but also as
 attractive rulership into golden-ratio item handling
 :eof:`;
+
+export const checkOllamaStatus = async (): Promise<boolean> => {
+    // This is a simulation. In a real application, you might ping an endpoint.
+    // For this simulation, we'll assume the service is running.
+    await new Promise(resolve => setTimeout(resolve, 50)); // simulate a quick check
+    return true;
+};
 
 // Fix: Rename aiFile to processFiles
 export const processFiles = async (files: File[], onProgress: (progress: number) => void): Promise<{ outputs: ProcessedFile[]; logs: { type: LogType; message: string; }[] }> => {
@@ -65,15 +73,50 @@ drwxr-xr-x 1 root        root        4096 Jul 30 09:58 ..
     return { output: output.trim(), logs, fileName: 'environment_scan.txt' };
 }
 
-// Fix: Rename aiPrompt to processPrompt and remove URL logic
-export const processPrompt = (prompt: string) => {
+// Fix: Rename aiPrompt to processPrompt and call local AI
+export const processPrompt = async (prompt: string) => {
     const command = '/usr/local/bin/ollama run gemma3:1b';
-    const logs = [
-        {type: LogType.Info, message: `Redirecting prompt to local AI model: gemma3:1b`},
-        {type: LogType.Info, message: `Simulating execution of: \`${command}\` with the provided prompt.`},
-        {type: LogType.Warn, message: 'Local Ollama instance not found. Fallback: returning prompt as output.'},
-    ];
-    return { output: prompt, logs, fileName: 'prompt_output.txt' };
+    const logs: { type: LogType; message: string; }[] = [];
+
+    const isOllamaRunning = await checkOllamaStatus();
+    if (!isOllamaRunning) {
+        logs.push({ type: LogType.Error, message: 'Ollama service is unavailable. Please ensure it is running to process AI commands.' });
+        return { output: 'Ollama service not available.', logs, fileName: 'error.log' };
+    }
+
+    logs.push({type: LogType.Info, message: `Redirecting prompt to local AI: ${command}`});
+    logs.push({type: LogType.Info, message: `Calling local AI API at http://127.0.0.1:11434...`});
+
+    try {
+        const response = await fetch('http://127.0.0.1:11434/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'gemma3:1b',
+                prompt: prompt,
+                stream: false
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        logs.push({type: LogType.Success, message: 'Successfully received response from local AI.'});
+        return { output: data.response.trim(), logs, fileName: 'prompt_output.txt' };
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        if (error instanceof Error && error.message.includes('Failed to fetch')) {
+             logs.push({ type: LogType.Error, message: 'Connection to Local AI failed. Is the service running at http://127.0.0.1:11434?' });
+        } else {
+             logs.push({ type: LogType.Error, message: `Local AI request failed: ${errorMessage}` });
+        }
+        logs.push({ type: LogType.Warn, message: 'Fallback: returning prompt as output.' });
+        return { output: prompt, logs, fileName: 'prompt_output.txt' };
+    }
 }
 
 // Fix: Add new function processUrlPrompt

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { LogEntry, LogType, ProcessedFile } from '../types';
 import { useTermuxDetection } from '../hooks/useTermuxDetection';
@@ -204,6 +205,8 @@ const logColorMap: { [key in LogType]: string } = {
     [LogType.Success]: 'text-brand-success',
     [LogType.Warn]: 'text-yellow-500', // Adjusted for better visibility on dark bg
     [LogType.Error]: 'text-brand-error',
+    [LogType.AI]: 'text-brand-gemini',
+    // Fix: Add Gemini to the color map to support its log type.
     [LogType.Gemini]: 'text-brand-gemini',
 };
 
