@@ -8,6 +8,7 @@ import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
 import OutputViewer from './components/OutputViewer';
 import ErrorBoundary from './components/ErrorBoundary';
+import Chatbot from './components/Chatbot';
 
 const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): string => {
     let markdown = `# Code Review for ${fileName}\n\n`;
@@ -447,6 +448,7 @@ const App: React.FC = () => {
         <footer role="contentinfo" className="text-center p-4 border-t border-brand-border mt-8">
           <p className="text-sm text-brand-text-secondary">UI generated from bash script logic by a world-class senior frontend React engineer.</p>
         </footer>
+        <Chatbot />
       </div>
     </ErrorBoundary>
   );

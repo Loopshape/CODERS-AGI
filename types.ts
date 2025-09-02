@@ -31,3 +31,16 @@ export interface CodeReviewReport {
   securityVulnerabilities: CodeIssue[];
   performanceImprovements: CodeIssue[];
 }
+
+// Add types for Chatbot
+export enum MessageSender {
+  User = 'user',
+  AI = 'ai',
+  Error = 'error'
+}
+
+export interface ChatMessage {
+  sender: MessageSender;
+  text: string;
+  timestamp: string;
+}
