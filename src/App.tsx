@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 // FIX: Corrected import paths to be relative to the 'src' directory.
@@ -563,6 +564,17 @@ const App: React.FC = () => {
     }
 }, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript]);
 
+  const handleContentChange = useCallback((newContent: string, index: number) => {
+    setProcessedOutput(prev => {
+      if (!prev) return null;
+      const newOutput = [...prev];
+      if (newOutput[index]) {
+        newOutput[index] = { ...newOutput[index], content: newContent };
+      }
+      return newOutput;
+    });
+  }, []);
+
   return (
     <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
       <div className="min-h-screen bg-brand-bg font-sans flex flex-col">
@@ -592,6 +604,7 @@ const App: React.FC = () => {
             />
           </div>
           <div className="lg:col-span-7">
+            {/* FIX: Add onContentChange prop to satisfy OutputViewerProps requirement. */}
             <OutputViewer
               processedOutput={processedOutput}
               logs={logs}
@@ -600,6 +613,7 @@ const App: React.FC = () => {
               setActiveOutput={setActiveOutput}
               activeFileIndex={activeFileIndex}
               setActiveFileIndex={setActiveFileIndex}
+              onContentChange={handleContentChange}
             />
           </div>
         </main>

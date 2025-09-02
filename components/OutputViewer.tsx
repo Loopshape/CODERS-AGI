@@ -6,8 +6,6 @@ import { useTermuxDetection } from '../hooks/useTermuxDetection';
 import { CodeIcon } from './icons/CodeIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
 import DownloadButton from './DownloadButton';
 
 interface OutputViewerProps {
@@ -18,6 +16,7 @@ interface OutputViewerProps {
   setActiveOutput: (output: 'code' | 'preview' | 'logs') => void;
   activeFileIndex: number;
   setActiveFileIndex: (index: number) => void;
+  onContentChange: (newContent: string, index: number) => void;
 }
 
 const OutputViewer: React.FC<OutputViewerProps> = ({ 
@@ -27,7 +26,8 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
     activeOutput,
     setActiveOutput,
     activeFileIndex,
-    setActiveFileIndex
+    setActiveFileIndex,
+    onContentChange
 }) => {
   const isTermux = useTermuxDetection();
   const currentFile = processedOutput?.[activeFileIndex];
@@ -43,7 +43,7 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
 
     switch (activeOutput) {
       case 'code':
-        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} /> : <NoContent message="No output to display. Process something first." />;
+        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} onContentChange={(newContent) => onContentChange(newContent, activeFileIndex)} /> : <NoContent message="No output to display. Process something first." />;
       case 'preview':
         return currentFile && currentFile.content.trim().startsWith('<') ? <iframe srcDoc={currentFile.content} title="Live Preview" className="w-full h-full bg-white rounded-b-lg" /> : <NoContent message="No HTML content to preview." />;
       case 'logs':
@@ -130,47 +130,13 @@ const NoContent: React.FC<{ message: string }> = ({ message }) => (
     </div>
 )
 
-const getLanguage = (fileName: string) => {
-    const extension = fileName.split('.').pop()?.toLowerCase() || '';
-    switch (extension) {
-        case 'js':
-        case 'jsx':
-            return 'javascript';
-        case 'ts':
-        case 'tsx':
-            return 'typescript';
-        case 'css':
-            return 'css';
-        case 'json':
-            return 'json';
-        case 'html':
-        case 'xml':
-            return 'markup';
-        case 'md':
-            return 'markdown';
-        case 'sh':
-            return 'bash';
-        case 'py':
-            return 'python';
-        case 'java':
-            return 'java';
-        case 'c':
-        case 'cpp':
-            return 'cpp';
-        default:
-            return 'plaintext';
-    }
-};
-
-const CodeDisplay: React.FC<{ content: string; fileName: string; }> = ({ content, fileName }) => {
+const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange: (newContent: string) => void; }> = ({ content, fileName, onContentChange }) => {
     const [copied, setCopied] = useState(false);
     const handleCopy = () => {
         navigator.clipboard.writeText(content);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
-
-    const language = getLanguage(fileName);
 
     return (
         <div className="bg-brand-bg rounded-lg h-full flex flex-col">
@@ -183,19 +149,15 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; }> = ({ content
                     <DownloadButton content={content} fileName={fileName} />
                 </div>
             </div>
-            <div className="flex-grow overflow-auto text-sm" style={{fontSize: '0.875rem'}}>
-                <SyntaxHighlighter
-                    language={language}
-                    style={vscDarkPlus}
-                    showLineNumbers
-                    wrapLines={true}
-                    wrapLongLines={true}
-                    lineNumberStyle={{ minWidth: '2.5em', paddingRight: '1em', textAlign: 'right', color: '#8B949E' }}
-                    customStyle={{ margin: 0, height: '100%', backgroundColor: '#0D1117', padding: '1rem' }}
-                    codeTagProps={{ style: { fontFamily: 'inherit' } }}
-                >
-                    {String(content).replace(/\n$/, '')}
-                </SyntaxHighlighter>
+            <div className="flex-grow overflow-auto">
+                <textarea
+                    value={content}
+                    onChange={(e) => onContentChange(e.target.value)}
+                    className="w-full h-full bg-brand-bg text-brand-text-primary font-mono p-4 resize-none border-none focus:outline-none focus:ring-0 leading-relaxed"
+                    style={{fontSize: '0.875rem'}}
+                    spellCheck="false"
+                    aria-label={`Code editor for ${fileName}`}
+                />
             </div>
         </div>
     );

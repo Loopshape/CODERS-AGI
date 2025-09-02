@@ -559,6 +559,18 @@ const App: React.FC = () => {
     }
 }, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript]);
 
+  const handleContentChange = useCallback((newContent: string, index: number) => {
+    setProcessedOutput(prev => {
+      if (!prev) return null;
+      const newOutput = [...prev];
+      if (newOutput[index]) {
+        newOutput[index] = { ...newOutput[index], content: newContent };
+      }
+      return newOutput;
+    });
+  }, []);
+
+
   return (
     <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
       <div className="min-h-screen bg-brand-bg font-sans flex flex-col">
@@ -595,6 +607,7 @@ const App: React.FC = () => {
               setActiveOutput={setActiveOutput}
               activeFileIndex={activeFileIndex}
               setActiveFileIndex={setActiveFileIndex}
+              onContentChange={handleContentChange}
             />
           </div>
         </main>
