@@ -1,7 +1,6 @@
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from '../types';
-import { useTermuxDetection } from '../hooks/useTermuxDetection';
 import { CodeIcon } from './icons/CodeIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
@@ -12,6 +11,9 @@ import prismLight from 'react-syntax-highlighter/dist/esm/styles/prism/prism';
 import { getLocalAiCodeReview } from '../services/localAiService';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import { CpuChipIcon } from './icons/CpuChipIcon';
+import { UndoIcon } from './icons/UndoIcon';
+import { RedoIcon } from './icons/RedoIcon';
+import { ShareIcon } from './icons/ShareIcon';
 
 
 interface EditorSettings {
@@ -24,6 +26,7 @@ interface OutputViewerProps {
   processedOutput: ProcessedFile[] | null;
   logs: LogEntry[];
   isLoading: boolean;
+  isLoadingCommand: boolean;
   activeOutput: 'code' | 'preview' | 'logs';
   setActiveOutput: (output: 'code' | 'preview' | 'logs') => void;
   activeFileIndex: number;
@@ -31,21 +34,27 @@ interface OutputViewerProps {
   onContentChange: (newContent: string, index: number) => void;
   editorSettings: EditorSettings;
   onEditorSettingsChange: (newSettings: Partial<EditorSettings>) => void;
+  onCommand: (command: string) => void;
+  onUndo: (index: number) => void;
+  onRedo: (index: number) => void;
 }
 
 const OutputViewer: React.FC<OutputViewerProps> = ({ 
     processedOutput, 
     logs, 
     isLoading,
+    isLoadingCommand,
     activeOutput,
     setActiveOutput,
     activeFileIndex,
     setActiveFileIndex,
     onContentChange,
     editorSettings,
-    onEditorSettingsChange
+    onEditorSettingsChange,
+    onCommand,
+    onUndo,
+    onRedo,
 }) => {
-  const isTermux = useTermuxDetection();
   const currentFile = processedOutput?.[activeFileIndex];
 
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -74,17 +83,20 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
       return <LoadingSkeleton />;
     }
 
-    if (!processedOutput && logs.length === 0) {
+    if (!processedOutput && logs.length === 0 && activeOutput !== 'logs') {
         return <InitialState />;
     }
 
+    const canUndo = currentFile ? currentFile.historyIndex > 0 : false;
+    const canRedo = currentFile ? currentFile.historyIndex < currentFile.history.length - 1 : false;
+
     switch (activeOutput) {
       case 'code':
-        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} onContentChange={(newContent) => onContentChange(newContent, activeFileIndex)} editorSettings={editorSettings} onAnalyze={handleAnalyzeWithLocalAI} isAnalyzing={isReviewLoading} /> : <NoContent message="No output to display. Process something first." />;
+        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} onContentChange={(newContent) => onContentChange(newContent, activeFileIndex)} editorSettings={editorSettings} onAnalyze={handleAnalyzeWithLocalAI} isAnalyzing={isReviewLoading} onUndo={() => onUndo(activeFileIndex)} onRedo={() => onRedo(activeFileIndex)} canUndo={canUndo} canRedo={canRedo} /> : <NoContent message="No output to display. Process something first." />;
       case 'preview':
-        return currentFile && currentFile.content.trim().startsWith('<') ? <iframe srcDoc={currentFile.content} title="Live Preview" className="w-full h-full bg-white rounded-b-lg" /> : <NoContent message="No HTML content to preview." />;
+        return currentFile && currentFile.content.trim().startsWith('<') ? <iframe srcDoc={currentFile.content} title="Live Preview" className="w-full h-full bg-white rounded-b-lg" sandbox="allow-scripts allow-modals" /> : <NoContent message="No HTML content to preview." />;
       case 'logs':
-        return isTermux ? <TerminalView logs={logs} /> : <LogDisplay logs={logs} />;
+        return <TerminalView logs={logs} onCommand={onCommand} isLoading={isLoadingCommand} />;
       default:
         return <InitialState />;
     }
@@ -95,9 +107,9 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
   return (
     <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl flex flex-col h-full shadow-glow-brand">
       <div className="flex border-b border-brand-border shrink-0" role="tablist" aria-label="Output viewer modes">
-        <OutputTabButton icon={<CodeIcon />} label="Processed Output" isActive={activeOutput === 'code'} onClick={() => setActiveOutput('code')} disabled={!processedOutput} />
-        <OutputTabButton icon={<EyeIcon />} label="Live Preview" isActive={activeOutput === 'preview'} onClick={() => setActiveOutput('preview')} disabled={isPreviewDisabled}/>
-        <OutputTabButton icon={<TerminalIcon />} label={isTermux ? "Terminal" : "Logs"} isActive={activeOutput === 'logs'} onClick={() => setActiveOutput('logs')} />
+        <OutputTabButton icon={<CodeIcon />} label="Code" isActive={activeOutput === 'code'} onClick={() => setActiveOutput('code')} disabled={!processedOutput} />
+        <OutputTabButton icon={<EyeIcon />} label="Preview" isActive={activeOutput === 'preview'} onClick={() => setActiveOutput('preview')} disabled={isPreviewDisabled}/>
+        <OutputTabButton icon={<TerminalIcon />} label="Terminal" isActive={activeOutput === 'logs'} onClick={() => setActiveOutput('logs')} />
       </div>
 
       {activeOutput === 'code' && processedOutput && (
@@ -280,8 +292,22 @@ const getLanguageFromFileName = (fileName: string): string => {
     }
 };
 
-const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange: (newContent: string) => void; editorSettings: EditorSettings; onAnalyze: (content: string) => void; isAnalyzing: boolean; }> = ({ content, fileName, onContentChange, editorSettings, onAnalyze, isAnalyzing }) => {
+interface CodeDisplayProps {
+  content: string;
+  fileName: string;
+  onContentChange: (newContent: string) => void;
+  editorSettings: EditorSettings;
+  onAnalyze: (content: string) => void;
+  isAnalyzing: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+}
+
+const CodeDisplay: React.FC<CodeDisplayProps> = ({ content, fileName, onContentChange, editorSettings, onAnalyze, isAnalyzing, onUndo, onRedo, canUndo, canRedo }) => {
     const [copied, setCopied] = useState(false);
+    const [linkCopied, setLinkCopied] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const highlighterRef = useRef<HTMLDivElement>(null);
 
@@ -291,12 +317,45 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const handleShareLink = useCallback(() => {
+        try {
+            const base64Content = btoa(content);
+            const url = `${window.location.origin}${window.location.pathname}#/view/${base64Content}`;
+            navigator.clipboard.writeText(url);
+            setLinkCopied(true);
+            setTimeout(() => setLinkCopied(false), 2000);
+        } catch (error) {
+            console.error("Failed to create share link", error);
+        }
+    }, [content]);
+
     const stats = useMemo(() => {
         const lines = content.split('\n').length;
         const words = content.trim().split(/\s+/).filter(Boolean).length;
         const chars = content.length;
         return { lines, words, chars };
     }, [content]);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.ctrlKey || event.metaKey) {
+                if (event.key === 'z') {
+                    event.preventDefault();
+                    if (event.shiftKey) {
+                        onRedo();
+                    } else {
+                        onUndo();
+                    }
+                } else if (event.key === 'y') {
+                    event.preventDefault();
+                    onRedo();
+                }
+            }
+        };
+        const textarea = textareaRef.current;
+        textarea?.addEventListener('keydown', handleKeyDown);
+        return () => textarea?.removeEventListener('keydown', handleKeyDown);
+    }, [onUndo, onRedo]);
 
     const language = getLanguageFromFileName(fileName);
     const themeStyle = editorSettings.theme === 'dark' ? vscDarkPlus : prismLight;
@@ -327,17 +386,34 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange
         return () => textarea?.removeEventListener('scroll', syncScroll);
     }, []);
 
+    const debounceTimeout = useRef<number | null>(null);
+    const handleDebouncedContentChange = (newContent: string) => {
+        if (debounceTimeout.current) {
+            clearTimeout(debounceTimeout.current);
+        }
+        debounceTimeout.current = window.setTimeout(() => {
+            onContentChange(newContent);
+        }, 300); // Debounce history update
+    }
+
     return (
         <div className="bg-brand-bg rounded-b-lg h-full flex flex-col">
             <div className="flex justify-between items-center p-3 bg-brand-surface border-b border-brand-border shrink-0">
-                <span className="text-sm font-mono text-brand-text-secondary">{fileName}</span>
+                <span className="text-sm font-mono text-brand-text-secondary truncate pr-4">{fileName}</span>
                 <div className="flex items-center space-x-2">
+                    <button onClick={onUndo} disabled={!canUndo} className="p-1 rounded hover:bg-brand-border disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Undo"><UndoIcon className="w-5 h-5"/></button>
+                    <button onClick={onRedo} disabled={!canRedo} className="p-1 rounded hover:bg-brand-border disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Redo"><RedoIcon className="w-5 h-5"/></button>
+                    <div className="w-px h-5 bg-brand-border mx-1"></div>
                     <button onClick={() => onAnalyze(content)} disabled={isAnalyzing} className="text-sm bg-brand-info/20 text-brand-info px-3 py-1 rounded hover:bg-brand-info hover:text-white transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
                         {isAnalyzing ? <SpinnerIcon className="w-4 h-4 animate-spin"/> : <CpuChipIcon className="w-4 h-4" />}
-                        <span>Analyze Code</span>
+                        <span>Analyze</span>
                     </button>
                     <button onClick={handleCopy} className="text-sm bg-brand-border/50 px-3 py-1 rounded hover:bg-brand-accent hover:text-white transition-colors">
                         {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                    <button onClick={handleShareLink} className="text-sm bg-brand-border/50 px-3 py-1 rounded hover:bg-brand-accent hover:text-white transition-colors flex items-center space-x-1.5">
+                        <ShareIcon className="w-4 h-4" />
+                        <span>{linkCopied ? 'Link Copied!' : 'Share'}</span>
                     </button>
                     <DownloadButton content={content} fileName={fileName} />
                 </div>
@@ -397,50 +473,63 @@ const logColorMap: { [key in LogType]: string } = {
     [LogType.Gemini]: 'text-brand-gemini',
 };
 
-const LogDisplay: React.FC<{ logs: LogEntry[] }> = ({ logs }) => {
-  const logEndRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
-
-  return (
-    <div className="p-4 font-mono text-sm space-y-2 h-full overflow-y-auto" aria-live="polite" aria-atomic="false">
-      {logs.map((log, index) => (
-        <div key={index} className="flex items-start">
-          <span className="text-brand-text-secondary mr-3">{log.timestamp}</span>
-          <span className={`font-bold mr-2 ${logColorMap[log.type]}`}>[{log.type}]</span>
-          <p className="flex-1 whitespace-pre-wrap text-brand-text-primary">{log.message}</p>
-        </div>
-      ))}
-      <div ref={logEndRef} />
-    </div>
-  );
-};
-
-const TerminalView: React.FC<{ logs: LogEntry[] }> = ({ logs }) => {
+const TerminalView: React.FC<{ logs: LogEntry[]; onCommand: (cmd: string) => void; isLoading: boolean; }> = ({ logs, onCommand, isLoading }) => {
+    const [input, setInput] = useState('');
     const terminalEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
-    return (
-        <div className="bg-black rounded-lg p-4 font-mono text-sm text-white h-full overflow-y-auto" aria-live="polite" aria-atomic="false">
-            <p className="text-green-400">Welcome to AI/AGI/AIM Terminal View [v2.0.0]</p>
-            <p className="text-gray-500">Log output below. Newest entries appear last.</p>
-            <br/>
-            {logs.map((log, index) => (
-                <div key={index} className="flex items-start">
-                    <span className="text-green-400 mr-2" aria-hidden="true">~ $</span>
-                    <span className={`font-bold mr-2 ${logColorMap[log.type.toUpperCase()]}`}>[{log.type.toUpperCase()}]</span>
-                    <p className="flex-1 whitespace-pre-wrap text-gray-300">{log.message}</p>
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
+        onCommand(input);
+        setInput('');
+    };
+    
+    const handleTerminalClick = () => {
+        inputRef.current?.focus();
+    };
 
-                </div>
-            ))}
-             <div className="text-green-400 mt-2" ref={terminalEndRef}>
-                <span>~ $ </span><span className="bg-green-400 w-2 h-4 inline-block animate-blink"></span>
+    return (
+        <div className="bg-brand-bg font-mono text-sm text-white h-full flex flex-col" onClick={handleTerminalClick}>
+            <div className="flex-grow p-4 overflow-y-auto" aria-live="polite">
+                <p className="text-brand-text-secondary">Welcome to the AI Unified Terminal. Type 'help' for commands.</p>
+                <br/>
+                {logs.map((log, index) => (
+                    <div key={index} className="flex items-start">
+                        {log.message.startsWith('>') ? (
+                            <>
+                                <span className="text-brand-accent mr-2" aria-hidden="true">~ $</span>
+                                <p className="flex-1 whitespace-pre-wrap text-brand-text-primary">{log.message.substring(2)}</p>
+                            </>
+                        ) : (
+                             <p className={`flex-1 whitespace-pre-wrap ${logColorMap[log.type] || 'text-brand-text-primary'}`}>
+                                <span className="text-brand-text-secondary mr-2">{log.timestamp}</span>
+                                [{log.type}] {log.message}
+                             </p>
+                        )}
+                    </div>
+                ))}
+                 <div ref={terminalEndRef} />
             </div>
+            <form onSubmit={handleSubmit} className="flex items-center p-2 border-t border-brand-border bg-brand-surface">
+                <span className="text-brand-accent mr-2" aria-hidden="true">~ $</span>
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Type a command or ask AI..."
+                    className="flex-grow bg-transparent outline-none text-brand-text-primary placeholder:text-brand-text-secondary"
+                    disabled={isLoading}
+                    aria-label="Terminal input"
+                    autoFocus
+                />
+                 {isLoading && <SpinnerIcon className="w-4 h-4 animate-spin text-brand-accent ml-2" />}
+            </form>
         </div>
     );
 };

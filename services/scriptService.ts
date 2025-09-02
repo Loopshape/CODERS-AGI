@@ -1,4 +1,4 @@
-import { LogType, ProcessedFile } from '../types';
+import { LogType, ProcessedFile, ApiRequest, ApiResponse } from '../types';
 
 export const UNIVERSAL_LAW = `:bof:
 ~... UNIVERSAL MASTERPLAN!
@@ -137,10 +137,16 @@ export const processFiles = async (files: File[], onProgress: (p: number) => voi
     await new Promise(res => setTimeout(res, 500));
     onProgress(60);
     
-    const outputs = files.map(file => ({
-        fileName: `${file.name}.processed`,
-        content: `File: ${file.name}\nSize: ${file.size} bytes\n\n--- Fallback Content ---\n${UNIVERSAL_LAW}`
-    }));
+    // Fix: Add missing history and historyIndex properties to conform to ProcessedFile type.
+    const outputs = files.map(file => {
+        const content = `File: ${file.name}\nSize: ${file.size} bytes\n\n--- Fallback Content ---\n${UNIVERSAL_LAW}`;
+        return {
+            fileName: `${file.name}.processed`,
+            content: content,
+            history: [content],
+            historyIndex: 0
+        };
+    });
 
     files.forEach(file => {
         logs.push({ type: LogType.Info, message: `Processing ${file.name}...` });
@@ -290,16 +296,84 @@ export const gitClone = async (url: string): Promise<{ outputs: ProcessedFile[],
     logs.push({ type: LogType.Info, message: `Resolving deltas: 100% (25/25), done.`});
     logs.push({ type: LogType.Success, message: `Successfully cloned from ${url}.` });
 
-    const outputs = [
+    // Fix: Add missing history and historyIndex properties to conform to ProcessedFile type.
+    const readmeContent = `# ${repoName}\n\nThis is a simulated README file from the cloned repository.\n`;
+    const indexContent = `<!DOCTYPE html><html><body><h1>Welcome to ${repoName}</h1></body></html>`;
+    const outputs: ProcessedFile[] = [
         {
             fileName: 'README.md',
-            content: `# ${repoName}\n\nThis is a simulated README file from the cloned repository.\n`
+            content: readmeContent,
+            history: [readmeContent],
+            historyIndex: 0,
         },
         {
             fileName: 'index.html',
-            content: `<!DOCTYPE html><html><body><h1>Welcome to ${repoName}</h1></body></html>`
+            content: indexContent,
+            history: [indexContent],
+            historyIndex: 0,
         }
     ];
 
     return { outputs, logs };
+};
+
+export const sendApiRequest = async (request: ApiRequest) => {
+    const logs = [{ type: LogType.Info, message: `Sending ${request.method} request to ${request.url}` }];
+    await new Promise(res => setTimeout(res, 800)); // Simulate network latency
+
+    try {
+        const response: ApiResponse = {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'application/json' },
+            body: {
+                message: 'This is a simulated response!',
+                requestMethod: request.method,
+                receivedBody: request.body ? JSON.parse(request.body) : null,
+            },
+        };
+
+        logs.push({ type: LogType.Success, message: `Received response: ${response.status} ${response.statusText}` });
+
+        return {
+            output: JSON.stringify(response, null, 2),
+            logs,
+            fileName: 'api_response.json',
+        };
+    } catch (e) {
+        logs.push({ type: LogType.Error, message: `Invalid JSON in request body.` });
+        return {
+            output: `Error: Invalid JSON in request body.`,
+            logs,
+            fileName: 'api_error.txt',
+        };
+    }
+};
+
+const mockConfigs: Record<string, string> = {
+    '.bashrc': 'export PATH="$HOME/.local/bin:$PATH"\nalias ll="ls -la"',
+    '.env': 'API_KEY=your_secret_key_here\nDATABASE_URL="postgres://user:pass@host:port/db"',
+    '.gitconfig': '[user]\n  name = Your Name\n  email = your.email@example.com',
+    'settings.json': '{ "theme": "dark", "notifications": true }',
+};
+
+export const getConfig = async (fileName: string): Promise<string> => {
+    await new Promise(res => setTimeout(res, 300)); // Simulate file read
+    return mockConfigs[fileName] || `# No configuration found for ${fileName}`;
+};
+
+export const saveConfig = async (fileName: string, content: string) => {
+    await new Promise(res => setTimeout(res, 500)); // Simulate file write
+    mockConfigs[fileName] = content;
+    return {
+        logs: [{ type: LogType.Success, message: `${fileName} saved successfully.` }],
+    };
+};
+
+export const getGitStatus = () => {
+    // This is a static simulation
+    return {
+        branch: 'main',
+        lastCommit: '8a3f2cde Fix: Render issue in terminal view',
+    };
 };

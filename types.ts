@@ -18,6 +18,8 @@ export interface LogEntry {
 export interface ProcessedFile {
   fileName: string;
   content: string;
+  history: string[];
+  historyIndex: number;
 }
 
 // Fix: Add missing type definitions for CodeReviewReport and CodeIssue.
@@ -45,4 +47,17 @@ export interface ChatMessage {
   sender: MessageSender;
   text: string;
   timestamp: string;
+}
+
+export interface ApiRequest {
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+    url: string;
+    body?: string;
+}
+
+export interface ApiResponse {
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    body: any;
 }

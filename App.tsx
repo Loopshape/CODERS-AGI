@@ -1,8 +1,8 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
-import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender } from './types';
-import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush, gitClone } from './services/scriptService';
+import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender, ApiRequest, ApiResponse } from './types';
+import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush, gitClone, sendApiRequest, getConfig, saveConfig } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
 import { getLocalAiSuggestions, chatWithLocalAi, getLocalAiBashExtension } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
@@ -10,10 +10,10 @@ import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
 import OutputViewer from './components/OutputViewer';
 import ErrorBoundary from './components/ErrorBoundary';
-import CommandBar from './components/CommandBar';
 import Chatbot from './components/Chatbot';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const EDITOR_SETTINGS_KEY = 'ai-tool-gui-editor-settings';
 
 const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): string => {
     let markdown = `# Code Review for ${fileName}\n\n`;
@@ -48,10 +48,20 @@ const App: React.FC = () => {
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
   const [chat, setChat] = useState<Chat | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
-  const [editorSettings, setEditorSettings] = useState({
-    fontSize: 14,
-    theme: 'dark' as 'light' | 'dark',
-    tabSize: 4,
+  const [editorSettings, setEditorSettings] = useState(() => {
+    try {
+        const storedSettings = localStorage.getItem(EDITOR_SETTINGS_KEY);
+        if (storedSettings) {
+            return JSON.parse(storedSettings);
+        }
+    } catch (error) {
+        console.error("Failed to parse editor settings from localStorage", error);
+    }
+    return {
+        fontSize: 14,
+        theme: 'dark' as 'light' | 'dark',
+        tabSize: 4,
+    };
   });
   
   // Chatbot states
@@ -63,6 +73,15 @@ const App: React.FC = () => {
   const handleEditorSettingsChange = useCallback((newSettings: Partial<typeof editorSettings>) => {
     setEditorSettings(prev => ({ ...prev, ...newSettings }));
   }, []);
+  
+  // Effect to save settings whenever they change
+  useEffect(() => {
+    try {
+        localStorage.setItem(EDITOR_SETTINGS_KEY, JSON.stringify(editorSettings));
+    } catch (error) {
+        console.error("Failed to save editor settings to localStorage", error);
+    }
+  }, [editorSettings]);
 
 
   useEffect(() => {
@@ -82,6 +101,34 @@ const App: React.FC = () => {
   const addLog = useCallback((type: LogType, message: string) => {
     setLogs(prev => [...prev, { type, message, timestamp: new Date().toLocaleTimeString() }]);
   }, []);
+  
+  // Effect to load shared code from URL hash
+  useEffect(() => {
+    const handleHashChange = () => {
+        if (window.location.hash.startsWith('#/view/')) {
+            try {
+                const base64Content = window.location.hash.substring(8); // Length of '#/view/'
+                const decodedContent = atob(base64Content);
+                const sharedFile: ProcessedFile = {
+                    fileName: 'shared_snippet.txt',
+                    content: decodedContent,
+                    history: [decodedContent],
+                    historyIndex: 0
+                };
+                setProcessedOutput([sharedFile]);
+                setActiveOutput('code');
+                setActiveFileIndex(0);
+                addLog(LogType.Info, "Loaded shared code snippet.");
+                // Clean the hash to prevent re-loading on refresh
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            } catch (error) {
+                console.error("Failed to decode shared content from URL hash", error);
+                addLog(LogType.Error, "Could not load the shared code snippet. The link may be corrupted.");
+            }
+        }
+    };
+    handleHashChange();
+  }, [addLog]);
   
   const triggerErrorChat = useCallback((actionName: string, error: unknown) => {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
@@ -122,7 +169,7 @@ const App: React.FC = () => {
           const result = await Promise.resolve(handler());
           await new Promise(res => setTimeout(res, 300));
           setProgress(90);
-          setProcessedOutput([{ fileName: result.fileName, content: result.output }]);
+          setProcessedOutput([{ fileName: result.fileName, content: result.output, history: [result.output], historyIndex: 0 }]);
           result.logs.forEach(log => addLog(log.type, log.message));
           setActiveOutput(setActiveToLogs ? 'logs' : 'code');
           setProgress(100);
@@ -155,7 +202,12 @@ const App: React.FC = () => {
     try {
       const result = await processFiles(files, (p) => setProgress(p));
       
-      setProcessedOutput(result.outputs);
+      const outputsWithHistory = result.outputs.map(output => ({
+        ...output,
+        history: [output.content],
+        historyIndex: 0
+      }));
+      setProcessedOutput(outputsWithHistory);
       
       const resultLogs = result.logs.map(log => ({ ...log, timestamp: new Date().toLocaleTimeString() }));
       
@@ -202,7 +254,9 @@ const App: React.FC = () => {
   
   useEffect(() => {
     // Run initial scan to make output processing mandatory on startup
-    handleScanEnvironment();
+    if (!window.location.hash.startsWith('#/view/')) {
+        handleScanEnvironment();
+    }
   }, [handleScanEnvironment]);
 
   const handleGitClone = useCallback(async (url: string) => {
@@ -220,7 +274,12 @@ const App: React.FC = () => {
       const result = await gitClone(url);
       setProgress(80);
       
-      setProcessedOutput(result.outputs);
+      const outputsWithHistory = result.outputs.map(output => ({
+          ...output,
+          history: [output.content],
+          historyIndex: 0,
+      }));
+      setProcessedOutput(outputsWithHistory);
       
       const resultLogs = result.logs.map(log => ({ ...log, timestamp: new Date().toLocaleTimeString() }));
       setLogs(prevLogs => {
@@ -273,7 +332,7 @@ const App: React.FC = () => {
       const baseName = parts.join('.');
       const newFileName = extension ? `${baseName}.local_enhanced.${extension}` : `${file.name}.local_enhanced`;
 
-      setProcessedOutput([{ fileName: newFileName, content: enhancedContent }]);
+      setProcessedOutput([{ fileName: newFileName, content: enhancedContent, history: [enhancedContent], historyIndex: 0 }]);
       addLog(LogType.Success, `Successfully applied local enhancements.`);
       setActiveOutput('code');
       setProgress(100);
@@ -325,7 +384,7 @@ const App: React.FC = () => {
       const baseName = parts.join('.');
       const newFileName = extension ? `${baseName}.ollama_enhanced.${extension}` : `${file.name}.ollama_enhanced`;
 
-      setProcessedOutput([{ fileName: newFileName, content: suggestion }]);
+      setProcessedOutput([{ fileName: newFileName, content: suggestion, history: [suggestion], historyIndex: 0 }]);
       addLog(LogType.Success, `Successfully received enhancement from Ollama.`);
       setActiveOutput('code');
       setProgress(100);
@@ -371,7 +430,7 @@ const App: React.FC = () => {
       const baseName = parts.join('.');
       const newFileName = extension ? `${baseName}.enhanced.${extension}` : `${file.name}.enhanced`;
 
-      setProcessedOutput([{ fileName: newFileName, content: suggestion }]);
+      setProcessedOutput([{ fileName: newFileName, content: suggestion, history: [suggestion], historyIndex: 0 }]);
       addLog(LogType.Success, `Successfully received enhancement from Gemini AI.`);
       setActiveOutput('code');
       setProgress(100);
@@ -415,7 +474,7 @@ const App: React.FC = () => {
       const reviewMarkdown = formatReviewAsMarkdown(reviewReport, file.name);
       const newFileName = `review_for_${file.name}.md`;
 
-      setProcessedOutput([{ fileName: newFileName, content: reviewMarkdown }]);
+      setProcessedOutput([{ fileName: newFileName, content: reviewMarkdown, history: [reviewMarkdown], historyIndex: 0 }]);
       addLog(LogType.Success, `Successfully received code review from Gemini AI.`);
       setActiveOutput('code');
       setProgress(100);
@@ -459,7 +518,7 @@ const App: React.FC = () => {
         console.warn("Could not parse URL to get filename, using default.");
       }
       
-      setProcessedOutput([{ fileName: `${fileName}.enhanced.html`, content: suggestion }]);
+      setProcessedOutput([{ fileName: `${fileName}.enhanced.html`, content: suggestion, history: [suggestion], historyIndex: 0 }]);
       addLog(LogType.Success, `Successfully received enhancement from Gemini AI for content from ${url}.`);
       setActiveOutput('code');
       setProgress(100);
@@ -501,7 +560,7 @@ const App: React.FC = () => {
         const baseName = parts.join('.');
         const newFileName = extension ? `${baseName}.accelerated.enhanced.${extension}` : `${file.name}.accelerated.enhanced`;
 
-        const enhancedFile = { fileName: newFileName, content: suggestion };
+        const enhancedFile: ProcessedFile = { fileName: newFileName, content: suggestion, history: [suggestion], historyIndex: 0 };
         setProcessedOutput([enhancedFile]);
         setActiveFileIndex(0);
         addLog(LogType.Success, `Successfully received accelerated enhancement from Gemini AI.`);
@@ -634,6 +693,22 @@ const App: React.FC = () => {
   const handleGenerateExtension = useCallback(() => {
     handleRequest(getLocalAiBashExtension, 'generateExtension');
   }, [handleRequest]);
+  
+    const handleApiRequest = useCallback(async (request: ApiRequest) => {
+        handleRequest(() => sendApiRequest(request), 'apiRequest', true);
+    }, [handleRequest]);
+
+    const handleSaveConfig = useCallback(async (fileName: string, content: string) => {
+        addLog(LogType.Info, `Saving ${fileName}...`);
+        try {
+            const result = await saveConfig(fileName, content);
+            result.logs.forEach(log => addLog(log.type, log.message));
+        } catch (error) {
+            triggerErrorChat(`Save ${fileName}`, error);
+        }
+        addLog(LogType.Success, `Successfully saved ${fileName}.`);
+    }, [addLog, triggerErrorChat]);
+
 
   const handleCommand = useCallback(async (command: string) => {
     if (!command.trim() || isLoading) return;
@@ -654,7 +729,10 @@ const App: React.FC = () => {
                 handleGetInstallerScript();
                 return true;
             case 'help':
-                addLog(LogType.Info, 'Available commands: scan-env, get-installer. Any other text will be sent to the AI assistant.');
+                addLog(LogType.Info, 'Available commands: scan-env, get-installer, help, clear. Any other text will be sent to the AI assistant.');
+                return true;
+            case 'clear':
+                setLogs([]);
                 return true;
             default:
                 return false;
@@ -690,12 +768,55 @@ const App: React.FC = () => {
 
   const handleContentChange = useCallback((newContent: string, index: number) => {
     setProcessedOutput(prev => {
-      if (!prev) return null;
-      const newOutput = [...prev];
-      if (newOutput[index]) {
-        newOutput[index] = { ...newOutput[index], content: newContent };
-      }
-      return newOutput;
+        if (!prev) return null;
+        const newOutput = [...prev];
+        const file = newOutput[index];
+        if (file && file.content !== newContent) {
+            const newHistory = file.history.slice(0, file.historyIndex + 1);
+            newHistory.push(newContent);
+
+            newOutput[index] = {
+                ...file,
+                content: newContent,
+                history: newHistory,
+                historyIndex: newHistory.length - 1
+            };
+        }
+        return newOutput;
+    });
+  }, []);
+
+  const handleUndo = useCallback((index: number) => {
+    setProcessedOutput(prev => {
+        if (!prev) return null;
+        const newOutput = [...prev];
+        const file = newOutput[index];
+        if (file && file.historyIndex > 0) {
+            const newIndex = file.historyIndex - 1;
+            newOutput[index] = {
+                ...file,
+                content: file.history[newIndex],
+                historyIndex: newIndex,
+            };
+        }
+        return newOutput;
+    });
+  }, []);
+
+  const handleRedo = useCallback((index: number) => {
+    setProcessedOutput(prev => {
+        if (!prev) return null;
+        const newOutput = [...prev];
+        const file = newOutput[index];
+        if (file && file.historyIndex < file.history.length - 1) {
+            const newIndex = file.historyIndex + 1;
+            newOutput[index] = {
+                ...file,
+                content: file.history[newIndex],
+                historyIndex: newIndex,
+            };
+        }
+        return newOutput;
     });
   }, []);
 
@@ -746,12 +867,12 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
-      <div className="bg-brand-bg font-sans flex flex-col">
+      <div className="bg-brand-bg font-sans flex flex-col h-screen">
         <Header onTogglePanel={() => setIsPanelOpen(!isPanelOpen)} isPanelOpen={isPanelOpen} />
 
         <div className="flex-grow container mx-auto px-4 md:px-6 lg:px-8 flex items-start gap-8 overflow-hidden">
           <aside className={`shrink-0 transition-all duration-300 ease-in-out ${isPanelOpen ? 'w-full max-w-[450px] opacity-100' : 'w-0 opacity-0 -translate-x-8 pointer-events-none'}`}>
-            <div className={`transition-opacity duration-200 ${isPanelOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+            <div className={`transition-opacity duration-200 h-full ${isPanelOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
               <ControlPanel 
                   onProcessFiles={handleProcessFiles}
                   onScanEnvironment={handleScanEnvironment}
@@ -771,6 +892,8 @@ const App: React.FC = () => {
                   onGitPush={handleGitPush}
                   onGitClone={handleGitClone}
                   onCloudAccelerate={handleCloudAcceleration}
+                  onApiRequest={handleApiRequest}
+                  onSaveConfig={handleSaveConfig}
                   isLoading={isLoading}
                   loadingAction={loadingAction}
                   processingFile={processingFile}
@@ -779,11 +902,12 @@ const App: React.FC = () => {
             </div>
           </aside>
           
-          <main role="main" className="flex-grow min-w-0">
+          <main role="main" className="flex-grow min-w-0 h-full pb-4">
             <OutputViewer
               processedOutput={processedOutput}
               logs={logs}
               isLoading={isLoading}
+              isLoadingCommand={loadingAction === 'geminiCommand'}
               activeOutput={activeOutput}
               setActiveOutput={setActiveOutput}
               activeFileIndex={activeFileIndex}
@@ -791,14 +915,13 @@ const App: React.FC = () => {
               onContentChange={handleContentChange}
               editorSettings={editorSettings}
               onEditorSettingsChange={handleEditorSettingsChange}
+              onCommand={handleCommand}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
             />
           </main>
         </div>
         
-        <div className="container mx-auto px-4 md:px-6 lg:px-8 mt-auto py-4">
-            <CommandBar onCommand={handleCommand} isLoading={loadingAction === 'geminiCommand'} />
-        </div>
-
         <Chatbot
           isOpen={isChatOpen}
           toggleChat={() => setIsChatOpen(!isChatOpen)}
