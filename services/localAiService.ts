@@ -1,7 +1,8 @@
 
-import { CodeReviewReport } from '../types';
+import { CodeReviewReport, ChatMessage, MessageSender } from '../types';
 
 const OLLAMA_API_URL = 'http://127.0.0.1:11434/api/generate';
+const OLLAMA_CHAT_API_URL = 'http://127.0.0.1:11434/api/chat';
 const MODEL_NAME = 'gemma3:1b';
 
 /**
@@ -110,5 +111,43 @@ ${codeContent}
         console.error("Failed to parse JSON from Local AI:", parseError);
         console.error("Received string:", jsonStr);
         throw new Error("The local AI returned a response that was not valid JSON. Please check the model's output.");
+    }
+};
+
+export const chatWithLocalAi = async (messages: ChatMessage[]): Promise<string> => {
+    const ollamaMessages = messages
+        .filter(msg => msg.sender === MessageSender.User || msg.sender === MessageSender.AI)
+        .map(msg => ({
+            role: msg.sender === MessageSender.User ? 'user' : 'assistant',
+            content: msg.text
+        }));
+
+    try {
+        const body = {
+            model: MODEL_NAME,
+            messages: ollamaMessages,
+            stream: false,
+        };
+
+        const response = await fetch(OLLAMA_CHAT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        if (data.message && data.message.content) {
+            return data.message.content.trim();
+        } else {
+            throw new Error("Invalid response structure from local AI chat API.");
+        }
+    } catch (error) {
+        console.error("Error calling Local AI chat API:", error);
+        throw new Error(handleLocalAiError(error));
     }
 };
