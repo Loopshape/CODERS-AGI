@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef } from 'react';
 import ProgressBar from './ProgressBar';
 import { SpinnerIcon } from './icons/SpinnerIcon';
@@ -138,7 +139,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <TabButton isActive={activeTab === 'system'} onClick={() => setActiveTab('system')}>System</TabButton>
       </div>
 
-      <div className="min-h-[420px]">
+      <div>
         {activeTab === 'system' && (
             <div className="space-y-6 animate-fade-in">
                 <ActionCard 
@@ -182,7 +183,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <ActionButton onClick={handleProcessInput} disabled={(!prompt.trim() && !url.trim()) || isLoading} isLoading={loadingAction === 'processPrompt' || loadingAction === 'processUrl'}>
                         Process Input
                     </ActionButton>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <ActionButton onClick={() => onUrlEnhance(url)} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'urlEnhance'} icon={<SparklesIcon className="w-5 h-5"/>}>
                             Enhance URL
                         </ActionButton>
@@ -223,7 +224,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         </div>
                     )}
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                    <ActionButton onClick={handleProcessFilesClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'processFiles'} icon={<ProcessIcon className="w-5 h-5"/>}>
                         Batch Process
                     </ActionButton>

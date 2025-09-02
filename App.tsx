@@ -1,9 +1,10 @@
 
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-// FIX: Add gemini service imports to support AI enhancement and code review features.
-import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
+import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
 import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitUpdate } from './services/scriptService';
+import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
 import { getLocalAiSuggestions } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
 import Header from './components/Header';
@@ -11,6 +12,9 @@ import ControlPanel from './components/ControlPanel';
 import OutputViewer from './components/OutputViewer';
 import ErrorBoundary from './components/ErrorBoundary';
 import CommandBar from './components/CommandBar';
+import Chatbot from './components/Chatbot';
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): string => {
     let markdown = `# Code Review for ${fileName}\n\n`;
@@ -47,30 +51,6 @@ const downloadFile = (content: string, fileName: string, mimeType: string = 'app
     URL.revokeObjectURL(url);
 };
 
-const executeTrainingSimulation = async (
-  trainingSource: string,
-  addLog: (type: LogType, message: string) => void,
-  setProgress: (p: number) => void
-) => {
-  addLog(LogType.Info, `Starting local AI training with data from ${trainingSource}...`);
-  
-  await new Promise(res => setTimeout(res, 500));
-  setProgress(25);
-  addLog(LogType.Info, "Analyzing data patterns...");
-  
-  await new Promise(res => setTimeout(res, 1000));
-  setProgress(50);
-  addLog(LogType.Info, "Updating model weights...");
-
-  await new Promise(res => setTimeout(res, 1000));
-  setProgress(85);
-  addLog(LogType.Info, "Fine-tuning parameters...");
-
-  await new Promise(res => setTimeout(res, 800));
-  setProgress(100);
-  addLog(LogType.Success, `Local AI model successfully improved with data from ${trainingSource}.`);
-};
-
 
 const App: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -80,6 +60,20 @@ const App: React.FC = () => {
   const [processingFile, setProcessingFile] = useState<File | null>(null);
   const [activeOutput, setActiveOutput] = useState<'code' | 'preview' | 'logs'>('code');
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
+  const [chat, setChat] = useState<Chat | null>(null);
+
+
+  useEffect(() => {
+    if (!chat) {
+        const newChat = ai.chats.create({
+            model: 'gemini-2.5-flash',
+            config: {
+                systemInstruction: 'You are a helpful assistant for a frontend developer using a web-based file processing tool. Keep your answers concise and helpful.',
+            },
+        });
+        setChat(newChat);
+    }
+  }, [chat]);
 
   const isLoading = useMemo(() => loadingAction !== null, [loadingAction]);
 
@@ -161,25 +155,25 @@ const App: React.FC = () => {
   
   const handleScanEnvironment = useCallback(() => {
       handleRequest(scanEnvironment, 'scanEnvironment', true);
-  }, [addLog]);
+  }, []);
   
   const handleProcessPrompt = useCallback((prompt: string) => {
-      handleRequest(() => processPrompt(prompt), 'processPrompt', true);
-  }, [addLog]);
+      handleRequest(() => processPrompt(prompt), 'processPrompt');
+  }, []);
 
   const handleProcessUrl = useCallback((url: string) => {
     handleRequest(() => processUrlPrompt(url), 'processUrl');
-  }, [addLog]);
+  }, []);
 
   const handleGetInstallerScript = useCallback(() => {
     const scriptData = getInstallScript();
     downloadFile(scriptData.output, scriptData.fileName);
     handleRequest(() => scriptData, 'getInstallerScript', true);
-  }, [addLog]);
+  }, []);
 
   const handleGitUpdate = useCallback((url: string) => {
     handleRequest(() => gitUpdate(url), 'gitUpdate', true);
-  }, [addLog]);
+  }, []);
 
   const handleLocalAIEnhance = useCallback(async (file: File) => {
     if (!file) {
@@ -217,7 +211,6 @@ const App: React.FC = () => {
       setActiveOutput('code');
       setProgress(100);
 
-// FIX: Corrected catch block syntax from `(error) => {` to `(error) {`
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       addLog(LogType.Error, `Local AI enhancement failed: ${errorMessage}`);
@@ -232,7 +225,6 @@ const App: React.FC = () => {
     }
   }, [addLog]);
 
-  // FIX: Added handler for onOllamaEnhance prop. This function handles local AI enhancements via Ollama.
   const handleOllamaEnhance = useCallback(async (file: File) => {
     if (!file) {
       addLog(LogType.Warn, "No file selected for Local AI enhancement.");
@@ -281,8 +273,7 @@ const App: React.FC = () => {
     }
   }, [addLog]);
 
-  // FIX: Re-purposed handleAiEnhance to use the Gemini AI service for higher-quality enhancements.
-  const handleAiEnhance = useCallback(async (file: File) => {
+  const handleGeminiEnhance = useCallback(async (file: File) => {
     if (!file) {
       addLog(LogType.Warn, "No file selected for Gemini AI enhancement.");
       return;
@@ -330,10 +321,9 @@ const App: React.FC = () => {
     }
   }, [addLog]);
   
-  // FIX: Updated handleAiCodeReview to use the Gemini AI service for more comprehensive code analysis.
-  const handleAiCodeReview = useCallback(async (file: File) => {
+  const handleGeminiCodeReview = useCallback(async (file: File) => {
     if (!file) {
-      addLog(LogType.Warn, "No file selected for AI Code Review.");
+      addLog(LogType.Warn, "No file selected for Gemini Code Review.");
       return;
     }
 
@@ -377,7 +367,6 @@ const App: React.FC = () => {
     }
   }, [addLog]);
 
-  // FIX: Updated handleUrlEnhance to leverage the Gemini AI service for analyzing and enhancing web content.
   const handleUrlEnhance = useCallback(async (url: string) => {
     setLoadingAction('urlEnhance');
     setProgress(10);
@@ -427,33 +416,45 @@ const App: React.FC = () => {
     return processedOutput?.some(file => file.fileName.includes('.enhanced.')) ?? false;
   }, [processedOutput]);
 
-  const handleImproveLocalAI = useCallback(async (errorInfo?: string) => {
+  const handleImproveLocalAI = useCallback((errorInfo?: string) => {
       const enhancedFile = processedOutput?.find(file => file.fileName.includes('.enhanced.'));
       const trainingSource = errorInfo ? 'an application error report' : enhancedFile?.fileName;
 
       if (!trainingSource) {
-          // FIX: Updated warning message to reflect the correct action for generating training data.
           addLog(LogType.Warn, "No training data available. Run 'Gemini AI Enhance' on a file or encounter an error to improve the AI.");
           return;
       }
 
       setLoadingAction('improveLocalAI');
-      setProgress(10);
+      setProgress(0);
       setLogs([]);
       setActiveOutput('logs');
+      addLog(LogType.Info, `Starting local AI training with data from ${trainingSource}...`);
       
-      try {
-        await executeTrainingSimulation(trainingSource, addLog, setProgress);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        addLog(LogType.Error, `Local AI improvement failed: ${errorMessage}`);
-        setProgress(100);
-      } finally {
-        setTimeout(() => {
-            setLoadingAction(null);
-            setProgress(0);
-        }, 500);
-      }
+      const runTrainingSimulation = async () => {
+          await new Promise(res => setTimeout(res, 500));
+          setProgress(25);
+          addLog(LogType.Info, "Analyzing data patterns...");
+          
+          await new Promise(res => setTimeout(res, 1000));
+          setProgress(50);
+          addLog(LogType.Info, "Updating model weights...");
+
+          await new Promise(res => setTimeout(res, 1000));
+          setProgress(85);
+          addLog(LogType.Info, "Fine-tuning parameters...");
+
+          await new Promise(res => setTimeout(res, 800));
+          setProgress(100);
+          addLog(LogType.Success, `Local AI model successfully improved with data from ${trainingSource}.`);
+
+          await new Promise(res => setTimeout(res, 500));
+          setLoadingAction(null);
+          setProgress(0);
+      };
+
+      runTrainingSimulation();
+
   }, [processedOutput, addLog]);
 
   const handleTrainFromUrl = useCallback(async (url: string) => {
@@ -467,7 +468,7 @@ const App: React.FC = () => {
     setLogs([]);
     setProcessedOutput(null);
     setActiveFileIndex(0);
-    addLog(LogType.AI, `Preparing to train local AI from ${url}...`);
+    addLog(LogType.Gemini, `Preparing to train local AI from ${url}...`);
     setActiveOutput('logs');
 
     try {
@@ -475,7 +476,22 @@ const App: React.FC = () => {
       fetchLogs.forEach(log => addLog(log.type, log.message));
       addLog(LogType.Info, `Content fetched successfully. Starting training simulation.`);
       
-      await executeTrainingSimulation(url, addLog, setProgress);
+      // Simulating training
+      await new Promise(res => setTimeout(res, 500));
+      setProgress(25);
+      addLog(LogType.Info, "Analyzing data patterns...");
+      
+      await new Promise(res => setTimeout(res, 1000));
+      setProgress(50);
+      addLog(LogType.Info, "Updating model weights...");
+
+      await new Promise(res => setTimeout(res, 1000));
+      setProgress(85);
+      addLog(LogType.Info, "Fine-tuning parameters...");
+
+      await new Promise(res => setTimeout(res, 800));
+      setProgress(100);
+      addLog(LogType.Success, `Local AI model successfully improved with data from ${url}.`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
@@ -499,41 +515,49 @@ const App: React.FC = () => {
     const parts = command.trim().match(/(?:[^\s"]+|"[^"]*")+/g) || [];
     const [cmd, ...args] = parts.map(p => p.startsWith('"') && p.endsWith('"') ? p.slice(1, -1) : p);
 
-    switch (cmd.toLowerCase()) {
-        case 'scan-env':
-            handleScanEnvironment();
-            break;
-        case 'get-installer':
-            handleGetInstallerScript();
-            break;
-        case 'help':
-            addLog(LogType.Info, "Available commands: scan-env, get-installer, error-test. Any other text will be sent to the local AI via 'ollama run gemma3:1b'.");
-            break;
-        case 'error-test':
-            setLoadingAction('commandError');
-            setProgress(50);
-            await new Promise(res => setTimeout(res, 400));
-            addLog(LogType.Error, `Execution failed for command: '${command}'\nThis is a simulated error to demonstrate failure handling.`);
-            setProgress(100);
-            setTimeout(() => {
-                setLoadingAction(null);
-                setProgress(0);
-            }, 500);
-            break;
-        case 'ollama':
-            // Redirect 'ollama run ...' commands to the prompt processor
-            if (args.length > 0 && args[0].toLowerCase() === 'run') {
-                handleProcessPrompt(command);
-            } else {
-                addLog(LogType.Warn, `Unsupported ollama command. Only 'ollama run' is supported via this interface.`);
-            }
-            break;
-        default:
-            // Treat any other command as a direct prompt to the local AI
-            handleProcessPrompt(command);
-            break;
+    const commandWasExecuted = (() => {
+        switch (cmd.toLowerCase()) {
+            case 'scan-env':
+                handleScanEnvironment();
+                return true;
+            case 'get-installer':
+                handleGetInstallerScript();
+                return true;
+            case 'help':
+                addLog(LogType.Info, 'Available commands: scan-env, get-installer. Any other text will be sent to the AI assistant.');
+                return true;
+            default:
+                return false;
+        }
+    })();
+
+    if (commandWasExecuted) return;
+
+    setLoadingAction('geminiCommand');
+    setProgress(30);
+    if (!chat) {
+        addLog(LogType.Error, "Chat is not initialized.");
+        setLoadingAction(null);
+        setProgress(0);
+        return;
     }
-}, [addLog, isLoading, handleScanEnvironment, handleGetInstallerScript, handleProcessPrompt]);
+
+    try {
+        const response = await chat.sendMessage({ message: command });
+        setProgress(90);
+        addLog(LogType.Gemini, response.text);
+        setProgress(100);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        addLog(LogType.Error, `AI command failed: ${errorMessage}`);
+        setProgress(100);
+    } finally {
+        setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
+        }, 500);
+    }
+}, [addLog, isLoading, chat, handleScanEnvironment, handleGetInstallerScript]);
 
   return (
     <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
@@ -541,15 +565,14 @@ const App: React.FC = () => {
         <Header />
         <main role="main" className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           <div className="lg:col-span-5">
-            {/* FIX: Added the missing 'onOllamaEnhance' prop to satisfy the ControlPanel's requirements. */}
             <ControlPanel 
                 onProcessFiles={handleProcessFiles}
                 onScanEnvironment={handleScanEnvironment}
                 onProcessPrompt={handleProcessPrompt}
                 onProcessUrl={handleProcessUrl}
-                onAiEnhance={handleAiEnhance}
+                onAiEnhance={handleGeminiEnhance}
                 onOllamaEnhance={handleOllamaEnhance}
-                onAiCodeReview={handleAiCodeReview}
+                onAiCodeReview={handleGeminiCodeReview}
                 onLocalAIEnhance={handleLocalAIEnhance}
                 onUrlEnhance={handleUrlEnhance}
                 onImproveLocalAI={handleImproveLocalAI}
@@ -576,11 +599,12 @@ const App: React.FC = () => {
           </div>
         </main>
         <div className="container mx-auto px-4 md:px-6 lg:px-8 mt-auto pb-4">
-            <CommandBar onCommand={handleCommand} isLoading={loadingAction === 'processPrompt' || loadingAction === 'commandError'} />
+            <CommandBar onCommand={handleCommand} isLoading={loadingAction === 'geminiCommand'} />
         </div>
         <footer role="contentinfo" className="text-center p-4 border-t border-brand-border">
           <p className="text-sm text-brand-text-secondary">UI generated from bash script logic by a world-class senior frontend React engineer.</p>
         </footer>
+        <Chatbot />
       </div>
     </ErrorBoundary>
   );

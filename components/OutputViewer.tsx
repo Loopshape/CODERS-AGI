@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { LogEntry, LogType, ProcessedFile } from '../types';
 import { useTermuxDetection } from '../hooks/useTermuxDetection';
@@ -55,7 +56,7 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
   const isPreviewDisabled = !currentFile || !currentFile.content.trim().startsWith('<');
 
   return (
-    <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl flex flex-col h-[80vh] min-h-[600px]">
+    <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl flex flex-col h-[70vh] min-h-[500px] lg:h-[80vh] lg:min-h-[600px]">
       <div className="flex border-b border-brand-border shrink-0" role="tablist" aria-label="Output viewer modes">
         <OutputTabButton icon={<CodeIcon />} label="Processed Output" isActive={activeOutput === 'code'} onClick={() => setActiveOutput('code')} disabled={!processedOutput} />
         <OutputTabButton icon={<EyeIcon />} label="Live Preview" isActive={activeOutput === 'preview'} onClick={() => setActiveOutput('preview')} disabled={isPreviewDisabled}/>
