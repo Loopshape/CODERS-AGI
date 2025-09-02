@@ -566,7 +566,7 @@ const App: React.FC = () => {
     <ErrorBoundary onImproveLocalAI={() => handleTrainingSimulation('an application error')}>
       <div className="min-h-screen bg-brand-bg font-sans flex flex-col">
         <Header onTogglePanel={() => setIsPanelOpen(!isPanelOpen)} isPanelOpen={isPanelOpen} />
-        <main role="main" className={`flex-grow container mx-auto p-4 md:p-6 lg:p-8 grid gap-8 items-start transition-all duration-300 ease-in-out ${isPanelOpen ? 'lg:grid-cols-12' : 'lg:grid-cols-1'}`}>
+        <main role="main" className={`flex-grow container mx-auto p-4 md:p-6 lg:p-8 grid gap-8 items-stretch transition-all duration-300 ease-in-out ${isPanelOpen ? 'lg:grid-cols-12' : 'lg:grid-cols-1'}`}>
           <div className={`transition-all duration-300 ease-in-out ${isPanelOpen ? 'lg:col-span-5' : 'hidden'}`}>
              <ControlPanel 
                 onProcessFiles={handleProcessFiles}
