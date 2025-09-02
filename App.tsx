@@ -1,8 +1,7 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender } from './types';
-import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush } from './services/scriptService';
+import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush, gitClone } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
 import { getLocalAiSuggestions, chatWithLocalAi } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
@@ -38,19 +37,6 @@ const formatReviewAsMarkdown = (report: CodeReviewReport, fileName: string): str
     return markdown;
 };
 
-const downloadFile = (content: string, fileName: string, mimeType: string = 'application/x-shellscript') => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-};
-
-
 const App: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [processedOutput, setProcessedOutput] = useState<ProcessedFile[] | null>(null);
@@ -60,6 +46,7 @@ const App: React.FC = () => {
   const [activeOutput, setActiveOutput] = useState<'code' | 'preview' | 'logs'>('code');
   const [activeFileIndex, setActiveFileIndex] = useState<number>(0);
   const [chat, setChat] = useState<Chat | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [editorSettings, setEditorSettings] = useState({
     fontSize: 14,
     theme: 'dark' as 'light' | 'dark',
@@ -119,7 +106,7 @@ const App: React.FC = () => {
     setIsChatOpen(true);
   }, [addLog]);
 
-  const handleRequest = async (handler: () => ({ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }) | Promise<{ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }>, actionName: string, setActiveToLogs = false) => {
+  const handleRequest = useCallback(async (handler: () => ({ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }) | Promise<{ output: string; logs: { type: LogType; message: string; }[]; fileName: string; }>, actionName: string, setActiveToLogs = false) => {
       setProcessingFile(null);
       setLoadingAction(actionName);
       setProgress(10);
@@ -147,7 +134,7 @@ const App: React.FC = () => {
               setProgress(0);
           }, 500);
       }
-  }
+  }, [addLog, triggerErrorChat]);
 
   const handleProcessFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) {
@@ -190,29 +177,69 @@ const App: React.FC = () => {
   
   const handleScanEnvironment = useCallback(() => {
       handleRequest(scanEnvironment, 'scanEnvironment', true);
-  }, []);
+  }, [handleRequest]);
   
   const handleProcessPrompt = useCallback((prompt: string) => {
       handleRequest(() => processPrompt(prompt), 'processPrompt');
-  }, []);
+  }, [handleRequest]);
 
   const handleProcessUrl = useCallback((url: string) => {
     handleRequest(() => processUrlPrompt(url), 'processUrl');
-  }, []);
+  }, [handleRequest]);
 
   const handleGetInstallerScript = useCallback(() => {
-    const scriptData = getInstallScript();
-    downloadFile(scriptData.output, scriptData.fileName);
-    handleRequest(() => scriptData, 'getInstallerScript', true);
-  }, []);
+    handleRequest(() => getInstallScript(), 'getInstallerScript', true);
+  }, [handleRequest]);
 
   const handleGitPull = useCallback((url: string) => {
     handleRequest(() => gitPull(url), 'gitPull', true);
-  }, []);
+  }, [handleRequest]);
 
   const handleGitPush = useCallback((url: string) => {
     handleRequest(() => gitPush(url), 'gitPush', true);
-  }, []);
+  }, [handleRequest]);
+  
+  useEffect(() => {
+    // Run initial scan to make output processing mandatory on startup
+    handleScanEnvironment();
+  }, [handleScanEnvironment]);
+
+  const handleGitClone = useCallback(async (url: string) => {
+    setLoadingAction('gitClone');
+    setProgress(0);
+    setLogs([]);
+    setProcessedOutput(null);
+    setActiveFileIndex(0);
+    
+    addLog(LogType.Info, `Starting clone from ${url}...`);
+    setActiveOutput('logs');
+
+    try {
+      setProgress(20);
+      const result = await gitClone(url);
+      setProgress(80);
+      
+      setProcessedOutput(result.outputs);
+      
+      const resultLogs = result.logs.map(log => ({ ...log, timestamp: new Date().toLocaleTimeString() }));
+      setLogs(prevLogs => {
+        const newLogs = [...prevLogs];
+        resultLogs.forEach(log => newLogs.push(log));
+        return newLogs;
+      });
+      
+      setActiveOutput('code');
+      setProgress(100);
+    } catch (error) {
+      triggerErrorChat('Git Clone', error);
+      setProgress(100);
+    } finally {
+       setTimeout(() => {
+            setLoadingAction(null);
+            setProgress(0);
+        }, 500);
+    }
+  }, [addLog, triggerErrorChat]);
 
   const handleLocalAIEnhance = useCallback(async (file: File) => {
     if (!file) {
@@ -713,34 +740,39 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
-      <div className="min-h-screen bg-brand-bg font-sans flex flex-col">
-        <Header />
-        <main role="main" className="flex-grow container mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-5">
-            <ControlPanel 
-                onProcessFiles={handleProcessFiles}
-                onScanEnvironment={handleScanEnvironment}
-                onProcessPrompt={handleProcessPrompt}
-                onProcessUrl={handleProcessUrl}
-                onAiEnhance={handleGeminiEnhance}
-                onOllamaEnhance={handleOllamaEnhance}
-                onAiCodeReview={handleGeminiCodeReview}
-                onLocalAIEnhance={handleLocalAIEnhance}
-                onUrlEnhance={handleUrlEnhance}
-                onImproveLocalAI={handleImproveLocalAI}
-                onTrainFromUrl={handleTrainFromUrl}
-                hasEnhancedFile={hasEnhancedFile}
-                onGetInstallerScript={handleGetInstallerScript}
-                onGitPull={handleGitPull}
-                onGitPush={handleGitPush}
-                onCloudAccelerate={handleCloudAcceleration}
-                isLoading={isLoading}
-                loadingAction={loadingAction}
-                processingFile={processingFile}
-                progress={progress}
-            />
-          </div>
-          <div className="lg:col-span-7">
+      <div className="bg-brand-bg font-sans flex flex-col">
+        <Header onTogglePanel={() => setIsPanelOpen(!isPanelOpen)} isPanelOpen={isPanelOpen} />
+
+        <div className="flex-grow container mx-auto px-4 md:px-6 lg:px-8 flex items-start gap-8 overflow-hidden">
+          <aside className={`shrink-0 transition-all duration-300 ease-in-out ${isPanelOpen ? 'w-full max-w-[450px] opacity-100' : 'w-0 opacity-0 -translate-x-8 pointer-events-none'}`}>
+            <div className={`transition-opacity duration-200 ${isPanelOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+              <ControlPanel 
+                  onProcessFiles={handleProcessFiles}
+                  onScanEnvironment={handleScanEnvironment}
+                  onProcessPrompt={handleProcessPrompt}
+                  onProcessUrl={handleProcessUrl}
+                  onAiEnhance={handleGeminiEnhance}
+                  onOllamaEnhance={handleOllamaEnhance}
+                  onAiCodeReview={handleGeminiCodeReview}
+                  onLocalAIEnhance={handleLocalAIEnhance}
+                  onUrlEnhance={handleUrlEnhance}
+                  onImproveLocalAI={handleImproveLocalAI}
+                  onTrainFromUrl={handleTrainFromUrl}
+                  hasEnhancedFile={hasEnhancedFile}
+                  onGetInstallerScript={handleGetInstallerScript}
+                  onGitPull={handleGitPull}
+                  onGitPush={handleGitPush}
+                  onGitClone={handleGitClone}
+                  onCloudAccelerate={handleCloudAcceleration}
+                  isLoading={isLoading}
+                  loadingAction={loadingAction}
+                  processingFile={processingFile}
+                  progress={progress}
+              />
+            </div>
+          </aside>
+          
+          <main role="main" className="flex-grow min-w-0">
             <OutputViewer
               processedOutput={processedOutput}
               logs={logs}
@@ -753,14 +785,13 @@ const App: React.FC = () => {
               editorSettings={editorSettings}
               onEditorSettingsChange={handleEditorSettingsChange}
             />
-          </div>
-        </main>
-        <div className="container mx-auto px-4 md:px-6 lg:px-8 mt-auto pb-4">
+          </main>
+        </div>
+        
+        <div className="container mx-auto px-4 md:px-6 lg:px-8 mt-auto py-4">
             <CommandBar onCommand={handleCommand} isLoading={loadingAction === 'geminiCommand'} />
         </div>
-        <footer role="contentinfo" className="text-center p-4 border-t border-brand-border">
-          <p className="text-sm text-brand-text-secondary">UI generated from bash script logic by a world-class senior frontend React engineer.</p>
-        </footer>
+
         <Chatbot
           isOpen={isChatOpen}
           toggleChat={() => setIsChatOpen(!isChatOpen)}

@@ -93,7 +93,7 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
   const isPreviewDisabled = !currentFile || !currentFile.content.trim().startsWith('<');
 
   return (
-    <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl flex flex-col h-[70vh] min-h-[500px] lg:h-[80vh] lg:min-h-[600px]">
+    <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl flex flex-col h-full shadow-glow-brand">
       <div className="flex border-b border-brand-border shrink-0" role="tablist" aria-label="Output viewer modes">
         <OutputTabButton icon={<CodeIcon />} label="Processed Output" isActive={activeOutput === 'code'} onClick={() => setActiveOutput('code')} disabled={!processedOutput} />
         <OutputTabButton icon={<EyeIcon />} label="Live Preview" isActive={activeOutput === 'preview'} onClick={() => setActiveOutput('preview')} disabled={isPreviewDisabled}/>
@@ -435,8 +435,9 @@ const TerminalView: React.FC<{ logs: LogEntry[] }> = ({ logs }) => {
             {logs.map((log, index) => (
                 <div key={index} className="flex items-start">
                     <span className="text-green-400 mr-2" aria-hidden="true">~ $</span>
-                    <span className={`font-bold mr-2 ${logColorMap[log.type]}`}>[{log.type.toUpperCase()}]</span>
+                    <span className={`font-bold mr-2 ${logColorMap[log.type.toUpperCase()]}`}>[{log.type.toUpperCase()}]</span>
                     <p className="flex-1 whitespace-pre-wrap text-gray-300">{log.message}</p>
+
                 </div>
             ))}
              <div className="text-green-400 mt-2" ref={terminalEndRef}>
