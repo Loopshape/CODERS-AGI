@@ -1,9 +1,10 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender } from './types';
 import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush, gitClone } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
-import { getLocalAiSuggestions, chatWithLocalAi } from './services/localAiService';
+import { getLocalAiSuggestions, chatWithLocalAi, getLocalAiBashExtension } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
@@ -502,6 +503,7 @@ const App: React.FC = () => {
 
         const enhancedFile = { fileName: newFileName, content: suggestion };
         setProcessedOutput([enhancedFile]);
+        setActiveFileIndex(0);
         addLog(LogType.Success, `Successfully received accelerated enhancement from Gemini AI.`);
         setActiveOutput('code');
         
@@ -628,6 +630,10 @@ const App: React.FC = () => {
         }, 500);
     }
   }, [addLog, triggerErrorChat]);
+  
+  const handleGenerateExtension = useCallback(() => {
+    handleRequest(getLocalAiBashExtension, 'generateExtension');
+  }, [handleRequest]);
 
   const handleCommand = useCallback(async (command: string) => {
     if (!command.trim() || isLoading) return;
@@ -758,6 +764,7 @@ const App: React.FC = () => {
                   onUrlEnhance={handleUrlEnhance}
                   onImproveLocalAI={handleImproveLocalAI}
                   onTrainFromUrl={handleTrainFromUrl}
+                  onGenerateExtension={handleGenerateExtension}
                   hasEnhancedFile={hasEnhancedFile}
                   onGetInstallerScript={handleGetInstallerScript}
                   onGitPull={handleGitPull}

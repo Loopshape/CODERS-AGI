@@ -1,7 +1,9 @@
+
 import React, { useState, useRef } from 'react';
 import ProgressBar from './ProgressBar';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import { SparklesIcon } from './SparklesIcon';
+import { CpuChipIcon } from './icons/CpuChipIcon';
 
 const ProcessIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>);
@@ -37,6 +39,7 @@ interface ControlPanelProps {
   onUrlEnhance: (url: string) => void;
   onImproveLocalAI: () => void;
   onTrainFromUrl: (url: string) => void;
+  onGenerateExtension: () => void;
   hasEnhancedFile: boolean;
   onGetInstallerScript: () => void;
   onGitPull: (url: string) => void;
@@ -64,6 +67,7 @@ const getLoadingMessage = (action: string | null, file: File | null, selectedFil
         case 'urlEnhance': return `Enhancing content from URL...`;
         case 'trainFromUrl': return `Training AI from URL...`;
         case 'improveLocalAI': return 'Improving local AI model...';
+        case 'generateExtension': return 'Generating bash extension with Local AI...';
         case 'getInstallerScript': return 'Generating installer...';
         case 'gitPull': return 'Pulling from repository...';
         case 'gitPush': return 'Pushing to repository...';
@@ -85,6 +89,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onUrlEnhance,
     onImproveLocalAI,
     onTrainFromUrl,
+    onGenerateExtension,
     hasEnhancedFile,
     onGetInstallerScript,
     onGitPull,
@@ -258,6 +263,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </ActionButton>
               <ActionButton onClick={onScanEnvironment} disabled={isLoading} isLoading={loadingAction === 'scanEnvironment'}>
                   Scan Environment
+              </ActionButton>
+               <ActionButton onClick={onGenerateExtension} disabled={isLoading} isLoading={loadingAction === 'generateExtension'} icon={<CpuChipIcon className="w-5 h-5"/>}>
+                  Generate Extension
               </ActionButton>
               <ActionButton onClick={onImproveLocalAI} disabled={!hasEnhancedFile || isLoading} isLoading={loadingAction === 'improveLocalAI'}>
                   Train Local AI

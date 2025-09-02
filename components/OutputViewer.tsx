@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from '../types';
 import { useTermuxDetection } from '../hooks/useTermuxDetection';
@@ -6,7 +7,6 @@ import { EyeIcon } from './icons/EyeIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
 import DownloadButton from './DownloadButton';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-// Fix: Use default import for react-syntax-highlighter styles as they are not named exports.
 import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
 import prismLight from 'react-syntax-highlighter/dist/esm/styles/prism/prism';
 import { getLocalAiCodeReview } from '../services/localAiService';
@@ -301,7 +301,6 @@ const CodeDisplay: React.FC<{ content: string; fileName: string; onContentChange
     const language = getLanguageFromFileName(fileName);
     const themeStyle = editorSettings.theme === 'dark' ? vscDarkPlus : prismLight;
     
-    // Fix: Type assertion to allow vendor-prefixed properties not in default React CSSProperties.
     const sharedEditorStyles = {
         fontFamily: 'monospace',
         fontSize: `${editorSettings.fontSize}px`,
@@ -395,7 +394,6 @@ const logColorMap: { [key in LogType]: string } = {
     [LogType.Warn]: 'text-yellow-500', // Adjusted for better visibility on dark bg
     [LogType.Error]: 'text-brand-error',
     [LogType.AI]: 'text-brand-gemini',
-    // Fix: Add Gemini to the color map to support its log type.
     [LogType.Gemini]: 'text-brand-gemini',
 };
 

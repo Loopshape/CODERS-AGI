@@ -1,5 +1,6 @@
 
 import { CodeReviewReport, ChatMessage, MessageSender } from '../types';
+import { LogType } from '../types';
 
 const OLLAMA_API_URL = 'http://127.0.0.1:11434/api/generate';
 const OLLAMA_CHAT_API_URL = 'http://127.0.0.1:11434/api/chat';
@@ -159,4 +160,29 @@ export const chatWithLocalAi = async (messages: ChatMessage[]): Promise<string> 
         console.error("Error calling Local AI chat API:", error);
         throw new Error(handleLocalAiError(error));
     }
+};
+
+export const getLocalAiBashExtension = async (): Promise<{ output: string; logs: { type: LogType; message:string }[]; fileName: string }> => {
+    const prompt = `
+    Generate a single, useful, and well-commented bash function that can be added to a .bashrc or .profile file.
+    The function should be something a developer would find handy for daily tasks.
+    Example ideas: an advanced search function using find/grep, a quick project setup script, or a git helper.
+    
+    CRITICAL CONSTRAINTS:
+    1. Output ONLY the raw bash code.
+    2. Do not include any explanations, markdown backticks (\`\`\`), or any text outside of the script itself.
+    3. The script must be a single function block.
+    
+    Generate the function now.`;
+
+    const scriptContent = await callLocalAi(prompt, false);
+
+    return {
+        output: scriptContent.replace(/^```(bash|sh)?\n/, '').replace(/\n```$/, '').trim(),
+        logs: [
+            { type: LogType.Info, message: "Prompting local AI for a new bash extension..." },
+            { type: LogType.Success, message: "Successfully generated bash extension from local AI." }
+        ],
+        fileName: 'ai_extension.sh'
+    };
 };
