@@ -1,214 +1,138 @@
 #!/usr/bin/env bash
-# Author: Aris Arjuna Noorsanto <exe.opcode@gmail.com>
-# AI / AGI / AIM Unified Processing Tool
-# Termux / Proot-Distro compatible - All-in-one
+# CODERS-AGI Full Automation Installer (Termux/Proot User-Space)
+# Runs without sudo/su — installs to ~/bin
 
-set -eu
+set -euo pipefail
 IFS=$'\n\t'
 
-# -----------------------
-# CONFIG
-# -----------------------
-HOME_ROOT="${HOME:-/data/data/com.termux/files/home}"
-BACKUP_DIR="$HOME_ROOT/.ai_backups"
-mkdir -p "$BACKUP_DIR"
+log()   { printf '\033[34m[→] %s\033[0m\n' "$*"; }
+warn()  { printf '\033[33m[!] %s\033[0m\n' "$*"; }
+fail()  { printf '\033[31m[✗] %s\033[0m\n' "$*" >&2; exit 1; }
 
-UNIVERSAL_LAW=$(cat <<'EOF'
-:bof:
-redo complete layout and design an advanced symetrics to proximity accordance for dedicated info-quota alignments, which grant a better adjustment for leading besides subliminal range compliance promisings, that affair any competing content relations into a cognitive intuitition guidance comparison between space and gap implies, that are suggesting the viewer a subcoordinated experience alongside repetitive tasks and stoic context sortings, all cooperational aligned to timed subjects of importance accordingly to random capacity within builds of data statements, that prognose the grid reliability
-of a mockup as given optically acknowledged for a more robust but also as
-attractive rulership into golden-ratio item handling
-:eof:
-EOF
-)
+REPO_URL="git@github.com:Loopshape/CODERS-AGI.git"   # SSH remote
+REPO_DIR="$HOME/CODERS-AGI"
+BIN_DIR="$HOME/bin"
+LAUNCHER="$BIN_DIR/coders-agi"
+STOPPER="$BIN_DIR/coders-agi-stop"
+BASHRC="$HOME/.bashrc"
+ENV_FILE="$REPO_DIR/.env.local"
+PORT=8888
+HOST=127.0.0.1
 
-OLLAMA_MODEL="gemma3:1b"
+mkdir -p "$BIN_DIR"
 
-# -----------------------
-# HELPER LOGGING
-# -----------------------
-log_info()    { printf '\033[34m[*] %s\033[0m\n' "$*"; }
-log_success() { printf '\033[32m[+] %s\033[0m\n' "$*"; }
-log_warn()    { printf '\033[33m[!] %s\033[0m\n' "$*"; }
-log_error()   { printf '\033[31m[-] %s\033[0m\n' "$*"; }
-
-backup_file() {
-    local file="$1"
-    if [ -f "$file" ]; then
-        local ts
-        ts=$(date +%Y%m%d%H%M%S)
-        cp "$file" "$BACKUP_DIR/$(basename "$file").$ts.bak"
-        log_info "Backup created for $file -> $BACKUP_DIR"
-    fi
-}
-
-fetch_url() {
-    local url="$1"
-    if command -v curl >/dev/null 2>&1; then
-        curl -sL "$url"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -qO- "$url"
-    else
-        log_error "curl or wget required to fetch URLs"
-        return 1
-    fi
-}
-
-get_prompt() {
-    local input="$1"
-    case "$input" in
-        http://*|https://*)
-            fetch_url "$input"
-            ;;
-        *)
-            if [ -f "$input" ]; then
-                cat "$input"
-            else
-                echo "$input"
-            fi
-            ;;
-    esac
-}
-
-# -----------------------
-# BASHRC ADAPTATION
-# -----------------------
-adapt_bashrc() {
-    local bashrc="$HOME_ROOT/.bashrc"
-    backup_file "$bashrc"
-    log_info "Rewriting .bashrc..."
-    cat > "$bashrc" <<EOF
-# ~/.bashrc adapted by AI tool
-export PATH="\$HOME/bin:\$PATH"
-alias ai="\$HOME/bin/ai"
-# Add more environment variables or shell customizations here
-EOF
-    log_success ".bashrc rewritten and environment set"
-}
-
-# -----------------------
-# AI MODES
-# -----------------------
-ai_file() {
-    for f in "$@"; do
-        [ -f "$f" ] || continue
-        backup_file "$f"
-        log_info "Processing file: $f"
-        # AI processing via Ollama
-        if command -v ollama >/dev/null 2>&1; then
-            pkill ollama || true
-            ollama serve &
-            sleep 2
-            cat "$f" | ollama run "$OLLAMA_MODEL"
-        else
-            log_warn "Ollama not found, writing universal law instead"
-            echo "$UNIVERSAL_LAW" > "$f.processed"
-        fi
-    done
-}
-
-ai_script() {
-    log_info "Processing script logic..."
-    # Placeholder for AI script-aware processing
-}
-
-ai_batch() {
-    local pattern="$1"
-    shift
-    for f in $pattern; do
-        [ -f "$f" ] || continue
-        backup_file "$f"
-        log_info "Batch processing: $f"
-        ai_file "$f"
-    done
-}
-
-ai_env() {
-    log_info "Scanning environment..."
-    env | sort
-    df -h
-    ls -la "$HOME_ROOT"
-    ls -la /etc
-}
-
-ai_pipeline() {
-    for f in "$@"; do
-        [ -f "$f" ] || continue
-        backup_file "$f"
-        log_info "Pipeline processing: $f"
-        ai_file "$f"
-    done
-}
-
-# -----------------------
-# AGI MODES
-# -----------------------
-agi_watch() {
-    local folder="$1"
-    local pattern="${2:-*}"
-    log_info "Watching $folder for changes matching $pattern"
-    command -v inotifywait >/dev/null 2>&1 || { log_error "Install inotify-tools"; return; }
-    inotifywait -m -r -e modify,create,move --format '%w%f' "$folder" | while read file; do
-        case "$file" in
-            $pattern)
-                log_info "Detected change: $file"
-                ai_file "$file"
-                ;;
-        esac
-    done
-}
-
-agi_screenshot() {
-    log_info "Screenshot disabled in Termux/Proot"
-}
-
-# -----------------------
-# INSTALLER MODE
-# -----------------------
-install_tool() {
-    adapt_bashrc
-    mkdir -p "$HOME/bin"
-    cp -f "$0" "$HOME/bin/ai"
-    chmod +x "$HOME/bin/ai"
-    log_success "AI tool installed at $HOME/bin/ai"
-}
-
-# -----------------------
-# ARGUMENT PARSING
-# -----------------------
-if [ $# -eq 0 ]; then
-    log_info "Usage: ai <mode> [files/patterns/prompt]"
-    exit 0
+# --- PATH check
+if ! echo "$PATH" | grep -q "$BIN_DIR"; then
+  log "Adding $BIN_DIR to PATH in $BASHRC"
+  echo "export PATH=\$HOME/bin:\$PATH" >> "$BASHRC"
 fi
 
-case "$1" in
-    init) shift; install_tool "$@" ;;
-    -) shift; ai_file "$@" ;;
-    +) shift; ai_script "$@" ;;
-    \*) shift; ai_batch "$@" ;;
-    .) shift; ai_env "$@" ;;
-    :) shift
-       IFS=':' read -r -a files <<< "$1"
-       ai_pipeline "${files[@]}"
-       ;;
-    agi) shift
-        case "$1" in
-            +|~) shift; agi_watch "$@" ;;
-            -) shift; agi_screenshot "$@" ;;
-            *) shift; agi_watch "$@" ;;
-        esac
-        ;;
-    *)
-        PROMPT=$(get_prompt "$*")
-        log_info "Running prompt on Ollama gemma3:1b..."
-        if command -v ollama >/dev/null 2>&1; then
-            pkill ollama || true
-            ollama serve &
-            sleep 2
-            echo "$PROMPT" | ollama run "$OLLAMA_MODEL"
-        else
-            log_warn "Ollama not found, printing prompt only"
-            echo "$PROMPT"
-        fi
-        ;;
-esac
+# --- tmux required
+command -v tmux >/dev/null 2>&1 || fail "tmux not found. Install it: pkg install tmux"
+
+# --- nvm + Node.js
+if [ ! -d "$HOME/.nvm" ]; then
+  log "Installing nvm..."
+  git clone https://github.com/nvm-sh/nvm.git "$HOME/.nvm"
+  cd "$HOME/.nvm" && git checkout "$(git describe --abbrev=0 --tags)"
+fi
+
+# Load nvm
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+  (
+    set +u
+    export NVM_DIR="$HOME/.nvm"
+    . "$NVM_DIR/nvm.sh"
+    nvm install --lts
+    nvm use --lts
+  )
+fi
+
+# --- Clone or update CODERS-AGI repo
+if [ -d "$REPO_DIR/.git" ]; then
+  log "Repo exists. Pulling updates..."
+  git -C "$REPO_DIR" pull
+else
+  log "Cloning CODERS-AGI (SSH)..."
+  git clone "$REPO_URL" "$REPO_DIR"
+fi
+
+cd "$REPO_DIR"
+
+log "Installing npm dependencies..."
+npm install
+
+# --- Write .env.local
+log "Configuring .env.local"
+cat > "$ENV_FILE" <<EOF
+VITE_HOST=$HOST
+VITE_PORT=$PORT
+VITE_DISABLE_HOST_CHECK=true
+GEMINI_API_KEY=${GEMINI_API_KEY:-your_api_key_here}
+EOF
+
+# --- Helpers
+write_lf_file() {
+  local path="$1"
+  shift
+  printf "%s\n" "$*" | sed 's/\r$//' > "$path"
+  chmod +x "$path"
+}
+
+# --- Launcher
+log "Creating launcher at $LAUNCHER"
+write_lf_file "$LAUNCHER" "#!/usr/bin/env bash
+cd \"$REPO_DIR\"
+(
+  set +u
+  [ -f \"\$HOME/.nvm/nvm.sh\" ] && . \"\$HOME/.nvm/nvm.sh\" && nvm use --lts >/dev/null
+)
+SESSION=\"coders-agi\"
+PORT=$PORT
+HOST=$HOST
+LOG_FILE=\"/tmp/coders-agi.log\"
+URL=\"http://$HOST:$PORT\"
+export VITE_HOST=\$HOST VITE_PORT=\$PORT VITE_DISABLE_HOST_CHECK=true
+if ! tmux has-session -t \"\$SESSION\" 2>/dev/null; then
+  tmux new-session -d -s \"\$SESSION\" bash -c \"
+    echo 'Starting CODERS-AGI on \$HOST:\$PORT, logs: \$LOG_FILE'
+    while true; do npm run dev >\"\$LOG_FILE\" 2>&1; echo 'Restarting in 3s...'; sleep 3; done
+  \"
+  for i in {1..60}; do
+    if nc -z \$HOST \$PORT >/dev/null 2>&1; then
+      command -v termux-open-url >/dev/null 2>&1 && termux-open-url \"\$URL\"
+      break
+    fi
+    sleep 1
+  done
+fi
+tmux attach -t \"\$SESSION\"
+"
+
+# --- Stopper
+log "Creating stopper at $STOPPER"
+write_lf_file "$STOPPER" '#!/usr/bin/env bash
+if command -v tmux >/dev/null 2>&1 && tmux has-session -t coders-agi 2>/dev/null; then
+  tmux kill-session -t coders-agi
+  echo "CODERS-AGI stopped."
+else
+  echo "No CODERS-AGI session running."
+fi'
+
+# --- Auto-start
+SERVICE_SNIPPET="# CODERS-AGI auto-start"
+if ! grep -q "$SERVICE_SNIPPET" "$BASHRC" 2>/dev/null; then
+  cat >> "$BASHRC" <<EOF
+
+$SERVICE_SNIPPET
+if command -v tmux >/dev/null 2>&1 && ! tmux has-session -t coders-agi 2>/dev/null; then
+  nohup coders-agi >/dev/null 2>&1 &
+fi
+EOF
+  log "Auto-start added to $BASHRC"
+fi
+
+log "✅ Installation complete!"
+echo "Start: coders-agi"
+echo "Stop: coders-agi-stop"
+echo "Access: http://127.0.0.1:8888"
