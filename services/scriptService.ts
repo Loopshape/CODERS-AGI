@@ -374,24 +374,45 @@ main
     };
 };
 
+const getHostFromGitUrl = (url: string): string => {
+    try {
+        if (url.startsWith('http')) {
+            return new URL(url).hostname;
+        }
+        const match = url.match(/@([^:]+):/);
+        if (match && match[1]) {
+            return match[1];
+        }
+        return 'remote-repository';
+    } catch (e) {
+        return 'remote-repository';
+    }
+};
 
 export const gitPull = (url: string) => {
+    const repoHost = getHostFromGitUrl(url);
     return {
         output: `Simulating 'git pull' from ${url}\n\n[remote] Enumerating objects: 10, done.\n[remote] Counting objects: 100% (10/10), done.\n[remote] Compressing objects: 100% (8/8), done.\n[remote] Total 10 (delta 2), reused 5 (delta 0)\nUnpacking objects: 100% (10/10), done.\nFrom ${url}\n   a1b2c3d..e4f5g6h  main       -> origin/main\nUpdating a1b2c3d..e4f5g6h\nFast-forward\n README.md | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)\n`,
         logs: [
+            { type: LogType.Info, message: `Connecting to ${repoHost} port 22.` },
+            { type: LogType.Info, message: `Connection established.` },
+            { type: LogType.Info, message: `Remote key fingerprint is SHA256:abc...xyz.` },
+            { type: LogType.Success, message: `Authentication succeeded (publickey).` },
             { type: LogType.Info, message: `Initiating git pull from ${url}...` },
-            { type: LogType.Success, message: 'Pull successful.' },
         ],
         fileName: 'git_pull_log.txt',
     };
 };
 
 export const gitPush = (url: string) => {
+    const repoHost = getHostFromGitUrl(url);
     return {
         output: `Simulating 'git push' to ${url}\n\nEnumerating objects: 5, done.\nCounting objects: 100% (5/5), done.\nDelta compression using up to 8 threads\nCompressing objects: 100% (3/3), done.\nWriting objects: 100% (3/3), 300 bytes | 300.00 KiB/s, done.\nTotal 3 (delta 2), reused 0 (delta 0)\nTo ${url}\n   e4f5g6h..i7j8k9l  main -> main\n`,
         logs: [
+            { type: LogType.Info, message: `Connecting to ${repoHost} port 22.` },
+            { type: LogType.Info, message: `Connection established.` },
+            { type: LogType.Success, message: `Authentication succeeded (publickey).` },
             { type: LogType.Info, message: `Initiating git push to ${url}...` },
-            { type: LogType.Success, message: 'Push successful.' },
         ],
         fileName: 'git_push_log.txt',
     };
@@ -399,9 +420,17 @@ export const gitPush = (url: string) => {
 
 export const gitClone = async (url: string): Promise<{ outputs: ProcessedFile[], logs: {type: LogType, message: string}[] }> => {
     const repoName = url.split('/').pop()?.replace('.git', '') || 'repository';
+    const repoHost = getHostFromGitUrl(url);
     const logs = [
-        { type: LogType.Info, message: `Cloning into '${repoName}'...` },
+        { type: LogType.Info, message: `Connecting to ${repoHost} port 22.` },
     ];
+    await new Promise(res => setTimeout(res, 300));
+    logs.push({ type: LogType.Info, message: `Connection established.` });
+    await new Promise(res => setTimeout(res, 200));
+    logs.push({ type: LogType.Info, message: `Remote key fingerprint is SHA256:abc...xyz.` });
+    await new Promise(res => setTimeout(res, 400));
+    logs.push({ type: LogType.Success, message: `Authentication succeeded (publickey).` });
+    logs.push({ type: LogType.Info, message: `Cloning into '${repoName}'...` });
     await new Promise(res => setTimeout(res, 500));
     logs.push({ type: LogType.Info, message: `remote: Enumerating objects: 50, done.` });
     await new Promise(res => setTimeout(res, 500));
@@ -410,8 +439,7 @@ export const gitClone = async (url: string): Promise<{ outputs: ProcessedFile[],
     logs.push({ type: LogType.Info, message: `Receiving objects: 100% (50/50), 1.21 MiB | 5.32 MiB/s, done.`});
     await new Promise(res => setTimeout(res, 300));
     logs.push({ type: LogType.Info, message: `Resolving deltas: 100% (25/25), done.`});
-    logs.push({ type: LogType.Success, message: `Successfully cloned from ${url}.` });
-
+    
     const readmeContent = `# ${repoName}\n\nThis is a simulated README file from the cloned repository.\n`;
     const indexContent = `<!DOCTYPE html><html><body><h1>Welcome to ${repoName}</h1></body></html>`;
     const outputs: ProcessedFile[] = [

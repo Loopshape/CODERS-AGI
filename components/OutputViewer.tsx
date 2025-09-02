@@ -201,7 +201,14 @@ const CodeReviewModal: React.FC<{ report: CodeReviewReport | null; error: string
     );
 };
 
-const EditorSettingsPopover: React.FC<{ settings: EditorSettings; onChange: (newSettings: Partial<EditorSettings>); onClose: () => void; triggerRef: React.RefObject<HTMLButtonElement> }> = ({ settings, onChange, onClose, triggerRef }) => {
+interface EditorSettingsPopoverProps {
+    settings: EditorSettings;
+    onChange: (newSettings: Partial<EditorSettings>) => void;
+    onClose: () => void;
+    triggerRef: React.RefObject<HTMLButtonElement>;
+}
+
+const EditorSettingsPopover: React.FC<EditorSettingsPopoverProps> = ({ settings, onChange, onClose, triggerRef }) => {
     const popoverRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
