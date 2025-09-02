@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import ProgressBar from './ProgressBar';
 import { SpinnerIcon } from './icons/SpinnerIcon';
@@ -14,6 +13,7 @@ import { SaveIcon } from './icons/SaveIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { HistoryIcon } from './icons/HistoryIcon';
 import { BookmarkIcon } from './icons/BookmarkIcon';
+import { TerminalIcon } from './icons/TerminalIcon';
 
 const ProcessIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>);
@@ -53,6 +53,8 @@ interface ControlPanelProps {
   onDeleteSavedRequest: (name: string) => void;
   onClearApiHistory: () => void;
   onTrainFromHistory: () => void;
+  onTrainFromSavedRequests: () => void;
+  onCreateNewFile: () => void;
   isLoading: boolean;
   loadingAction: string | null;
   processingFile: File | null;
@@ -73,8 +75,9 @@ const getLoadingMessage = (action: string | null, file: File | null, selectedFil
         case 'processUrl': return 'Fetching and processing URL...';
         case 'urlEnhance': return `Enhancing content from URL...`;
         case 'trainFromUrl': return `Training AI from URL...`;
-        case 'improveLocalAI': return 'Improving local AI model...';
+        case 'improveLocalAI': return 'Training AI from enhanced file...';
         case 'trainFromHistory': return 'Training AI from request history...';
+        case 'trainFromSaved': return 'Training AI from saved requests...';
         case 'generateExtension': return 'Generating bash extension with Local AI...';
         case 'getInstallerScript': return 'Generating installer...';
         case 'gitPull': return 'Pulling from repository...';
@@ -138,9 +141,10 @@ const TabButton: React.FC<{ icon: React.ReactNode; label: string; isActive: bool
     </button>
 );
 
-const FilesPanel: React.FC<ControlPanelProps & {selectedFiles: File[], setSelectedFiles: (f: File[])=>void, prompt: string, setPrompt: (s:string)=>void, url: string, setUrl: (s:string)=>void}> = ({ onProcessFiles, onProcessPrompt, onProcessUrl, onUrlEnhance, onTrainFromUrl, onLocalAIEnhance, onOllamaEnhance, onAiEnhance, onAiCodeReview, isLoading, loadingAction, selectedFiles, setSelectedFiles, prompt, setPrompt, url, setUrl }) => {
+const FilesPanel: React.FC<ControlPanelProps & {selectedFiles: File[], setSelectedFiles: (f: File[])=>void, prompt: string, setPrompt: (s:string)=>void, url: string, setUrl: (s:string)=>void}> = ({ onProcessFiles, onProcessPrompt, onProcessUrl, onUrlEnhance, onTrainFromUrl, onLocalAIEnhance, onOllamaEnhance, onAiEnhance, onAiCodeReview, onCreateNewFile, isLoading, loadingAction, selectedFiles, setSelectedFiles, prompt, setPrompt, url, setUrl }) => {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const hasFileSelected = selectedFiles.length > 0;
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) setSelectedFiles(Array.from(event.target.files));
@@ -170,34 +174,48 @@ const FilesPanel: React.FC<ControlPanelProps & {selectedFiles: File[], setSelect
     };
 
     return (
-        <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold text-brand-text-secondary mb-2">Direct Input</h3>
-              <textarea value={prompt} onChange={(e) => { setPrompt(e.target.value); setUrl(''); }} className="w-full h-24 p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition" placeholder="Enter prompt text..." aria-label="Text prompt for AI processing"/>
-              <div className="relative flex py-2 items-center"><div className="flex-grow border-t border-brand-border"></div><span className="flex-shrink mx-4 text-brand-text-secondary uppercase text-xs">Or</span><div className="flex-grow border-t border-brand-border"></div></div>
-              <input type="url" value={url} onChange={(e) => { setUrl(e.target.value); setPrompt(''); }} className="w-full p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition" placeholder="https://example.com" aria-label="URL for fetching and processing"/>
-              <div className="mt-3 space-y-2">
-                  <ActionButton onClick={handleProcessInput} disabled={(!prompt.trim() && !url.trim()) || isLoading} isLoading={loadingAction === 'processPrompt' || loadingAction === 'processUrl'}>Process Input</ActionButton>
-                  <div className="grid grid-cols-2 gap-2">
-                      <ActionButton onClick={() => onUrlEnhance(url)} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'urlEnhance'} icon={<SparklesIcon className="w-5 h-5"/>}>Enhance URL</ActionButton>
-                      <ActionButton onClick={() => onTrainFromUrl(url)} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'trainFromUrl'} icon={<SparklesIcon className="w-5 h-5"/>}>Train AI</ActionButton>
-                  </div>
-              </div>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-brand-text-secondary mb-2">File Input</h3>
-              <div onClick={triggerFileSelect} onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop} className={`flex flex-col justify-center items-center w-full p-4 transition-all bg-brand-bg/50 border-2 border-brand-border border-dashed rounded-lg cursor-pointer hover:border-brand-accent focus:outline-none ${isDragging ? 'border-brand-accent ring-2 ring-brand-accent/50 bg-brand-accent/10' : ''}`} role="button" tabIndex={0} aria-label="File selection area">
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" aria-hidden="true" />
-                  {selectedFiles.length === 0 ? <div className="text-center"><UploadIcon className="w-8 h-8 mx-auto text-brand-text-secondary mb-2"/><p className="font-medium text-brand-text-secondary text-sm">{isDragging ? "Drop files here" : <>Drop files or <span className="text-brand-accent">browse</span></>}</p></div> : <ul className="text-sm text-brand-text-secondary space-y-1 max-h-24 w-full overflow-y-auto">{selectedFiles.map(f => <li key={f.name} className="truncate pr-2">{f.name} ({formatBytes(f.size)})</li>)}</ul>}
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <ActionButton onClick={handleProcessFilesClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'processFiles'} icon={<ProcessIcon className="w-5 h-5"/>}>Batch Process</ActionButton>
-                <ActionButton onClick={() => onLocalAIEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'localAIEnhance'}>Local Enhance</ActionButton>
-                <ActionButton onClick={() => onOllamaEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'ollamaEnhance'}>Ollama Enhance</ActionButton>
-                <ActionButton onClick={() => onAiEnhance(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'aiEnhance'}>AI Enhance</ActionButton>
-                <ActionButton onClick={() => onAiCodeReview(selectedFiles[0])} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'aiCodeReview'} fullWidth>AI Review</ActionButton>
-              </div>
-            </div>
+        <div className="space-y-2">
+            <CollapsibleSection title="Direct Input" icon={<TerminalIcon className="w-5 h-5"/>}>
+                <div className="pt-2">
+                    <textarea value={prompt} onChange={(e) => { setPrompt(e.target.value); setUrl(''); }} className="w-full h-24 p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition" placeholder="Enter prompt text..." aria-label="Text prompt for AI processing"/>
+                    <div className="relative flex py-2 items-center"><div className="flex-grow border-t border-brand-border"></div><span className="flex-shrink mx-4 text-brand-text-secondary uppercase text-xs">Or</span><div className="flex-grow border-t border-brand-border"></div></div>
+                    <input type="url" value={url} onChange={(e) => { setUrl(e.target.value); setPrompt(''); }} className="w-full p-3 bg-brand-bg border border-brand-border rounded-md focus:ring-2 focus:ring-brand-accent focus:outline-none transition" placeholder="https://example.com" aria-label="URL for fetching and processing"/>
+                    <div className="mt-3 space-y-2">
+                        <ActionButton onClick={handleProcessInput} disabled={(!prompt.trim() && !url.trim()) || isLoading} isLoading={loadingAction === 'processPrompt' || loadingAction === 'processUrl'}>Process Input</ActionButton>
+                        <div className="grid grid-cols-2 gap-2">
+                            <ActionButton onClick={() => onUrlEnhance(url)} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'urlEnhance'} icon={<SparklesIcon className="w-5 h-5"/>}>Enhance URL</ActionButton>
+                            <ActionButton onClick={() => onTrainFromUrl(url)} disabled={!url.trim() || isLoading} isLoading={loadingAction === 'trainFromUrl'} icon={<SparklesIcon className="w-5 h-5"/>}>Train AI</ActionButton>
+                        </div>
+                    </div>
+                </div>
+            </CollapsibleSection>
+            
+            <CollapsibleSection title="File Management" icon={<UploadIcon className="w-5 h-5"/>}>
+                <div className="pt-2">
+                    <div onClick={triggerFileSelect} onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop} className={`flex flex-col justify-center items-center w-full p-4 transition-all bg-brand-bg/50 border-2 border-brand-border border-dashed rounded-lg cursor-pointer hover:border-brand-accent focus:outline-none ${isDragging ? 'border-brand-accent ring-2 ring-brand-accent/50 bg-brand-accent/10' : ''}`} role="button" tabIndex={0} aria-label="File selection area">
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" aria-hidden="true" />
+                        {selectedFiles.length === 0 ? <div className="text-center"><UploadIcon className="w-8 h-8 mx-auto text-brand-text-secondary mb-2"/><p className="font-medium text-brand-text-secondary text-sm">{isDragging ? "Drop files here" : <>Drop files or <span className="text-brand-accent">browse</span></>}</p></div> : <ul className="text-sm text-brand-text-secondary space-y-1 max-h-24 w-full overflow-y-auto">{selectedFiles.map(f => <li key={f.name} className="truncate pr-2">{f.name} ({formatBytes(f.size)})</li>)}</ul>}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                        <ActionButton onClick={onCreateNewFile} disabled={isLoading} isLoading={false}>New File</ActionButton>
+                        <ActionButton onClick={handleProcessFilesClick} disabled={selectedFiles.length === 0 || isLoading} isLoading={loadingAction === 'processFiles'} icon={<ProcessIcon className="w-5 h-5"/>}>Batch Process</ActionButton>
+                    </div>
+                </div>
+            </CollapsibleSection>
+            
+            <CollapsibleSection title="AI Actions on File" icon={<SparklesIcon className="w-5 h-5"/>}>
+                <div className="pt-2">
+                    {!hasFileSelected && (
+                        <p className="text-xs text-brand-text-secondary text-center py-2">Select a file from the 'File Management' section above to enable AI actions.</p>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                        <ActionButton onClick={() => onLocalAIEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'localAIEnhance'}>Local Enhance</ActionButton>
+                        <ActionButton onClick={() => onOllamaEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'ollamaEnhance'}>Ollama Enhance</ActionButton>
+                        <ActionButton onClick={() => onAiEnhance(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'aiEnhance'}>AI Enhance</ActionButton>
+                        <ActionButton onClick={() => onAiCodeReview(selectedFiles[0])} disabled={!hasFileSelected || isLoading} isLoading={loadingAction === 'aiCodeReview'} fullWidth>AI Review</ActionButton>
+                    </div>
+                </div>
+            </CollapsibleSection>
         </div>
     );
 };
@@ -307,7 +325,7 @@ const ApiPanel: React.FC<ControlPanelProps> = ({ onApiRequest, apiHistory, saved
     );
 };
 
-const SystemPanel: React.FC<ControlPanelProps> = ({ onScanEnvironment, onGetInstallerScript, onGenerateExtension, onImproveLocalAI, onSaveConfig, hasEnhancedFile, onTrainFromHistory, apiHistory, isLoading, loadingAction }) => {
+const SystemPanel: React.FC<ControlPanelProps> = ({ onScanEnvironment, onGetInstallerScript, onGenerateExtension, onImproveLocalAI, onSaveConfig, hasEnhancedFile, onTrainFromHistory, onTrainFromSavedRequests, savedApiRequests, apiHistory, isLoading, loadingAction }) => {
     const configFiles = ['.bashrc', '.env', '.gitconfig', 'settings.json'];
     const [selectedConfig, setSelectedConfig] = useState(configFiles[0]);
     const [configContent, setConfigContent] = useState('');
@@ -325,13 +343,22 @@ const SystemPanel: React.FC<ControlPanelProps> = ({ onScanEnvironment, onGetInst
         <div className="space-y-4">
             <div>
                 <h3 className="text-sm font-semibold text-brand-text-secondary mb-2">System Actions</h3>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 mb-4">
                     <ActionButton onClick={onScanEnvironment} disabled={isLoading} isLoading={loadingAction === 'scanEnvironment'}>Scan Environment</ActionButton>
                     <ActionButton onClick={onGetInstallerScript} disabled={isLoading} isLoading={loadingAction === 'getInstallerScript'}>Get Installer</ActionButton>
-                    <ActionButton onClick={onGenerateExtension} disabled={isLoading} isLoading={loadingAction === 'generateExtension'} icon={<CpuChipIcon className="w-5 h-5"/>}>Generate Extension</ActionButton>
-                    <ActionButton onClick={() => onImproveLocalAI()} disabled={!hasEnhancedFile || isLoading} isLoading={loadingAction === 'improveLocalAI'}>Train from File</ActionButton>
-                    <ActionButton onClick={onTrainFromHistory} disabled={apiHistory.length === 0 || isLoading} isLoading={loadingAction === 'trainFromHistory'} fullWidth>Train AI from History</ActionButton>
+                    <ActionButton onClick={onGenerateExtension} disabled={isLoading} isLoading={loadingAction === 'generateExtension'} icon={<CpuChipIcon className="w-5 h-5"/>} fullWidth>Generate Extension</ActionButton>
                 </div>
+
+                <h3 className="text-sm font-semibold text-brand-text-secondary mb-2">AI Training</h3>
+                <TrainingDropdown
+                    onTrainFromFile={onImproveLocalAI}
+                    onTrainFromHistory={onTrainFromHistory}
+                    onTrainFromSaved={onTrainFromSavedRequests}
+                    hasEnhancedFile={hasEnhancedFile}
+                    hasHistory={apiHistory.length > 0}
+                    hasSavedRequests={savedApiRequests.length > 0}
+                    isLoading={isLoading}
+                />
             </div>
             <div>
                 <h3 className="text-sm font-semibold text-brand-text-secondary mb-2">Dotfile &amp; Config Editor</h3>
@@ -348,16 +375,18 @@ const SystemPanel: React.FC<ControlPanelProps> = ({ onScanEnvironment, onGetInst
 const CollapsibleSection: React.FC<{title: string, icon: React.ReactNode, actionButton?: React.ReactNode, children: React.ReactNode}> = ({ title, icon, actionButton, children }) => {
     const [isOpen, setIsOpen] = useState(true);
     return (
-        <div>
-            <div className="flex justify-between items-center mb-1">
-                <button onClick={() => setIsOpen(!isOpen)} className="flex items-center space-x-2 text-sm font-semibold text-brand-text-secondary hover:text-brand-text-primary">
+        <div className="border border-brand-border/50 rounded-lg overflow-hidden">
+            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center p-2 bg-brand-bg/50 hover:bg-brand-bg text-sm font-semibold text-brand-text-secondary hover:text-brand-text-primary">
+                <div className="flex items-center space-x-2">
                     {icon}
                     <span>{title}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                    {actionButton}
                     <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
-                </button>
-                {actionButton}
-            </div>
-            {isOpen && <div className="pl-1 animate-fade-in">{children}</div>}
+                </div>
+            </button>
+            {isOpen && <div className="p-3 border-t border-brand-border/50 animate-fade-in">{children}</div>}
         </div>
     )
 }
@@ -368,5 +397,72 @@ const ActionButton: React.FC<ActionButtonProps> = ({ onClick, disabled, isLoadin
         {isLoading ? <SpinnerIcon className="h-5 w-5 text-white animate-spin" /> : <>{icon}{<span>{children}</span>}</>}
     </button>
 );
+
+const TrainingDropdown: React.FC<{
+    onTrainFromFile: () => void;
+    onTrainFromHistory: () => void;
+    onTrainFromSaved: () => void;
+    hasEnhancedFile: boolean;
+    hasHistory: boolean;
+    hasSavedRequests: boolean;
+    isLoading: boolean;
+}> = ({ onTrainFromFile, onTrainFromHistory, onTrainFromSaved, hasEnhancedFile, hasHistory, hasSavedRequests, isLoading }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const canTrain = hasEnhancedFile || hasHistory || hasSavedRequests;
+    const trainingSources = [
+        { label: 'From Enhanced File', action: onTrainFromFile, disabled: !hasEnhancedFile },
+        { label: 'From API History', action: onTrainFromHistory, disabled: !hasHistory },
+        { label: 'From Saved Requests', action: onTrainFromSaved, disabled: !hasSavedRequests },
+    ];
+
+    return (
+        <div ref={dropdownRef} className="relative">
+            <ActionButton
+                onClick={() => setIsOpen(!isOpen)}
+                disabled={isLoading || !canTrain}
+                isLoading={false} // Main progress bar is used
+                fullWidth
+            >
+                <div className="flex items-center justify-center w-full">
+                    <CpuChipIcon className="w-5 h-5"/>
+                    <span className="mx-2">Train Local AI</span>
+                    <svg className={`w-4 h-4 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+            </ActionButton>
+            
+            {isOpen && (
+                <div className="absolute bottom-full mb-2 w-full bg-brand-surface border border-brand-border rounded-md shadow-lg z-20 animate-fade-in">
+                    <ul className="py-1" role="menu">
+                        {trainingSources.map(({ label, action, disabled }) => (
+                             <li key={label}>
+                                <button
+                                    onClick={() => { if(!disabled) { action(); setIsOpen(false); } }}
+                                    disabled={disabled}
+                                    className="w-full text-left px-3 py-2 text-sm text-brand-text-primary hover:bg-brand-bg flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    role="menuitem"
+                                >
+                                    <span>{label}</span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 export default ControlPanel;

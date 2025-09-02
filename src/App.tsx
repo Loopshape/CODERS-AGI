@@ -3,6 +3,7 @@
 
 
 
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from './types';
@@ -108,7 +109,7 @@ const App: React.FC = () => {
           const result = await Promise.resolve(handler());
           await new Promise(res => setTimeout(res, 300));
           setProgress(90);
-          setProcessedOutput([{ fileName: result.fileName, content: result.output }]);
+          setProcessedOutput([{ fileName: result.fileName, content: result.output, history: [result.output], historyIndex: 0 }]);
           result.logs.forEach(log => addLog(log.type, log.message));
           setActiveOutput(setActiveToLogs ? 'logs' : 'code');
           setProgress(100);
@@ -223,7 +224,7 @@ const App: React.FC = () => {
       const baseName = parts.join('.');
       const newFileName = extension ? `${baseName}.local_enhanced.${extension}` : `${file.name}.local_enhanced`;
 
-      setProcessedOutput([{ fileName: newFileName, content: enhancedContent }]);
+      setProcessedOutput([{ fileName: newFileName, content: enhancedContent, history: [enhancedContent], historyIndex: 0 }]);
       addLog(LogType.Success, `Successfully applied local enhancements.`);
       setActiveOutput('code');
       setProgress(100);
@@ -271,7 +272,7 @@ const App: React.FC = () => {
       const baseName = parts.join('.');
       const newFileName = extension ? `${baseName}.local_enhanced.${extension}` : `${file.name}.local_enhanced`;
 
-      setProcessedOutput([{ fileName: newFileName, content: suggestion }]);
+      setProcessedOutput([{ fileName: newFileName, content: suggestion, history: [suggestion], historyIndex: 0 }]);
       addLog(LogType.Success, `Successfully received enhancement from Local AI.`);
       setActiveOutput('code');
       setProgress(100);
@@ -319,7 +320,7 @@ const App: React.FC = () => {
       const baseName = parts.join('.');
       const newFileName = extension ? `${baseName}.enhanced.${extension}` : `${file.name}.enhanced`;
 
-      setProcessedOutput([{ fileName: newFileName, content: suggestion }]);
+      setProcessedOutput([{ fileName: newFileName, content: suggestion, history: [suggestion], historyIndex: 0 }]);
       addLog(LogType.Success, `Successfully received enhancement from Gemini AI.`);
       setActiveOutput('code');
       setProgress(100);
@@ -365,7 +366,7 @@ const App: React.FC = () => {
       const reviewMarkdown = formatReviewAsMarkdown(reviewReport, file.name);
       const newFileName = `review_for_${file.name}.md`;
 
-      setProcessedOutput([{ fileName: newFileName, content: reviewMarkdown }]);
+      setProcessedOutput([{ fileName: newFileName, content: reviewMarkdown, history: [reviewMarkdown], historyIndex: 0 }]);
       addLog(LogType.Success, `Successfully received code review from Gemini AI.`);
       setActiveOutput('code');
       setProgress(100);
@@ -411,7 +412,7 @@ const App: React.FC = () => {
         console.warn("Could not parse URL to get filename, using default.");
       }
       
-      setProcessedOutput([{ fileName: `${fileName}.enhanced.html`, content: suggestion }]);
+      setProcessedOutput([{ fileName: `${fileName}.enhanced.html`, content: suggestion, history: [suggestion], historyIndex: 0 }]);
       addLog(LogType.Success, `Successfully received enhancement from Gemini AI for content from ${url}.`);
       setActiveOutput('code');
       setProgress(100);
@@ -578,12 +579,55 @@ const App: React.FC = () => {
 
   const handleContentChange = useCallback((newContent: string, index: number) => {
     setProcessedOutput(prev => {
-      if (!prev) return null;
-      const newOutput = [...prev];
-      if (newOutput[index]) {
-        newOutput[index] = { ...newOutput[index], content: newContent };
-      }
-      return newOutput;
+        if (!prev) return null;
+        const newOutput = [...prev];
+        const file = newOutput[index];
+        if (file && file.content !== newContent) {
+            const newHistory = file.history.slice(0, file.historyIndex + 1);
+            newHistory.push(newContent);
+
+            newOutput[index] = {
+                ...file,
+                content: newContent,
+                history: newHistory,
+                historyIndex: newHistory.length - 1
+            };
+        }
+        return newOutput;
+    });
+  }, []);
+
+  const handleUndo = useCallback((index: number) => {
+    setProcessedOutput(prev => {
+        if (!prev) return null;
+        const newOutput = [...prev];
+        const file = newOutput[index];
+        if (file && file.historyIndex > 0) {
+            const newIndex = file.historyIndex - 1;
+            newOutput[index] = {
+                ...file,
+                content: file.history[newIndex],
+                historyIndex: newIndex,
+            };
+        }
+        return newOutput;
+    });
+  }, []);
+
+  const handleRedo = useCallback((index: number) => {
+    setProcessedOutput(prev => {
+        if (!prev) return null;
+        const newOutput = [...prev];
+        const file = newOutput[index];
+        if (file && file.historyIndex < file.history.length - 1) {
+            const newIndex = file.historyIndex + 1;
+            newOutput[index] = {
+                ...file,
+                content: file.history[newIndex],
+                historyIndex: newIndex,
+            };
+        }
+        return newOutput;
     });
   }, []);
 
@@ -628,6 +672,8 @@ const App: React.FC = () => {
               onContentChange={handleContentChange}
               editorSettings={editorSettings}
               onEditorSettingsChange={handleEditorSettingsChange}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
             />
           </div>
         </main>

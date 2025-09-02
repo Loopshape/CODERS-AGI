@@ -1,8 +1,9 @@
 
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { GoogleGenAI, Chat } from "@google/genai";
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue, ChatMessage, MessageSender, ApiRequest, ApiResponse, ApiHistoryEntry, SavedApiRequest } from './types';
-import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush, gitClone, sendApiRequest, getConfig, saveConfig, trainLocalAiFromApiHistory } from './services/scriptService';
+import { processFiles, scanEnvironment, processPrompt, getInstallScript, processUrlPrompt, gitPull, gitPush, gitClone, sendApiRequest, getConfig, saveConfig } from './services/scriptService';
 import { getGeminiSuggestions, getGeminiCodeReview } from './services/geminiService';
 import { getLocalAiSuggestions, chatWithLocalAi, getLocalAiBashExtension } from './services/localAiService';
 import { processHtml } from './services/enhancementService';
@@ -619,93 +620,85 @@ const App: React.FC = () => {
     return processedOutput?.some(file => file.fileName.includes('.enhanced.')) ?? false;
   }, [processedOutput]);
 
-  const handleImproveLocalAI = useCallback((errorInfo?: string) => {
-      const enhancedFile = processedOutput?.find(file => file.fileName.includes('.enhanced.'));
-      const trainingSource = errorInfo ? 'an application error report' : enhancedFile?.fileName;
+    const runTrainingSimulation = useCallback(async (source: string) => {
+        addLog(LogType.Info, `Starting local AI training simulation with data from ${source}...`);
+        // Give a small delay for the initial message to appear before progress starts
+        await new Promise(res => setTimeout(res, 300));
+        setProgress(25);
+        addLog(LogType.Info, "Analyzing data patterns...");
+        
+        await new Promise(res => setTimeout(res, 1000));
+        setProgress(50);
+        addLog(LogType.Info, "Updating model weights...");
 
-      if (!trainingSource) {
-          addLog(LogType.Warn, "No training data available. Run 'Gemini AI Enhance' on a file or encounter an error to improve the AI.");
-          return;
-      }
+        await new Promise(res => setTimeout(res, 1000));
+        setProgress(85);
+        addLog(LogType.Info, "Fine-tuning parameters...");
 
-      setLoadingAction('improveLocalAI');
-      setProgress(0);
-      setLogs([]);
-      setActiveOutput('logs');
-      addLog(LogType.Info, `Starting local AI training with data from ${trainingSource}...`);
-      
-      const runTrainingSimulation = async () => {
-          await new Promise(res => setTimeout(res, 500));
-          setProgress(25);
-          addLog(LogType.Info, "Analyzing data patterns...");
-          
-          await new Promise(res => setTimeout(res, 1000));
-          setProgress(50);
-          addLog(LogType.Info, "Updating model weights...");
+        await new Promise(res => setTimeout(res, 800));
+        setProgress(100);
+        addLog(LogType.Success, `Local AI model successfully improved with data from ${source}.`);
+    }, [addLog]);
 
-          await new Promise(res => setTimeout(res, 1000));
-          setProgress(85);
-          addLog(LogType.Info, "Fine-tuning parameters...");
+    const handleImproveLocalAI = useCallback((errorInfo?: string) => {
+        const enhancedFile = processedOutput?.find(file => file.fileName.includes('.enhanced.'));
+        const trainingSource = errorInfo ? 'an application error report' : enhancedFile?.fileName;
 
-          await new Promise(res => setTimeout(res, 800));
-          setProgress(100);
-          addLog(LogType.Success, `Local AI model successfully improved with data from ${trainingSource}.`);
+        if (!trainingSource) {
+            addLog(LogType.Warn, "No training data available. Run 'Gemini AI Enhance' on a file or encounter an error to improve the AI.");
+            return;
+        }
 
-          await new Promise(res => setTimeout(res, 500));
-          setLoadingAction(null);
-          setProgress(0);
-      };
+        setLoadingAction('improveLocalAI');
+        setProgress(0);
+        setLogs([]);
+        setActiveOutput('logs');
+        
+        (async () => {
+            try {
+                await runTrainingSimulation(trainingSource);
+            } catch (error) {
+                triggerErrorChat('improveLocalAI', error);
+            } finally {
+                setTimeout(() => {
+                    setLoadingAction(null);
+                    setProgress(0);
+                }, 500);
+            }
+        })();
+    }, [processedOutput, addLog, runTrainingSimulation, triggerErrorChat]);
 
-      runTrainingSimulation();
+    const handleTrainFromUrl = useCallback(async (url: string) => {
+        if (!url.trim()) {
+            addLog(LogType.Warn, "Please provide a URL to train from.");
+            return;
+        }
 
-  }, [processedOutput, addLog]);
+        setLoadingAction('trainFromUrl');
+        setProgress(10);
+        setLogs([]);
+        setProcessedOutput(null);
+        setActiveFileIndex(0);
+        addLog(LogType.Gemini, `Preparing to train local AI from ${url}...`);
+        setActiveOutput('logs');
 
-  const handleTrainFromUrl = useCallback(async (url: string) => {
-    if (!url.trim()) {
-        addLog(LogType.Warn, "Please provide a URL to train from.");
-        return;
-    }
+        try {
+            const { logs: fetchLogs } = processUrlPrompt(url);
+            fetchLogs.forEach(log => addLog(log.type, log.message));
+            addLog(LogType.Info, `Content fetched successfully. Starting training simulation.`);
+            
+            await runTrainingSimulation(url);
 
-    setLoadingAction('trainFromUrl');
-    setProgress(10);
-    setLogs([]);
-    setProcessedOutput(null);
-    setActiveFileIndex(0);
-    addLog(LogType.Gemini, `Preparing to train local AI from ${url}...`);
-    setActiveOutput('logs');
-
-    try {
-      const { logs: fetchLogs } = processUrlPrompt(url);
-      fetchLogs.forEach(log => addLog(log.type, log.message));
-      addLog(LogType.Info, `Content fetched successfully. Starting training simulation.`);
-      
-      // Simulating training
-      await new Promise(res => setTimeout(res, 500));
-      setProgress(25);
-      addLog(LogType.Info, "Analyzing data patterns...");
-      
-      await new Promise(res => setTimeout(res, 1000));
-      setProgress(50);
-      addLog(LogType.Info, "Updating model weights...");
-
-      await new Promise(res => setTimeout(res, 1000));
-      setProgress(85);
-      addLog(LogType.Info, "Fine-tuning parameters...");
-
-      await new Promise(res => setTimeout(res, 800));
-      setProgress(100);
-      addLog(LogType.Success, `Local AI model successfully improved with data from ${url}.`);
-
-    } catch (error) {
-      triggerErrorChat('Training from URL', error);
-      setProgress(100);
-    } finally {
-       setTimeout(() => {
-            setLoadingAction(null);
-            setProgress(0);
-        }, 500);
-    }
-  }, [addLog, triggerErrorChat]);
+        } catch (error) {
+            triggerErrorChat('Training from URL', error);
+            setProgress(100);
+        } finally {
+            setTimeout(() => {
+                setLoadingAction(null);
+                setProgress(0);
+            }, 500);
+        }
+    }, [addLog, triggerErrorChat, runTrainingSimulation]);
   
   const handleGenerateExtension = useCallback(() => {
     handleRequest(getLocalAiBashExtension, 'generateExtension');
@@ -755,11 +748,10 @@ const App: React.FC = () => {
         setProgress(0);
         setLogs([]);
         setActiveOutput('logs');
-        addLog(LogType.Info, `Starting local AI training from ${apiHistory.length} API requests...`);
-
+        
         try {
-            const result = await trainLocalAiFromApiHistory(apiHistory);
-            result.logs.forEach(log => addLog(log.type, log.message));
+            const source = `${apiHistory.length} API requests from history`;
+            await runTrainingSimulation(source);
         } catch(error) {
             triggerErrorChat('Train from History', error);
         } finally {
@@ -768,7 +760,31 @@ const App: React.FC = () => {
                 setProgress(0);
             }, 500);
         }
-    }, [apiHistory, addLog, triggerErrorChat]);
+    }, [apiHistory, addLog, triggerErrorChat, runTrainingSimulation]);
+    
+    const handleTrainFromSavedRequests = useCallback(async () => {
+        if (savedApiRequests.length === 0) {
+            addLog(LogType.Warn, "No saved API requests available to train from.");
+            return;
+        }
+        setLoadingAction('trainFromSaved');
+        setProgress(0);
+        setLogs([]);
+        setActiveOutput('logs');
+        
+        try {
+            const source = `${savedApiRequests.length} saved API requests`;
+            await runTrainingSimulation(source);
+        } catch(error) {
+            triggerErrorChat('Train from Saved Requests', error);
+        } finally {
+            setTimeout(() => {
+                setLoadingAction(null);
+                setProgress(0);
+            }, 500);
+        }
+    }, [savedApiRequests, addLog, triggerErrorChat, runTrainingSimulation]);
+
 
     const handleSaveConfig = useCallback(async (fileName: string, content: string) => {
         addLog(LogType.Info, `Saving ${fileName}...`);
@@ -936,6 +952,69 @@ const App: React.FC = () => {
       }
   }, [isChatLoading, chatMessages]);
 
+  const handleCreateNewFile = useCallback(() => {
+    const fileName = prompt("Enter the new file name:", "untitled.txt");
+    if (fileName && fileName.trim()) {
+        const newFile: ProcessedFile = {
+            fileName: fileName.trim(),
+            content: '',
+            history: [''],
+            historyIndex: 0,
+        };
+        setProcessedOutput(prev => {
+            const newOutput = prev ? [...prev, newFile] : [newFile];
+            setActiveFileIndex(newOutput.length - 1);
+            return newOutput;
+        });
+        setActiveOutput('code');
+        addLog(LogType.Info, `Simulating: 'touch ${fileName.trim()}'`);
+        addLog(LogType.Success, `Created new file: ${fileName.trim()}`);
+    }
+  }, [addLog]);
+
+  const handleRenameFile = useCallback((indexToRename: number, newName: string) => {
+    setProcessedOutput(prev => {
+        if (!prev) return null;
+        const oldName = prev[indexToRename]?.fileName;
+        if (oldName) {
+            addLog(LogType.Info, `Simulating: 'mv ${oldName} ${newName}'`);
+            addLog(LogType.Success, `Renamed ${oldName} to ${newName}`);
+        }
+        return prev.map((file, index) => {
+            if (index === indexToRename) {
+                return { ...file, fileName: newName };
+            }
+            return file;
+        });
+    });
+  }, [addLog]);
+  
+  const handleDeleteFile = useCallback((indexToDelete: number) => {
+    const fileToDelete = processedOutput?.[indexToDelete];
+    if (fileToDelete) {
+        addLog(LogType.Info, `Simulating: 'rm ${fileToDelete.fileName}'`);
+        addLog(LogType.Success, `Deleted file: ${fileToDelete.fileName}`);
+    }
+
+    setProcessedOutput(prev => {
+        if (!prev) return null;
+        const newOutput = prev.filter((_, index) => index !== indexToDelete);
+        
+        if (newOutput.length === 0) {
+            setActiveFileIndex(0);
+            return null;
+        }
+
+        if (activeFileIndex === indexToDelete) {
+            setActiveFileIndex(Math.max(0, indexToDelete - 1));
+        } else if (activeFileIndex > indexToDelete) {
+            setActiveFileIndex(prevIndex => prevIndex - 1);
+        }
+        
+        return newOutput;
+    });
+  }, [addLog, processedOutput, activeFileIndex]);
+
 
   return (
     <ErrorBoundary onImproveLocalAI={() => handleImproveLocalAI('Client-side application crash.')}>
@@ -972,6 +1051,8 @@ const App: React.FC = () => {
                   onDeleteSavedRequest={handleDeleteSavedRequest}
                   onClearApiHistory={handleClearApiHistory}
                   onTrainFromHistory={handleTrainFromHistory}
+                  onTrainFromSavedRequests={handleTrainFromSavedRequests}
+                  onCreateNewFile={handleCreateNewFile}
                   isLoading={isLoading}
                   loadingAction={loadingAction}
                   processingFile={processingFile}
@@ -996,6 +1077,8 @@ const App: React.FC = () => {
               onCommand={handleCommand}
               onUndo={handleUndo}
               onRedo={handleRedo}
+              onRenameFile={handleRenameFile}
+              onDeleteFile={handleDeleteFile}
             />
           </main>
         </div>
