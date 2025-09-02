@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { LogEntry, LogType, ProcessedFile, CodeReviewReport, CodeIssue } from '../types';
 import { CodeIcon } from './icons/CodeIcon';
-import { EyeIcon } from './icons/EyeIcon';
+import { EyeIcon } from '../EyeIcon';
 import { TerminalIcon } from './icons/TerminalIcon';
 import DownloadButton from './DownloadButton';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -11,10 +11,11 @@ import { getLocalAiCodeReview } from '../services/localAiService';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import { CpuChipIcon } from './icons/CpuChipIcon';
 import { UndoIcon } from './icons/UndoIcon';
-import { RedoIcon } from '../../src/RedoIcon';
-import { ShareIcon } from '../../src/ShareIcon';
+import { RedoIcon } from '../src/RedoIcon';
+import { ShareIcon } from '../src/ShareIcon';
 import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
+import { CogIcon } from './icons/CogIcon';
 
 
 interface EditorSettings {
@@ -97,7 +98,7 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
 
     switch (activeOutput) {
       case 'code':
-        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} onContentChange={(newContent) => onContentChange(newContent, activeFileIndex)} editorSettings={editorSettings} onAnalyze={handleAnalyzeWithLocalAI} isAnalyzing={isReviewLoading} onUndo={() => onUndo(activeFileIndex)} onRedo={() => onRedo(activeFileIndex)} canUndo={canUndo} canRedo={canRedo} onRename={(newName) => onRenameFile(activeFileIndex, newName)} /> : <NoContent message="No output to display. Process something first." />;
+        return currentFile ? <CodeDisplay content={currentFile.content} fileName={currentFile.fileName} onContentChange={(newContent) => onContentChange(newContent, activeFileIndex)} editorSettings={editorSettings} onEditorSettingsChange={onEditorSettingsChange} onAnalyze={handleAnalyzeWithLocalAI} isAnalyzing={isReviewLoading} onUndo={() => onUndo(activeFileIndex)} onRedo={() => onRedo(activeFileIndex)} canUndo={canUndo} canRedo={canRedo} onRename={(newName) => onRenameFile(activeFileIndex, newName)} /> : <NoContent message="No output to display. Process something first." />;
       case 'preview':
         return currentFile && currentFile.content.trim().startsWith('<') ? <iframe srcDoc={currentFile.content} title="Live Preview" className="w-full h-full bg-white rounded-b-lg" sandbox="allow-scripts allow-forms allow-modals allow-popups" /> : <NoContent message="No HTML content to preview." />;
       case 'logs':
@@ -116,10 +117,6 @@ const OutputViewer: React.FC<OutputViewerProps> = ({
         <OutputTabButton icon={<EyeIcon />} label="Preview" isActive={activeOutput === 'preview'} onClick={() => setActiveOutput('preview')} disabled={isPreviewDisabled}/>
         <OutputTabButton icon={<TerminalIcon />} label="Terminal" isActive={activeOutput === 'logs'} onClick={() => setActiveOutput('logs')} />
       </div>
-
-      {activeOutput === 'code' && processedOutput && (
-          <EditorSettingsPanel settings={editorSettings} onChange={onEditorSettingsChange} />
-      )}
 
       {processedOutput && processedOutput.length > 0 && (activeOutput === 'code' || activeOutput === 'preview') && (
         <div className="flex border-b border-brand-border bg-brand-bg/50 px-2 shrink-0 overflow-x-auto" role="tablist" aria-label="Processed files">
@@ -204,30 +201,46 @@ const CodeReviewModal: React.FC<{ report: CodeReviewReport | null; error: string
     );
 };
 
-const EditorSettingsPanel: React.FC<{ settings: EditorSettings; onChange: (newSettings: Partial<EditorSettings>) => void }> = ({ settings, onChange }) => {
+const EditorSettingsPopover: React.FC<{ settings: EditorSettings; onChange: (newSettings: Partial<EditorSettings>); onClose: () => void; triggerRef: React.RefObject<HTMLButtonElement> }> = ({ settings, onChange, onClose, triggerRef }) => {
+    const popoverRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (popoverRef.current && !popoverRef.current.contains(event.target as Node) && !triggerRef.current?.contains(event.target as Node)) {
+                onClose();
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [onClose, triggerRef]);
+
     return (
-        <div className="bg-brand-bg/50 border-b border-brand-border p-2 flex items-center justify-end space-x-4 text-sm">
-            <div className="flex items-center space-x-2">
-                <label htmlFor="theme-select" className="text-brand-text-secondary">Theme:</label>
-                <select id="theme-select" value={settings.theme} onChange={e => onChange({ theme: e.target.value as 'light' | 'dark' })} className="bg-brand-surface border border-brand-border rounded px-2 py-1 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent">
-                    <option value="dark">Dark</option>
-                    <option value="light">Light</option>
-                </select>
-            </div>
-             <div className="flex items-center space-x-2">
-                <label htmlFor="font-size-input" className="text-brand-text-secondary">Font Size:</label>
-                <input type="number" id="font-size-input" value={settings.fontSize} onChange={e => onChange({ fontSize: Number(e.target.value) })} className="bg-brand-surface border border-brand-border rounded px-2 py-1 w-16 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent" />
-            </div>
-             <div className="flex items-center space-x-2">
-                <label htmlFor="tab-size-input" className="text-brand-text-secondary">Tab Size:</label>
-                <input type="number" id="tab-size-input" value={settings.tabSize} min="1" max="8" onChange={e => onChange({ tabSize: Number(e.target.value) })} className="bg-brand-surface border border-brand-border rounded px-2 py-1 w-16 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent" />
+        <div ref={popoverRef} className="absolute top-12 right-0 bg-brand-surface border border-brand-border rounded-lg shadow-xl z-20 w-64 p-4 animate-fade-in">
+            <h4 className="text-sm font-semibold text-brand-text-primary mb-3">Editor Settings</h4>
+            <div className="space-y-4 text-sm">
+                <div className="flex items-center justify-between">
+                    <label htmlFor="theme-select" className="text-brand-text-secondary">Theme</label>
+                    <select id="theme-select" value={settings.theme} onChange={e => onChange({ theme: e.target.value as 'light' | 'dark' })} className="bg-brand-bg border border-brand-border rounded px-2 py-1 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent w-24">
+                        <option value="dark">Dark</option>
+                        <option value="light">Light</option>
+                    </select>
+                </div>
+                 <div className="flex items-center justify-between">
+                    <label htmlFor="font-size-input" className="text-brand-text-secondary">Font Size</label>
+                    <input type="number" id="font-size-input" value={settings.fontSize} onChange={e => onChange({ fontSize: Number(e.target.value) })} className="bg-brand-bg border border-brand-border rounded px-2 py-1 w-24 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent" />
+                </div>
+                 <div className="flex items-center justify-between">
+                    <label htmlFor="tab-size-input" className="text-brand-text-secondary">Tab Size</label>
+                    <input type="number" id="tab-size-input" value={settings.tabSize} min="1" max="8" onChange={e => onChange({ tabSize: Number(e.target.value) })} className="bg-brand-bg border border-brand-border rounded px-2 py-1 w-24 text-brand-text-primary focus:outline-none focus:ring-2 focus:ring-brand-accent" />
+                </div>
             </div>
         </div>
     );
 };
 
+
 const OutputTabButton: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void; disabled?: boolean; }> = ({ icon, label, isActive, onClick, disabled = false }) => (
-    <button onClick={onClick} className={`flex items-center justify-center space-x-2 flex-1 text-center py-3 px-2 font-semibold transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-accent/50 ${disabled ? 'text-brand-text-secondary/50 cursor-not-allowed' : isActive ? 'text-brand-accent bg-brand-bg' : 'text-brand-text-secondary hover:text-brand-text-primary'}`} disabled={disabled} role="tab" aria-selected={isActive}>
+    <button onClick={onClick} className={`flex items-center justify-center space-x-2 flex-1 text-center py-3 px-2 font-semibold transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-accent/50 border-b-2 ${disabled ? 'text-brand-text-secondary/50 cursor-not-allowed' : isActive ? 'text-brand-accent border-brand-accent' : 'text-brand-text-secondary hover:text-brand-text-primary border-transparent'}`} disabled={disabled} role="tab" aria-selected={isActive}>
         {icon}
         <span className="hidden sm:inline">{label}</span>
     </button>
@@ -244,14 +257,14 @@ const FileTabButton: React.FC<{ fileName: string; isActive: boolean; onClick: ()
     return (
         <button
             onClick={onClick}
-            className={`py-2 px-4 text-sm font-medium whitespace-nowrap transition-colors duration-200 focus:outline-none border-b-2 flex items-center group ${isActive ? 'text-brand-accent border-brand-accent' : 'text-brand-text-secondary hover:text-brand-text-primary border-transparent'}`}
+            className={`py-2 px-4 text-sm font-medium whitespace-nowrap transition-colors duration-200 focus:outline-none border-b-2 flex items-center group relative -mb-px ${isActive ? 'text-brand-accent border-brand-accent bg-brand-surface' : 'text-brand-text-secondary hover:text-brand-text-primary border-transparent hover:bg-brand-bg'}`}
             role="tab"
             aria-selected={isActive}
         >
-            <span className="truncate max-w-[150px]">{fileName}</span>
-            <button onClick={handleDelete} className="ml-2 p-0.5 rounded-full text-brand-text-secondary/70 hover:bg-brand-error/80 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Delete ${fileName}`}>
+            <span className="truncate max-w-[150px] pr-6">{fileName}</span>
+            <div onClick={handleDelete} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-brand-text-secondary/70 hover:bg-brand-border hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity" aria-label={`Delete ${fileName}`}>
                 <TrashIcon className="w-3.5 h-3.5" />
-            </button>
+            </div>
         </button>
     );
 };
@@ -320,6 +333,7 @@ interface CodeDisplayProps {
   fileName: string;
   onContentChange: (newContent: string) => void;
   editorSettings: EditorSettings;
+  onEditorSettingsChange: (newSettings: Partial<EditorSettings>) => void;
   onAnalyze: (content: string) => void;
   isAnalyzing: boolean;
   onUndo: () => void;
@@ -329,13 +343,15 @@ interface CodeDisplayProps {
   onRename: (newName: string) => void;
 }
 
-const CodeDisplay: React.FC<CodeDisplayProps> = ({ content, fileName, onContentChange, editorSettings, onAnalyze, isAnalyzing, onUndo, onRedo, canUndo, canRedo, onRename }) => {
+const CodeDisplay: React.FC<CodeDisplayProps> = ({ content, fileName, onContentChange, editorSettings, onEditorSettingsChange, onAnalyze, isAnalyzing, onUndo, onRedo, canUndo, canRedo, onRename }) => {
     const [copied, setCopied] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const highlighterRef = useRef<HTMLDivElement>(null);
     const [isRenaming, setIsRenaming] = useState(false);
     const [editableFileName, setEditableFileName] = useState(fileName);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const settingsBtnRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         setEditableFileName(fileName);
@@ -435,7 +451,7 @@ const CodeDisplay: React.FC<CodeDisplayProps> = ({ content, fileName, onContentC
 
     return (
         <div className="bg-brand-bg rounded-b-lg h-full flex flex-col">
-            <div className="flex justify-between items-center p-3 bg-brand-surface border-b border-brand-border shrink-0">
+            <div className="relative flex justify-between items-center p-2 pl-3 bg-brand-surface border-b border-brand-border shrink-0">
                 <div className="flex items-center space-x-2 text-sm font-mono text-brand-text-secondary truncate pr-4">
                     {isRenaming ? (
                         <input
@@ -448,39 +464,42 @@ const CodeDisplay: React.FC<CodeDisplayProps> = ({ content, fileName, onContentC
                             autoFocus
                         />
                     ) : (
-                        <span className="truncate">{fileName}</span>
+                        <span className="truncate" title={fileName}>{fileName}</span>
                     )}
-                    <button onClick={() => setIsRenaming(!isRenaming)} disabled={isRenaming} className="p-1 rounded hover:bg-brand-border disabled:opacity-50" aria-label="Rename file">
+                    <button onClick={() => setIsRenaming(!isRenaming)} disabled={isRenaming} className="p-1 rounded hover:bg-brand-border disabled:opacity-50" aria-label="Rename file" title="Rename file">
                         <PencilIcon className="w-4 h-4" />
                     </button>
                 </div>
-                <div className="flex items-center space-x-3">
-                    {/* Edit Group */}
-                    <div className="flex items-center space-x-1">
-                        <button onClick={onUndo} disabled={!canUndo} className="p-1 rounded hover:bg-brand-border disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Undo"><UndoIcon className="w-5 h-5"/></button>
-                        <button onClick={onRedo} disabled={!canRedo} className="p-1 rounded hover:bg-brand-border disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Redo"><RedoIcon className="w-5 h-5"/></button>
-                    </div>
-                    <div className="w-px h-5 bg-brand-border"></div>
-
-                    {/* AI Group */}
-                    <button onClick={() => onAnalyze(content)} disabled={isAnalyzing} className="text-sm bg-brand-info/20 text-brand-info px-3 py-1 rounded hover:bg-brand-info hover:text-white transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {isAnalyzing ? <SpinnerIcon className="w-4 h-4 animate-spin"/> : <CpuChipIcon className="w-4 h-4" />}
-                        <span>Analyze</span>
-                    </button>
-                    <div className="w-px h-5 bg-brand-border"></div>
-
+                <div className="flex items-center space-x-2">
                     {/* Actions Group */}
-                    <div className="flex items-center space-x-2">
-                        <button onClick={handleCopy} className="text-sm bg-brand-border/50 px-3 py-1 rounded hover:bg-brand-accent hover:text-white transition-colors">
-                            {copied ? 'Copied!' : 'Copy'}
-                        </button>
-                        <button onClick={handleShareLink} className="text-sm bg-brand-border/50 px-3 py-1 rounded hover:bg-brand-accent hover:text-white transition-colors flex items-center space-x-1.5">
-                            <ShareIcon className="w-4 h-4" />
-                            <span>{linkCopied ? 'Link Copied!' : 'Share'}</span>
-                        </button>
+                    <div className="flex items-center space-x-1 bg-brand-bg p-1 rounded-md">
+                        <button onClick={handleCopy} className="text-sm px-3 py-1 rounded-md hover:bg-brand-border transition-colors w-24 text-center">{copied ? 'Copied!' : 'Copy'}</button>
                         <DownloadButton content={content} fileName={fileName} />
                     </div>
+                    
+                    <div className="w-px h-6 bg-brand-border mx-1"></div>
+                    
+                    {/* AI & History Group */}
+                    <div className="flex items-center space-x-1 bg-brand-bg p-1 rounded-md">
+                        <button onClick={onUndo} disabled={!canUndo} className="p-1.5 rounded-md hover:bg-brand-border disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Undo" title="Undo (Ctrl+Z)"><UndoIcon className="w-5 h-5"/></button>
+                        <button onClick={onRedo} disabled={!canRedo} className="p-1.5 rounded-md hover:bg-brand-border disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Redo" title="Redo (Ctrl+Y)"><RedoIcon className="w-5 h-5"/></button>
+                        <div className="w-px h-5 bg-brand-border/50 mx-1"></div>
+                        <button onClick={() => onAnalyze(content)} disabled={isAnalyzing} className="p-1.5 rounded-md hover:bg-brand-border disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Analyze with Local AI" title="Analyze with Local AI">
+                            {isAnalyzing ? <SpinnerIcon className="w-5 h-5 animate-spin"/> : <CpuChipIcon className="w-5 h-5 text-brand-info" />}
+                        </button>
+                         <button onClick={handleShareLink} className="p-1.5 rounded-md hover:bg-brand-border" aria-label="Share" title={linkCopied ? 'Link Copied!' : 'Get sharable link'}>
+                            <ShareIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <div className="w-px h-6 bg-brand-border mx-1"></div>
+
+                    {/* Settings */}
+                    <button ref={settingsBtnRef} onClick={() => setIsSettingsOpen(prev => !prev)} className="p-1.5 rounded-md hover:bg-brand-border" aria-label="Editor settings" title="Editor settings">
+                        <CogIcon className="w-5 h-5" />
+                    </button>
                 </div>
+                {isSettingsOpen && <EditorSettingsPopover settings={editorSettings} onChange={onEditorSettingsChange} onClose={() => setIsSettingsOpen(false)} triggerRef={settingsBtnRef}/>}
             </div>
             <div className="relative flex-grow overflow-hidden">
                 <textarea

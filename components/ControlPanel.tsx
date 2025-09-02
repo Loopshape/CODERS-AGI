@@ -101,7 +101,7 @@ const ControlPanel: React.FC<ControlPanelProps> = (props) => {
 
   return (
     <div className="bg-brand-surface rounded-lg border border-brand-border shadow-2xl flex flex-col h-full">
-      <div className="flex border-b border-brand-border shrink-0">
+      <div className="flex border-b border-brand-border shrink-0 px-2">
         <TabButton icon={<FileCodeIcon />} label="Files" isActive={activeTab === 'files'} onClick={() => setActiveTab('files')} />
         <TabButton icon={<GitBranchIcon />} label="Git" isActive={activeTab === 'git'} onClick={() => setActiveTab('git')} />
         <TabButton icon={<GlobeIcon />} label="API" isActive={activeTab === 'api'} onClick={() => setActiveTab('api')} />
@@ -135,7 +135,7 @@ const ControlPanel: React.FC<ControlPanelProps> = (props) => {
 };
 
 const TabButton: React.FC<{ icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void; }> = ({ icon, label, isActive, onClick }) => (
-    <button onClick={onClick} className={`flex items-center justify-center space-x-2 flex-1 text-center py-2.5 px-2 font-semibold transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-accent/50 ${isActive ? 'text-brand-accent bg-brand-bg' : 'text-brand-text-secondary hover:text-brand-text-primary'}`} role="tab" aria-selected={isActive}>
+    <button onClick={onClick} className={`flex items-center justify-center space-x-2 flex-1 text-center py-2.5 px-2 font-semibold transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-accent/50 border-b-2 ${isActive ? 'text-brand-accent border-brand-accent' : 'text-brand-text-secondary hover:text-brand-text-primary border-transparent'}`} role="tab" aria-selected={isActive}>
         {icon}
         <span className="hidden sm:inline text-sm">{label}</span>
     </button>
@@ -373,21 +373,20 @@ const SystemPanel: React.FC<ControlPanelProps> = ({ onScanEnvironment, onGetInst
 };
 
 const CollapsibleSection: React.FC<{title: string, icon: React.ReactNode, actionButton?: React.ReactNode, children: React.ReactNode}> = ({ title, icon, actionButton, children }) => {
-    const [isOpen, setIsOpen] = useState(true);
     return (
-        <div className="border border-brand-border/50 rounded-lg overflow-hidden">
-            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center p-2 bg-brand-bg/50 hover:bg-brand-bg text-sm font-semibold text-brand-text-secondary hover:text-brand-text-primary">
+        <details className="border border-brand-border/50 rounded-lg overflow-hidden group" open>
+            <summary className="w-full flex justify-between items-center p-2 bg-brand-bg/50 hover:bg-brand-bg text-sm font-semibold text-brand-text-secondary hover:text-brand-text-primary cursor-pointer list-none">
                 <div className="flex items-center space-x-2">
                     {icon}
                     <span>{title}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                     {actionButton}
-                    <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+                    <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
                 </div>
-            </button>
-            {isOpen && <div className="p-3 border-t border-brand-border/50 animate-fade-in">{children}</div>}
-        </div>
+            </summary>
+            <div className="p-3 border-t border-brand-border/50 animate-fade-in">{children}</div>
+        </details>
     )
 }
 
@@ -443,7 +442,7 @@ const TrainingDropdown: React.FC<{
             </ActionButton>
             
             {isOpen && (
-                <div className="absolute bottom-full mb-2 w-full bg-brand-surface border border-brand-border rounded-md shadow-lg z-20 animate-fade-in">
+                <div className="absolute top-full mt-2 w-full bg-brand-surface border border-brand-border rounded-md shadow-lg z-20 animate-fade-in">
                     <ul className="py-1" role="menu">
                         {trainingSources.map(({ label, action, disabled }) => (
                              <li key={label}>

@@ -223,39 +223,154 @@ export const processUrlPrompt = (url: string) => {
 
 export const getInstallScript = () => {
     const script = `#!/bin/bash
-echo ">>> AI/AGI/AIM Tool Installer"
-echo ">>> This is a simulation."
+# AI/AGI/AIM Unified Tool - Full-Feature Installer
+# This script is a self-contained bundler for the 'ai' command-line tool.
 
-# Create bin directory if it doesn't exist
-mkdir -p ~/bin
-echo "[OK] Ensured ~/bin directory exists."
+# --- Configuration ---
+INSTALL_DIR="$HOME/bin"
+CONFIG_DIR="$HOME/.config/ai-tool"
+TOOL_NAME="ai"
+CONFIG_FILE="$CONFIG_DIR/config.env"
+TOOL_PATH="$INSTALL_DIR/$TOOL_NAME"
 
-# Copy script to bin
-echo ">>> Copying main script to ~/bin/ai..."
-cp ./ai_script.sh ~/bin/ai
-chmod +x ~/bin/ai
-echo "[OK] Script installed to ~/bin/ai"
+# --- Colors for better output ---
+C_RESET='\\033[0m'
+C_RED='\\033[0;31m'
+C_GREEN='\\033[0;32m'
+C_YELLOW='\\033[0;33m'
+C_BLUE='\\033[0;34m'
+C_CYAN='\\033[0;36m'
 
-# Add to .bashrc if not already there
-if ! grep -q 'export PATH="$HOME/bin:$PATH"' ~/.bashrc; then
-  echo ">>> Adding ~/bin to PATH in .bashrc..."
-  echo '' >> ~/.bashrc
-  echo '# Add local bin to PATH for custom scripts' >> ~/.bashrc
-  echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
-  echo "[OK] .bashrc updated. Please run 'source ~/.bashrc' or restart your shell."
-else
-  echo "[INFO] ~/bin is already in your PATH."
+# --- Helper Functions ---
+info() {
+    echo -e "$\{C_BLUE}[INFO] $\{1}$\{C_RESET}"
+}
+
+success() {
+    echo -e "$\{C_GREEN}[SUCCESS] $\{1}$\{C_RESET}"
+}
+
+warn() {
+    echo -e "$\{C_YELLOW}[WARN] $\{1}$\{C_RESET}"
+}
+
+error() {
+    echo -e "$\{C_RED}[ERROR] $\{1}$\{C_RESET}" >&2
+    exit 1
+}
+
+# --- Main Script Content (Bundled via Heredoc) ---
+read -r -d '' MAIN_SCRIPT_CONTENT <<'EOF'
+#!/bin/bash
+# AI/AGI/AIM Unified Processing Tool
+
+# Load configuration
+if [ -f "$HOME/.config/ai-tool/config.env" ]; then
+    source "$HOME/.config/ai-tool/config.env"
 fi
 
-echo ">>> Installation simulation complete."
+# Default to OLLAMA_MODEL if not set
+OLLAMA_MODEL="\${OLLAMA_MODEL:-gemma3:1b}"
+
+echo "AI Tool Initialized."
+echo "Using model: \$OLLAMA_MODEL"
+echo "Received args: \$@"
+# Add more simulated logic here...
+EOF
+
+# --- Default Config Content (Bundled via Heredoc) ---
+read -r -d '' DEFAULT_CONFIG_CONTENT <<'EOF'
+# AI Tool Configuration
+# Set the default Ollama model to use.
+OLLAMA_MODEL="gemma3:1b"
+
+# Your name for commit messages, etc.
+USER_NAME="Anonymous Coder"
+EOF
+
+# --- Installation Logic ---
+main() {
+    info "Starting AI/AGI/AIM Tool installation..."
+    sleep 1
+
+    # 1. Check dependencies
+    info "Checking for dependencies..."
+    if ! command -v git &> /dev/null; then
+        warn "'git' could not be found. Some features might be unavailable."
+    else
+        info "Found 'git'."
+    fi
+    if ! command -v curl &> /dev/null; then
+        warn "'curl' could not be found. Some features might be unavailable."
+    else
+        info "Found 'curl'."
+    fi
+    sleep 1
+
+    # 2. Create directories
+    info "Setting up installation directories..."
+    mkdir -p "$INSTALL_DIR" || error "Failed to create installation directory at $INSTALL_DIR."
+    mkdir -p "$CONFIG_DIR" || error "Failed to create configuration directory at $CONFIG_DIR."
+    info "Directories are ready."
+    sleep 1
+
+    # 3. Write the main script
+    info "Installing the '$TOOL_NAME' command to $TOOL_PATH..."
+    echo "$MAIN_SCRIPT_CONTENT" > "$TOOL_PATH"
+    chmod +x "$TOOL_PATH" || error "Failed to make the script executable."
+    success "The '$TOOL_NAME' command has been installed."
+    sleep 1
+
+    # 4. Write the default config
+    if [ ! -f "$CONFIG_FILE" ]; then
+        info "Creating default configuration file at $CONFIG_FILE..."
+        echo "$DEFAULT_CONFIG_CONTENT" > "$CONFIG_FILE"
+        success "Default config created."
+    else
+        info "Configuration file already exists. Skipping creation."
+    fi
+    sleep 1
+
+    # 5. Update PATH in .bashrc/.profile
+    info "Checking if '$INSTALL_DIR' is in your PATH..."
+    SHELL_PROFILE=""
+    if [ -f "$HOME/.bashrc" ]; then
+        SHELL_PROFILE="$HOME/.bashrc"
+    elif [ -f "$HOME/.profile" ]; then
+        SHELL_PROFILE="$HOME/.profile"
+    else
+        warn "Could not find .bashrc or .profile. Please add '$INSTALL_DIR' to your PATH manually."
+    fi
+    
+    if [ -n "$SHELL_PROFILE" ]; then
+        if ! grep -q "export PATH=\\"$INSTALL_DIR:\\$PATH\\"" "$SHELL_PROFILE"; then
+            info "Adding '$INSTALL_DIR' to PATH in $SHELL_PROFILE..."
+            echo '' >> "$SHELL_PROFILE"
+            echo '# Add AI/AGI/AIM Tool to PATH' >> "$SHELL_PROFILE"
+            echo "export PATH=\\"$INSTALL_DIR:\\$PATH\\"" >> "$SHELL_PROFILE"
+            success "PATH updated."
+            info "Please run 'source $SHELL_PROFILE' or restart your terminal to use the '$TOOL_NAME' command."
+        else
+            info "'$INSTALL_DIR' is already in your PATH."
+        fi
+    fi
+
+    echo
+    success "Installation complete!"
+    info "You can now run the '$TOOL_NAME' command from your terminal."
+    info "Customize your settings in '$CONFIG_FILE'."
+}
+
+# Execute main function
+main
 `;
     return {
         output: script,
         logs: [
-            { type: LogType.Info, message: 'Generating installer script...' },
-            { type: LogType.Success, message: 'Installer script generated successfully.' },
+            { type: LogType.Info, message: 'Generating full-featured installer script...' },
+            { type: LogType.Success, message: 'Installer script bundle generated successfully.' },
         ],
-        fileName: 'ai-installer.sh',
+        fileName: 'ai-full-installer.sh',
     };
 };
 

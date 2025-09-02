@@ -1021,9 +1021,9 @@ const App: React.FC = () => {
       <div className="bg-brand-bg font-sans flex flex-col h-screen">
         <Header onTogglePanel={() => setIsPanelOpen(!isPanelOpen)} isPanelOpen={isPanelOpen} />
 
-        <div className="flex-grow container mx-auto px-4 md:px-6 lg:px-8 flex items-start gap-8 overflow-hidden">
-          <aside className={`shrink-0 transition-all duration-300 ease-in-out ${isPanelOpen ? 'w-full max-w-[450px] opacity-100' : 'w-0 opacity-0 -translate-x-8 pointer-events-none'}`}>
-            <div className={`transition-opacity duration-200 h-full ${isPanelOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+        <div className="flex-grow flex items-start overflow-hidden">
+          <aside className={`shrink-0 transition-all duration-300 ease-in-out h-full overflow-y-auto ${isPanelOpen ? 'w-full max-w-[450px] lg:max-w-sm xl:max-w-md p-4 border-r border-brand-border/50' : 'w-0 p-0'}`}>
+            <div className={`transition-opacity duration-200 ${isPanelOpen ? 'opacity-100' : 'opacity-0'}`}>
               <ControlPanel 
                   onProcessFiles={handleProcessFiles}
                   onScanEnvironment={handleScanEnvironment}
@@ -1061,25 +1061,27 @@ const App: React.FC = () => {
             </div>
           </aside>
           
-          <main role="main" className="flex-grow min-w-0 h-full pb-4">
-            <OutputViewer
-              processedOutput={processedOutput}
-              logs={logs}
-              isLoading={isLoading}
-              isLoadingCommand={loadingAction === 'geminiCommand'}
-              activeOutput={activeOutput}
-              setActiveOutput={setActiveOutput}
-              activeFileIndex={activeFileIndex}
-              setActiveFileIndex={setActiveFileIndex}
-              onContentChange={handleContentChange}
-              editorSettings={editorSettings}
-              onEditorSettingsChange={handleEditorSettingsChange}
-              onCommand={handleCommand}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              onRenameFile={handleRenameFile}
-              onDeleteFile={handleDeleteFile}
-            />
+          <main role="main" className="flex-grow min-w-0 h-full">
+            <div className="h-full px-2 sm:px-4 lg:px-6 py-4">
+              <OutputViewer
+                processedOutput={processedOutput}
+                logs={logs}
+                isLoading={isLoading}
+                isLoadingCommand={loadingAction === 'geminiCommand'}
+                activeOutput={activeOutput}
+                setActiveOutput={setActiveOutput}
+                activeFileIndex={activeFileIndex}
+                setActiveFileIndex={setActiveFileIndex}
+                onContentChange={handleContentChange}
+                editorSettings={editorSettings}
+                onEditorSettingsChange={handleEditorSettingsChange}
+                onCommand={handleCommand}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                onRenameFile={handleRenameFile}
+                onDeleteFile={handleDeleteFile}
+              />
+            </div>
           </main>
         </div>
         
