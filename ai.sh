@@ -1,61 +1,84 @@
 #!/usr/bin/env bash
-# Minimal One-Shot AI CLI (Proot / Termux)
-set -euo pipefail
-IFS=$'\n\t'
+# ~/_/ai.sh - 2244 Crew Parallel AI Orchestrator
+# Requirements: Ollama 0.12.x running locally, models pulled
 
-AI_HOME="${HOME}/.local_ai"
-DB="$AI_HOME/core.db"
-SANDBOX="$AI_HOME/sandbox"
-mkdir -p "$AI_HOME" "$SANDBOX" "$HOME/logs"
+# --- CONFIG ---
+AGENTS=(core loop code coin 2244 neuro)
+MODEL_MAP=(
+    [core]="core:latest"
+    [loop]="loop:latest"
+    [code]="code:latest"
+    [coin]="coin:latest"
+    [2244]="2244:latest"
+    [neuro]="gemma3:1b"
+)
+CREW_POOL="deepseek-coder:latest"
+LOG_FILE="$HOME/_/ai/crew.log"
 
-log() { echo "[$(date '+%H:%M:%S')] $*"; }
+# --- FUNCTIONS ---
 
-# --- Dependencies via apt only ---
-apt update && apt install -y python3-full curl wget git unzip nodejs build-essential nano busybox
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
 
-# --- Ollama CLI ---
-if ! command -v ollama &>/dev/null; then
-    log "Downloading Ollama CLI..."
-    curl -L -o /tmp/ollama.tar.gz https://ollama-releases.s3.amazonaws.com/ollama-cli-latest-linux.tar.gz
-    tar -xzf /tmp/ollama.tar.gz -C /tmp
-    chmod +x /tmp/ollama
-    mv /tmp/ollama /usr/local/bin/
-    log "Ollama installed."
+# Send prompt to an agent, stream JSON response
+stream_agent() {
+    local agent="$1"
+    local prompt="$2"
+    local model="${MODEL_MAP[$agent]}"
+    log "🚀 $agent START stream"
+
+    curl -s -N -X POST http://localhost:11434/api/generate \
+        -H 'Content-Type: application/json' \
+        -d "{\"model\":\"$model\",\"prompt\":\"$prompt\",\"stream\":true}" \
+        | while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            if echo "$line" | grep -q '"response"'; then
+                local resp=$(echo "$line" | jq -r '.response')
+                echo "[$agent] $resp"
+            fi
+        done
+
+    log "✅ $agent END stream"
+}
+
+# Neuro observer: reads all outputs and provides strategic advice
+neuro_observe() {
+    local prompt="$1"
+    log "👁️ Neuro observing..."
+    stream_agent "neuro" "$prompt"
+}
+
+# Crew pool summarizer
+crew_pool() {
+    local prompt="$1"
+    log "🤖 Crew Pool processing..."
+    stream_agent "Crew-AI" "$prompt"
+}
+
+# Parallel execution
+run_parallel() {
+    local prompt="$1"
+    neuro_observe "$prompt" &  # Neuro watches while agents process
+    PIDS=()
+    for agent in "${AGENTS[@]}"; do
+        [[ "$agent" == "neuro" ]] && continue  # Neuro already running
+        stream_agent "$agent" "$prompt" &
+        PIDS+=($!)
+    done
+    crew_pool "$prompt" &
+    PIDS+=($!)
+    wait "${PIDS[@]}"
+}
+
+# --- MAIN ---
+if [[ $# -eq 0 ]]; then
+    echo "Usage: ai.sh 'Your prompt here...'"
+    exit 1
 fi
 
-# --- Initialize DB if missing ---
-if [ ! -f "$DB" ]; then
-    log "Initializing DB..."
-    sqlite3 "$DB" "CREATE TABLE mindflow(id INTEGER PRIMARY KEY, session_id TEXT, model_name TEXT, output TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP);"
-    sqlite3 "$DB" "CREATE TABLE cache(prompt_hash TEXT PRIMARY KEY, final_answer TEXT);"
-fi
-
-# --- Webserver (optional) ---
-if ! pgrep -f "busybox httpd" > /dev/null; then
-    busybox httpd -f -p 80 -h "$SANDBOX" &
-fi
-
-# --- Prompt Input ---
-PROMPT="${*:-}"
-if [ -z "$PROMPT" ]; then
-    read -rp "Enter your prompt: " PROMPT
-fi
-
-# --- Fake/Placeholder Model Output ---
-MODEL="default-model"
-OUTPUT="Simulated AI answer for: $PROMPT"
-
-# --- Language Filter: English/German Only ---
-OUTPUT=$(echo "$OUTPUT" | sed 's/[^A-Za-z0-9äöüßÄÖÜ,.!?;:()"\x27 \t\n-]//g')
-
-# --- Save to DB ---
-SESSION=$(uuidgen)
-sqlite3 "$DB" "INSERT INTO mindflow(session_id, model_name, output) VALUES('$SESSION','$MODEL','$(echo "$OUTPUT" | sed "s/'/''/g")');"
-
-# --- Cache ---
-HASH=$(echo -n "$PROMPT" | sha256sum | awk '{print $1}')
-sqlite3 "$DB" "INSERT OR REPLACE INTO cache(prompt_hash, final_answer) VALUES('$HASH','$(echo "$OUTPUT" | sed "s/'/''/g")');"
-
-# --- Output ---
-echo "$OUTPUT"
-log "✅ AI CLI finished. Language filtered: English/German only."
+PROMPT="$*"
+log "=== NEW PROMPT ==="
+log "Prompt: $PROMPT"
+run_parallel "$PROMPT"
+log "=== PROMPT COMPLETE ==="

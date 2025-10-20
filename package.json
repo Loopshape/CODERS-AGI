@@ -1,25 +1,27 @@
 {
-  "name": "gemini-code-reviewer",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "coders-agi-project",
+  "version": "1.0.0",
+  "description": "An AGI framework for generating and managing code, powered by Google Gemini.",
+  "main": "server.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.js"
   },
   "dependencies": {
-    "@google/genai": "^1.21.0",
-    "lucide-react": "^0.417.0",
-    "marked": "^13.0.2",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-syntax-highlighter": "^15.5.0"
+    "@google/genai": "^0.15.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "firebase": "^10.12.3",
+    "zustand": "^4.5.4",
+    "lucide-react": "^0.395.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.0"
   }
 }

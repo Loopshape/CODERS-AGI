@@ -29,3 +29,5 @@ fi
 # Python3
 source .env.local/bin/activate
 eval $(ssh-agent -s)
+
+alias ai="~/./2244.sh project-2244/system/runner.sh"
