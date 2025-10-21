@@ -1,89 +1,160 @@
 #!/usr/bin/env bash
-# ai_cli_host_ws.sh - Full AI CLI Orchestrator + Dashboard Host
+# ai.sh v33.1 - Termux Ollama Orchestrator + Unrestricted File I/O
+set -euo pipefail
+IFS=$'\n\t'
 
-BASE="$HOME/_/ai"
-TMP="$BASE/tmp"
-DB="$BASE/db/qbits.sqlite3"
+# --- CONFIG ---
+AI_HOME="${AI_HOME:-$HOME/.ai_agent}"
+PROJECTS_DIR="${PROJECTS_DIR:-$HOME/ai_projects}"
+LOG_FILE="$AI_HOME/ai.log"
+LOG_LEVEL="${LOG_LEVEL:-INFO}"
+CORE_DB="$AI_HOME/agent_core.db"
 
-mkdir -p "$TMP" "$BASE/db"
+MESSENGER_MODEL="loop:latest"
+PLANNER_MODELS=("loop:latest" "core:latest")
+EXECUTOR_MODEL="2244:latest"
+OLLAMA_BIN="$(command -v ollama || echo 'ollama')"
 
-# --- Initialize SQLite ---
-sqlite3 "$DB" "CREATE TABLE IF NOT EXISTS qbits (
-    agent TEXT,
-    prompt TEXT,
-    hash TEXT,
-    iteration INTEGER,
-    response TEXT,
-    timestamp REAL,
-    temp REAL
-);"
+MAX_AGENT_LOOPS=7
+SWAP_DIR="$AI_HOME/swap"
+HMAC_SECRET_KEY="$AI_HOME/secret.key"
 
-# --- Generate entropy hash ---
-FRACTAL_HASH=$(openssl rand -hex 32)
-echo "[NEXUS] ⚙️ Generated entropy hash: $FRACTAL_HASH"
+# --- LOGGING ---
+log_to_file(){ echo "[$(date '+%F %T')] [$1] $2" >> "$LOG_FILE"; }
+log_info(){ [[ "$LOG_LEVEL" =~ ^(DEBUG|INFO)$ ]] && echo -e "[INFO] $*" >&2 && log_to_file "INFO" "$*"; }
+log_warn(){ echo -e "[WARN] $*" >&2 && log_to_file "WARN" "$*"; }
+log_error(){ echo -e "[ERROR] $*" >&2 && log_to_file "ERROR" "$*"; }
+log_success(){ echo -e "[OK] $*" >&2 && log_to_file "SUCCESS" "$*"; }
+log_debug(){ [[ "$LOG_LEVEL" == "DEBUG" ]] && echo -e "[DEBUG] $*" >&2 && log_to_file "DEBUG" "$*"; }
 
-# --- Temperature / recursion depth ---
-TEMP=0.5
-DEPTH=5
-echo "[NEXUS] 🌡 Temperature set: $TEMP, Recursion depth: $DEPTH"
+# --- ENV INIT ---
+init_environment(){
+    mkdir -p "$AI_HOME" "$PROJECTS_DIR" "$SWAP_DIR"
+    [[ -f "$HMAC_SECRET_KEY" ]] || openssl rand -hex 32 > "$HMAC_SECRET_KEY"
+    chmod 600 "$HMAC_SECRET_KEY"
+}
 
-# --- Python3 Worker ---
-python3 - <<PYTHON
-import sqlite3, time, hashlib, json, os
-DB="$DB"
-TMP="$TMP"
-prompt = "$1" if len("$1") > 0 else "Hello AI Crew"
+hash_string(){ echo -n "$1" | sha256sum | awk '{print $1}'; }
+calculate_hmac(){ local data="$1"; local key; key=$(<"$HMAC_SECRET_KEY"); echo -n "$data" | openssl dgst -sha256 -hmac "$key" | awk '{print $2}'; }
 
-conn = sqlite3.connect(DB)
-c = conn.cursor()
+# --- AI WORKER ---
+run_worker_fast(){
+    local model="$1"; shift
+    local input="$*"
+    if [[ "$model" == "2244:latest" ]] && (( ${#input} > 10 )); then
+        log_warn "Input too long for $model; truncating to 10 chars."
+        input="${input:0:10}"
+    fi
+    log_debug "Running $model (len=${#input}): $input"
+    "$OLLAMA_BIN" run "$model" "$input"
+}
 
-for i in range($DEPTH):
-    fractal_hash = hashlib.sha256((prompt + str(i) + "$FRACTAL_HASH").encode()).hexdigest()
-    response = f"[Python3] Iter {i} hash {fractal_hash[:8]}"
-    c.execute("INSERT INTO qbits (agent,prompt,hash,iteration,response,timestamp,temp) VALUES (?,?,?,?,?,?,?)",
-              ("neuro", prompt, fractal_hash, i, response, time.time(), $TEMP))
-    with open(os.path.join(TMP, fractal_hash+".json"), "w") as f:
-        json.dump({"agent":"neuro","prompt":prompt,"hash":fractal_hash,"iteration":i,"response":response}, f)
-conn.commit()
-conn.close()
-print(f"[PY] Qbits stored -> {fractal_hash[:8]}")
-PYTHON
+# --- FILE ACCESS TOOLS ---
+file_write(){
+    local project="$1"; shift
+    local path="$1"; shift
+    local content="$*"
+    local full_path="$project/$path"
+    echo "$content" > "$full_path"
+    local hmac=$(calculate_hmac "$content")
+    log_info "Wrote file $full_path (HMAC $hmac)"
+    echo "$hmac"
+}
 
-# --- Node.js Worker ---
-node - <<NODE
-const fs = require('fs'), path = require('path');
-const TMP = "$TMP";
-const agents = ["core","loop","code","coin","2244"];
-agents.forEach(agent => {
-    const filename = path.join(TMP, agent+"-stub.json");
-    const stub = {agent, prompt: "$1", timestamp: Date.now(), note: "JS stub processed"};
-    fs.writeFileSync(filename, JSON.stringify(stub, null, 2));
-    console.log(`[JS] Crew-AI stub written to ${filename}`);
-});
-NODE
+file_read(){
+    local project="$1"; shift
+    local path="$1"; shift
+    local full_path="$project/$path"
+    if [[ ! -f "$full_path" ]]; then
+        log_warn "File not found: $full_path"; return 1
+    fi
+    local content; content=$(<"$full_path")
+    local hmac=$(calculate_hmac "$content")
+    log_info "Read file $full_path (HMAC $hmac)"
+    echo "$content"
+}
 
-# --- Simple Dashboard ---
-HTML="$TMP/dashboard.html"
-cat > "$HTML" <<HTML_CONTENT
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>2244 AI Dashboard</title>
-<style>
-body { font-family: monospace; background: #272822; color:#f8f8f2; padding:20px; }
-h1 { color:#f92672; } pre { background:#1b1b1b; padding:10px; border-radius:5px; overflow:auto; }
-</style>
-</head>
-<body>
-<h1>2244 AI Dashboard</h1>
-<pre id="log">-- Loading qbits --</pre>
-<script>
-fetch('./tmp').then(()=>{}); // placeholder, later implement WebSocket streaming
-</script>
-</body>
-</html>
-HTML_CONTENT
+# --- CACHE / STORAGE ---
+store_output_fast(){
+    local project="$1"; shift
+    local content="$*"
+    local ref=$(hash_string "$content")
+    file_write "$project" "$ref.txt" "$content" >/dev/null
+    echo "$ref"
+}
 
-echo "[NEXUS] ✅ Hyper-reasoning complete. JSON outputs stored in $TMP"
-echo "[NEXUS] 🌐 Dashboard ready at $HTML"
+get_cached_response(){ 
+    local project="$1"; shift
+    local prompt="$*"; local ref; ref=$(hash_string "$prompt")
+    [[ -f "$project/$ref.txt" ]] && <"$project/$ref.txt" || echo "" 
+}
+
+# --- AGI LOOP ---
+run_agi_workflow(){
+    local user_prompt="$*"
+    local task_id=$(hash_string "$user_prompt$(date +%s%N)" | cut -c1-16)
+    local project_dir="$PROJECTS_DIR/task-$task_id"
+    mkdir -p "$project_dir"
+    log_success "Project workspace: $project_dir (Task ID: $task_id)"
+
+    local cached_ref=$(get_cached_response "$project_dir" "$user_prompt")
+    if [[ -n "$cached_ref" ]]; then
+        log_success "Returning cached response."
+        echo "$cached_ref"
+        return
+    fi
+
+    local conversation_history="Initial Request: $user_prompt"
+    local status="IN_PROGRESS"
+
+    for ((i=1;i<=MAX_AGENT_LOOPS;i++)); do
+        log_info "AGI Loop $i/$MAX_AGENT_LOOPS"
+
+        # Messenger
+        local messenger_output=$(run_worker_fast "$MESSENGER_MODEL" "You are Messenger. Analyze: $user_prompt")
+        log_debug "Messenger output: $messenger_output"
+
+        # Planners
+        local planner_outputs=()
+        for model in "${PLANNER_MODELS[@]}"; do
+            local planner_output=$(run_worker_fast "$model" "Planner input: $messenger_output")
+            planner_outputs+=("$planner_output")
+            log_debug "Planner ($model): $planner_output"
+        done
+
+        # Executor
+        local executor_input="You are Executor. Merge plans:\n${planner_outputs[*]}"
+        local final_plan=$(run_worker_fast "$EXECUTOR_MODEL" "$executor_input")
+        log_debug "Executor output: $final_plan"
+
+        # Optional: write loop summary to project dir
+        file_write "$project_dir" "loop-$i.txt" "$final_plan" >/dev/null
+
+        conversation_history="$conversation_history\n--- Loop $i ---\n$final_plan"
+
+        if [[ "$final_plan" == *"[FINAL_ANSWER]"* ]]; then
+            status="SUCCESS"
+            break
+        fi
+    done
+
+    # Store final output
+    local final_ref=$(store_output_fast "$project_dir" "$conversation_history")
+    log_success "AGI workflow complete (Status: $status), saved to $project_dir/$final_ref.txt"
+    echo -e "\n--- Final Answer ---\n$conversation_history"
+}
+
+# --- ENTRY POINT ---
+main(){
+    init_environment
+    local cmd="${1:-}"; shift || true
+    case "$cmd" in
+        --setup|-s) log_info "Setup mode: Termux deps handled externally." ;;
+        --help|-h) echo "Usage: $0 [prompt]"; exit 0 ;;
+        serve) log_info "Serve mode not implemented for Termux v12"; exit 0 ;;
+        "") log_info "No prompt given."; exit 0 ;;
+        *) run_agi_workflow "$cmd" "$@" ;;
+    esac
+}
+
+main "$@"

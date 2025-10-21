@@ -1,847 +1,260 @@
 #!/usr/bin/env bash
-# ai.sh - AI Autonomic Synthesis Platform v32 (Fully Hardened Verbose Edition)
-# This version is fully hardened against unbound variable errors and guarantees verbose output.
-# REF: The Triumvirate Logic Loop has been maintained, and the Bash core has been refactored for clarity and security warnings.
-
+# ai.sh v35 - Termux Ollama Orchestrator (Full Unrestricted File I/O, Self-Healing, Webkit Tool)
 set -euo pipefail
 IFS=$'\n\t'
 
-# --- RUNTIME MODE DETECTION: EMBEDDED NODE.JS WEB SERVER ---
-if [[ "${1:-}" == "serve" ]]; then
-    exec node --input-type=module - "$0" "$@" <<'NODE_EOF'
-import http from 'http';
-import { exec } from 'child_process';
-const PORT = process.env.AI_PORT || 8080;
-const AI_SCRIPT_PATH = process.argv[2];
-const HTML_UI = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AGENT NEMODIAN :: Web CLI v32.0</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --nemodian-green: #38a169;
-            --nemodian-dark: #0f172a;
-            --nemodian-darker: #020617;
-            --nemodian-light: #1e293b;
-            --nemodian-cyan: #22d3ee;
-            --nemodian-purple: #a855f7;
-            --bg: var(--nemodian-darker);
-        }
-        
-        body {
-            font-family: 'JetBrains Mono', monospace;
-            background: linear-gradient(135deg, var(--nemodian-darker) 0%, var(--nemodian-dark) 100%);
-            color: #e2e8f0;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-        }
-        
-        .terminal-glow {
-            box-shadow: 
-                0 0 20px rgba(56, 161, 105, 0.3),
-                0 0 40px rgba(56, 161, 105, 0.2),
-                0 0 60px rgba(56, 161, 105, 0.1);
-        }
-        
-        .quantum-pulse {
-            animation: quantumPulse 2s ease-in-out infinite alternate;
-        }
-        
-        @keyframes quantumPulse {
-            from { box-shadow: 0 0 10px rgba(56, 161, 105, 0.4); }
-            to { box-shadow: 0 0 20px rgba(34, 211, 238, 0.6), 0 0 30px rgba(168, 85, 247, 0.4); }
-        }
-        
-        .node-superposition { border-left: 3px solid #63b3ed; }
-        .node-high-entropy { border-left: 3px solid #f56565; }
-        .node-high-qbit { border-left: 3px solid #48bb78; }
-        .node-cooldown { border-left: 3px solid #22d3ee; }
-        .node-collapsed { border-left: 3px solid #f6e05e; }
-        
-        .typewriter {
-            overflow: hidden;
-            border-right: 2px solid var(--nemodian-green);
-            white-space: nowrap;
-            animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
-        }
-        
-        @keyframes typing {
-            from { width: 0 }
-            to { width: 100% }
-        }
-        
-        @keyframes blink-caret {
-            from, to { border-color: transparent }
-            50% { border-color: var(--nemodian-green) }
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Output Formatting for Backend */
-        .cli-prompt { color: var(--nemodian-green); font-weight: bold; }
-        .cli-output { color: #e2e8f0; }
-        .cli-info { color: var(--nemodian-cyan); }
-        .cli-success { color: #48bb78; }
-        .cli-error { color: #f56565; }
-        .cli-warning { color: #f6e05e; }
-        .cli-phase { color: var(--nemodian-purple); font-weight: bold; margin-top: 10px; }
-    </style>
-</head>
-<body class="flex items-center justify-center p-4">
-    <div id="app" class="w-full max-w-6xl">
-        <!-- Header -->
-        <div class="text-center mb-8 fade-in">
-            <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-2">
-                AGENT NEMODIAN v32.0
-            </h1>
-            <div class="text-lg text-gray-400 typewriter">
-                Cybernetic Synthesis Engine :: Terminal Fusion Edition
-            </div>
-        </div>
-
-        <!-- Main Dashboard -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <!-- System Status -->
-            <div class="bg-slate-800 rounded-lg p-6 terminal-glow">
-                <h3 class="text-green-400 font-bold mb-4 flex items-center">
-                    <span class="quantum-pulse w-3 h-3 bg-green-400 rounded-full mr-2"></span>
-                    SYSTEM STATUS
-                </h3>
-                <div id="system-status" class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span>Triumvirate Core:</span>
-                        <span class="text-green-400">ONLINE</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Model Pool:</span>
-                        <span class="text-green-400">3/3 MODELS</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Entropy Level:</span>
-                        <span class="text-cyan-400" id="entropy-level">0.42</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Memory Hash:</span>
-                        <span class="text-green-400" id="qbit-stability">0x0000...</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="bg-slate-800 rounded-lg p-6">
-                <h3 class="text-cyan-400 font-bold mb-4">QUICK ACTIONS</h3>
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="executeAction('snapshot')" class="bg-green-600 hover:bg-green-700 text-white p-2 rounded text-sm transition-colors">
-                        📸 Snapshot
-                    </button>
-                    <button onclick="executeAction('db-schema')" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm transition-colors">
-                        🗃️ DB Schema
-                    </button>
-                    <button onclick="executeAction('mindflow')" class="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded text-sm transition-colors">
-                        🧠 Mindflow
-                    </button>
-                    <button onclick="executeAction('wallet')" class="bg-yellow-600 hover:bg-yellow-700 text-white p-2 rounded text-sm transition-colors">
-                        💰 Wallet
-                    </button>
-                </div>
-            </div>
-
-            <!-- Quantum Metrics -->
-            <div class="bg-slate-800 rounded-lg p-6">
-                <h3 class="text-purple-400 font-bold mb-4">QUANTUM METRICS</h3>
-                <canvas id="quantumChart" width="200" height="120"></canvas>
-            </div>
-        </div>
-
-        <!-- Terminal Interface -->
-        <div class="bg-slate-900 rounded-lg terminal-glow quantum-pulse overflow-hidden">
-            <!-- Terminal Header -->
-            <div class="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-green-400/30">
-                <div class="flex items-center space-x-2">
-                    <div class="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span class="text-green-400 font-bold ml-2">NEMODIAN_TERMINAL</span>
-                </div>
-                <div class="text-gray-400 text-sm" id="session-id">Session: Loading...</div>
-            </div>
-
-            <!-- Terminal Output -->
-            <div id="terminal-output" class="h-96 overflow-y-auto p-4 font-mono text-sm space-y-2">
-                <div class="text-green-400">
-                    <div class="flex items-center mb-2">
-                        <span class="text-2xl mr-2">⚡</span>
-                        <span class="font-bold">AGENT NEMODIAN v32.0 - FUSION KERNEL ONLINE</span>
-                    </div>
-                    <div class="text-cyan-400 ml-6">Triumvirate Logic System Initialized.</div>
-                    <div class="text-gray-400 ml-6 mt-1">Type 'ai help' or enter a task.</div>
-                </div>
-            </div>
-
-            <!-- Terminal Input -->
-            <div class="border-t border-green-400/30 bg-slate-800 px-4 py-3">
-                <div class="flex items-center">
-                    <span class="text-green-400 font-bold mr-3">≫</span>
-                    <input 
-                        type="text" 
-                        id="terminal-input" 
-                        class="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500"
-                        placeholder="Enter command or neural prompt..."
-                        autocomplete="off"
-                        autofocus
-                    >
-                    <div id="loading-indicator" class="hidden ml-3">
-                        <div class="flex space-x-1">
-                            <div class="w-2 h-2 bg-green-400 rounded-full animate-bounce"></div>
-                            <div class="w-2 h-2 bg-green-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                            <div class="w-2 h-2 bg-green-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mindflow Visualization Panel (Simplified for this version) -->
-        <div id="mindflow-panel" class="hidden mt-6 bg-slate-800 rounded-lg p-6 terminal-glow">
-            <h3 class="text-cyan-400 font-bold mb-4">MINDFLOW VISUALIZATION</h3>
-            <div id="mindflow-content" class="font-mono text-sm space-y-1 max-h-80 overflow-y-auto">
-                <!-- Content will be rendered dynamically -->
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // ===== AGENT NEMODIAN v32.0 CORE ENGINE (Client-Side) =====
-        class AgentNemodian {
-            constructor() {
-                this.SESSION_ID = this.generateSessionId();
-                this.wallet = { balance: 1000.0, btc: 0.0 };
-                this.quantumChart = null;
-                this.init();
-            }
-
-            generateSessionId() { return 'session_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36); }
-            updateSessionDisplay() { document.getElementById('session-id').textContent = \`Session: \${this.SESSION_ID.substr(0, 12)}...\`; }
-            clearTerminal() { document.getElementById('terminal-output').innerHTML = ''; }
-            logOutput(content, type = 'cli-output') {
-                const output = document.getElementById('terminal-output');
-                const message = document.createElement('div');
-                message.className = 'fade-in';
-                message.innerHTML = content;
-                output.appendChild(message);
-                output.scrollTop = output.scrollHeight;
-            }
-            showLoading(show) { document.getElementById('loading-indicator').classList.toggle('hidden', !show); }
-            escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
-
-            init() {
-                this.updateSessionDisplay();
-                this.initQuantumChart();
-                this.setupEventListeners();
-                this.simulateQuantumActivity();
-            }
-
-            initQuantumChart() {
-                const ctx = document.getElementById('quantumChart').getContext('2d');
-                this.quantumChart = new Chart(ctx, {
-                    type: 'line', data: { labels: Array.from({length: 20}, (_, i) => i + 1),
-                        datasets: [
-                            { label: 'Qbit Factor', data: Array(20).fill(0.5), borderColor: '#48bb78', backgroundColor: 'rgba(72, 187, 120, 0.1)', tension: 0.4, fill: true },
-                            { label: 'Entropy', data: Array(20).fill(0.42), borderColor: '#22d3ee', backgroundColor: 'rgba(34, 211, 238, 0.1)', tension: 0.4, fill: true }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-                        scales: { y: { min: 0, max: 1, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } }, x: { display: false } }
-                    }
-                });
-            }
-
-            simulateQuantumActivity() {
-                setInterval(() => {
-                    const entropy = 0.3 + Math.random() * 0.4;
-                    const qbit = 0.4 + Math.random() * 0.5;
-                    document.getElementById('entropy-level').textContent = entropy.toFixed(3);
-                    document.getElementById('qbit-stability').textContent = '86%';
-                    if (this.quantumChart) {
-                        this.quantumChart.data.datasets[0].data.push(qbit);
-                        this.quantumChart.data.datasets[1].data.push(entropy);
-                        if (this.quantumChart.data.datasets[0].data.length > 20) {
-                            this.quantumChart.data.datasets[0].data.shift();
-                            this.quantumChart.data.datasets[1].data.shift();
-                        }
-                        this.quantumChart.update('none');
-                    }
-                }, 2000);
-            }
-
-            setupEventListeners() {
-                const terminalInput = document.getElementById('terminal-input');
-                terminalInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        this.processCommand(terminalInput.value.trim());
-                        terminalInput.value = '';
-                    }
-                });
-            }
-
-            processCommand(input) {
-                if (!input) return;
-
-                this.logOutput(`<span class="cli-prompt">≫</span> <span class="cli-output">${this.escapeHtml(input)}</span>`, 'user');
-                
-                const command = input.toLowerCase().split(' ')[0];
-
-                switch (command) {
-                    case 'help': this.showHelp(); break;
-                    case 'clear': this.clearTerminal(); break;
-                    case 'wallet': this.showWallet(); break;
-                    case 'mindflow': this.showMindflow(); break;
-                    case 'snapshot': this.createSnapshot(); break;
-                    case 'db-schema': this.executeBackendCommand(\`ai db-query "SELECT table_name, description FROM _master_schema"\`); break;
-                    default: this.executeBackendCommand(\`ai \${input}\`); break;
-                }
-            }
-
-            // --- Backend Execution ---
-            async executeBackendCommand(cmd) {
-                this.showLoading(true);
-                try {
-                    const response = await fetch('/api/command', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ command: cmd })
-                    });
-                    const result = await response.json();
-                    
-                    if (!result.success) {
-                        this.logOutput(`<span class="cli-error">❌ KERNEL ERROR</span><br><span class="cli-error">${this.escapeHtml(result.output)}</span>`, 'error');
-                    } else {
-                        this.parseBackendOutput(result.output);
-                    }
-                } catch (e) {
-                    this.logOutput(`<span class="cli-error">❌ NETWORK ERROR:</span> ${e.message}`, 'error');
-                } finally {
-                    this.showLoading(false);
-                }
-            }
-
-            // --- Output Parsing for Verbose Thinking ---
-            parseBackendOutput(output) {
-                const lines = output.split('\n');
-                lines.forEach(line => {
-                    // Stripping ANSI codes first
-                    const cleanLine = line.replace(/\\u001b\\[[0-9;]*m/g, '').trim();
-                    if (!cleanLine) return;
-
-                    // Parse based on the Triumvirate Verbose Format
-                    if (cleanLine.startsWith('--- Final Answer ---')) {
-                        this.logOutput(`<span class="cli-success font-bold">🎯 FINAL ANSWER</span><br><span class="cli-output">${this.escapeHtml(cleanLine.substring(21).trim())}</span>`, 'cli-success');
-                    } else if (cleanLine.startsWith('AGI Loop') || cleanLine.startsWith('--- Loop')) {
-                        this.logOutput(`<span class="cli-purple font-bold">🔄 ${this.escapeHtml(cleanLine)}</span>`, 'cli-output');
-                    } else if (cleanLine.startsWith('Messenger') || cleanLine.startsWith('Planner') || cleanLine.startsWith('EXECUTOR')) {
-                        this.logOutput(`<span class="cli-info font-bold">🧠 ${this.escapeHtml(cleanLine)}</span>`, 'cli-output');
-                    } else if (cleanLine.startsWith('---')) {
-                         this.logOutput(`<span class="text-gray-500 font-bold">${this.escapeHtml(cleanLine)}</span>`, 'cli-output');
-                    } else if (cleanLine.startsWith('✅')) {
-                        this.logOutput(`<span class="cli-success">${this.escapeHtml(cleanLine)}</span>`, 'cli-success');
-                    } else if (cleanLine.startsWith('ℹ️')) {
-                        this.logOutput(`<span class="cli-info">${this.escapeHtml(cleanLine)}</span>`, 'cli-info');
-                    } else if (cleanLine.startsWith('⚠️') || cleanLine.startsWith('[WARN')) {
-                        this.logOutput(`<span class="cli-warning">${this.escapeHtml(cleanLine)}</span>`, 'cli-warning');
-                    } else if (cleanLine.startsWith('❌') || cleanLine.startsWith('[ERROR')) {
-                        this.logOutput(`<span class="cli-error">${this.escapeHtml(cleanLine)}</span>`, 'cli-error');
-                    } else if (cleanLine.startsWith('🚀')) {
-                        this.logOutput(`<span class="cli-phase">${this.escapeHtml(cleanLine)}</span>`, 'cli-phase');
-                    } else {
-                        this.logOutput(this.escapeHtml(cleanLine), 'cli-output');
-                    }
-                });
-            }
-
-            // --- Client-Side Actions (Simulated/Internal) ---
-            showHelp() {
-                const helpText = `
-<span class="text-green-400 font-bold">AGENT NEMODIAN v32.0 - COMMAND REFERENCE</span>
-
-<span class="text-cyan-400">CORE COMMANDS (Client-Side)</span>
-<span class="cli-info">help</span>                  - Show this message
-<span class="cli-info">clear</span>                 - Clear terminal output
-<span class="cli-info">wallet</span>                - Show BTC wallet status (Simulated)
-<span class="cli-info">btc buy &lt;amount&gt;</span>     - Buy BTC (Simulated)
-
-<span class="text-cyan-400">AGI & DEVOPS (Backend)</span>
-<span class="cli-info">ai &lt;prompt&gt;</span>            - Run Triumvirate Agent workflow
-<span class="cli-info">ai serve</span>               - Start the web server (MUST be run from Bash)
-<span class="cli-info">ai --setup</span>             - Install all system dependencies
-<span class="cli-info">db-schema</span>             - Quick action to show database schema
-<span class="cli-info">snapshot</span>              - Quick action (Simulated)
-                `.trim();
-                this.logOutput(helpText, 'system');
-            }
-
-            showWallet() {
-                const table = `<div class="bg-slate-700 rounded p-3 mt-2"><table class="w-full text-sm"><thead><tr class="text-green-400"><th class="text-left py-1">Asset</th><th class="text-right py-1">Balance</th></tr></thead><tbody><tr class="border-b border-slate-600"><td class="py-1">USD Balance</td><td class="text-right text-green-400">$${this.wallet.balance.toFixed(2)}</td></tr><tr><td class="py-1">BTC Holdings</td><td class="text-right text-cyan-400">${this.wallet.btc.toFixed(8)} BTC</td></td></tr></tbody></table></div>`;
-                this.logOutput(`<span class="text-green-400">WALLET STATUS</span>${table}`, 'system');
-            }
-
-            processBtcTransaction(args) {
-                if (args.length < 2) { this.logOutput('<span class="text-yellow-400">Usage: btc [buy|sell] &lt;amount&gt;</span>', 'system'); return; }
-                const action = args[0];
-                const amount = parseFloat(args[1]);
-                if (isNaN(amount) || amount <= 0) { this.logOutput('<span class="text-red-400">Invalid amount</span>', 'system'); return; }
-                if (action === 'buy') {
-                    if (this.wallet.balance < amount) { this.logOutput('<span class="text-red-400">Insufficient USD balance</span>', 'system'); return; }
-                    this.wallet.balance -= amount;
-                    this.wallet.btc += amount;
-                    this.logOutput(`<span class="text-green-400">✓ Purchased ${amount.toFixed(8)} BTC</span>`, 'system');
-                } else if (action === 'sell') {
-                    if (this.wallet.btc < amount) { this.logOutput('<span class="text-red-400">Insufficient BTC balance</span>', 'system'); return; }
-                    this.wallet.balance += amount;
-                    this.wallet.btc -= amount;
-                    this.logOutput(`<span class="text-green-400">✓ Sold ${amount.toFixed(8)} BTC</span>`, 'system');
-                } else { this.logOutput('<span class="text-yellow-400">Invalid action. Use "buy" or "sell"</span>', 'system'); }
-            }
-            createSnapshot() { this.logOutput(`<span class="text-purple-400">💾 Neuro snapshot created: snap_...</span>`, 'system'); }
-            autoCollapseNodes() { this.logOutput(`<span class="text-green-400">⚡ Auto-collapse completed.</span>`, 'system'); }
-            showMindflow() { this.logOutput(`<span class="text-cyan-400">Mindflow panel is active (not fully implemented in this version).</span>`, 'system'); }
-        }
-
-        // ===== GLOBAL FUNCTIONS AND INIT =====
-        function executeAction(action) {
-            const agent = window.agent;
-            const terminalInput = document.getElementById('terminal-input');
-            switch (action) {
-                case 'snapshot': agent.createSnapshot(); break;
-                case 'db-schema': agent.processCommand('ai db-query "SELECT table_name, description FROM _master_schema"'); break;
-                case 'mindflow': agent.showMindflow(); break;
-                case 'wallet': agent.showWallet(); break;
-            }
-            terminalInput.focus();
-        }
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            window.agent = new AgentNemodian();
-        });
-    </script>
-</body>
-</html>
-`;
-
-http.createServer((req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
-    if (req.url === '/' && req.method === 'GET') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(HTML_UI); return; }
-    if (req.url === '/api/command' && req.method === 'POST') {
-        let body = '';
-        req.on('data', c => body += c.toString());
-        req.on('end', () => {
-            try {
-                const { command } = JSON.parse(body);
-                // Sanitize command arguments for safe insertion into the exec command
-                const sanitizedCmd = command.replace(/(["'$`\\])/g, '\\$1');
-                
-                // CRITICAL NOTE: The Node.js server executes the Bash script as a child process.
-                // The Bash script's main function handles the actual AGI logic.
-                exec(`"${AI_SCRIPT_PATH}" "${sanitizedCmd}"`, { timeout: 600000 }, (err, stdout, stderr) => {
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    if (err) { 
-                        // Include stderr for better debugging of shell errors
-                        res.end(JSON.stringify({ success: false, output: `[SERVER ERROR] ${err.message}\n${stderr}` }));
-                    } else { 
-                        res.end(JSON.stringify({ success: true, output: stdout || 'Command executed without output.' })); 
-                    }
-                });
-            } catch (e) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success: false, output: 'Invalid JSON request.' })); }
-        });
-        return;
-    }
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not Found' }));
-}).listen(PORT, () => console.log(`🌐 AI Web UI is live at: http://localhost:${PORT}`));
-NODE_EOF
-fi
-# --- END OF NODE.JS SERVER BLOCK ---
-
-
-# --- BASH AGENT CORE (v32.0 Refactored) ---
-set -euo pipefail
-IFS=$'\n\t'
-
-# ---------------- CONFIG ----------------
+# --- CONFIG ---
 AI_HOME="${AI_HOME:-$HOME/.ai_agent}"
 PROJECTS_DIR="${PROJECTS_DIR:-$HOME/ai_projects}"
 LOG_FILE="$AI_HOME/ai.log"
-LOG_LEVEL="${LOG_LEVEL:-INFO}"
+LOG_LEVEL="${LOG_LEVEL:-DEBUG}"
 CORE_DB="$AI_HOME/agent_core.db"
 
-# --- Triumvirate Model Configuration ---
 MESSENGER_MODEL="loop:latest"
 PLANNER_MODELS=("loop:latest" "core:latest")
-EXECUTOR_MODEL="2244:latest" # Assuming this is a local Ollama model identifier
+EXECUTOR_MODEL="2244:latest"
 OLLAMA_BIN="$(command -v ollama || echo 'ollama')"
 
 MAX_AGENT_LOOPS=7
-MAX_RAM_BYTES=2097152
 SWAP_DIR="$AI_HOME/swap"
 HMAC_SECRET_KEY="$AI_HOME/secret.key"
+UNRESTRICTED_ACCESS=true       # Beta: allow any file path
 
-# ---------------- COLORS & ICONS ----------------
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m';
-PURPLE='\033[0;35m'; CYAN='\033[0;36m'; ORANGE='\033[0;33m'; NC='\033[0m'
-ICON_SUCCESS="✅"; ICON_WARN="⚠️"; ICON_ERROR="❌"; ICON_INFO="ℹ️"; ICON_SECURE="🔑";
-ICON_DB="🗃️"; ICON_PLAN="📋"; ICON_THINK="🤔"; ICON_EXEC="⚡"; ICON_BRAIN="🧠"
+# --- LOGGING ---
+log_to_file(){ echo "[$(date '+%F %T')] [$1] $2" >> "$LOG_FILE"; }
+log_info(){ [[ "$LOG_LEVEL" =~ ^(DEBUG|INFO)$ ]] && echo -e "[INFO] $*" >&2 && log_to_file "INFO" "$*"; }
+log_warn(){ echo -e "[WARN] $*" >&2 && log_to_file "WARN" "$*"; }
+log_error(){ echo -e "[ERROR] $*" >&2 && log_to_file "ERROR" "$*"; }
+log_success(){ echo -e "[OK] $*" >&2 && log_to_file "SUCCESS" "$*"; }
+log_debug(){ [[ "$LOG_LEVEL" == "DEBUG" ]] && echo -e "[DEBUG] $*" >&2 && log_to_file "DEBUG" "$*"; }
 
-# ---------------- LOGGING ----------------
-log_to_file(){ echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$1] $2" >> "$LOG_FILE"; }
-log_debug(){ [[ "$LOG_LEVEL" == "DEBUG" ]] && printf "${PURPLE}[DEBUG][%s]${NC} %s\n" "$(date '+%T')" "$*" >&2 && log_to_file "DEBUG" "$*"; }
-log_info(){ [[ "$LOG_LEVEL" =~ ^(DEBUG|INFO)$ ]] && printf "${BLUE}${ICON_INFO} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "INFO" "$*"; }
-log_warn(){ printf "${YELLOW}${ICON_WARN} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "WARN" "$*"; }
-log_error(){ printf "${RED}${ICON_ERROR} [%s] ERROR: %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "ERROR" "$*" && return 1; }
-log_success(){ printf "${GREEN}${ICON_SUCCESS} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "SUCCESS" "$*"; }
-log_phase() { printf "\n${PURPLE}🚀 %s${NC}\n" "$*" >&2 && log_to_file "PHASE" "$*"; }
-log_think(){ printf "\n${ORANGE}${ICON_THINK} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "THINK" "$*"; }
-log_plan(){ printf "\n${CYAN}${ICON_PLAN} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "PLAN" "$*"; }
-log_execute(){ printf "\n${GREEN}${ICON_EXEC} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "EXECUTE" "$*"; }
-export -f log_to_file log_debug log_info log_warn log_error log_success log_phase log_think log_plan log_execute
-
-# ---------------- INITIALIZATION & HMAC SETUP ----------------
-init_environment() {
+# --- ENV INIT ---
+init_environment(){
     mkdir -p "$AI_HOME" "$PROJECTS_DIR" "$SWAP_DIR"
-    if [[ ! -f "$HMAC_SECRET_KEY" ]]; then 
-        openssl rand -hex 32 > "$HMAC_SECRET_KEY"
-        chmod 600 "$HMAC_SECRET_KEY"
-    fi
-}
-calculate_hmac() {
-    local data="$1" secret;
-    secret=$(<"$HMAC_SECRET_KEY")
-    echo -n "$data" | openssl dgst -sha256 -hmac "$secret" | awk '{print $2}'
-}
-# IMPORTANT SECURITY STEP: User MUST confirm tool execution
-confirm_action() {
-    local c="N"
-    echo -e "\n${YELLOW}PROPOSED ACTION (Review & Approve):${NC} ${CYAN}$1${NC}"
-    read -r -p "Approve? [y/N] " -n 1 c
-    echo
-    [[ "$c" =~ ^[Yy]$ ]]
+    [[ -f "$HMAC_SECRET_KEY" ]] || openssl rand -hex 32 > "$HMAC_SECRET_KEY"
+    chmod 600 "$HMAC_SECRET_KEY"
 }
 
-# ---------------- DYNAMIC DATABASE ENVIRONMENT ----------------
-sqlite_escape(){ echo "$1" | sed "s/'/''/g"; }
-register_schema() {
-    local table_name="$1" description="$2" schema_sql="$3"
-    sqlite3 "$CORE_DB" "$schema_sql" || return 1
-    # Check if table_name already exists before inserting/replacing
-    local existing_count=$(sqlite3 "$CORE_DB" "SELECT COUNT(*) FROM _master_schema WHERE table_name = '$(sqlite_escape "$1")';")
-    if [[ "$existing_count" -eq 0 ]]; then
-        sqlite3 "$CORE_DB" "INSERT INTO _master_schema (table_name, description, schema_sql) VALUES ('$(sqlite_escape "$1")', '$(sqlite_escape "$2")', '$(sqlite_escape "$3")');"
-    else
-        sqlite3 "$CORE_DB" "UPDATE _master_schema SET description = '$(sqlite_escape "$2")', schema_sql = '$(sqlite_escape "$3")' WHERE table_name = '$(sqlite_escape "$1")';"
-    fi
-}
-init_db() {
-    sqlite3 "$CORE_DB" "CREATE TABLE IF NOT EXISTS _master_schema (table_name TEXT PRIMARY KEY, description TEXT, schema_sql TEXT);"
-    register_schema "memories" "Long-term memory for fuzzy cache." "CREATE TABLE IF NOT EXISTS memories (id INTEGER PRIMARY KEY, prompt_hash TEXT, prompt TEXT, response_ref TEXT);"
-    register_schema "tool_logs" "Logs of every tool execution." "CREATE TABLE IF NOT EXISTS tool_logs (id INTEGER PRIMARY KEY, task_id TEXT, tool_name TEXT, args TEXT, result TEXT);"
-}
-get_db_schema_for_prompt() { sqlite3 -header -column "$CORE_DB" "SELECT table_name, description FROM _master_schema;"; }
+hash_string(){ echo -n "$1" | sha256sum | awk '{print $1}'; }
+calculate_hmac(){ local data="$1"; local key; key=$(<"$HMAC_SECRET_KEY"); echo -n "$data" | openssl dgst -sha256 -hmac "$key" | awk '{print $2}'; }
 
-# ---------------- AI & AGI CORE HELPERS ----------------
-hash_string(){ echo -n "$1" | sha256sum | cut -d' ' -f1; }
-semantic_hash_prompt(){ echo "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' ' ' | tr -s ' ' | sed 's/ ^*//;s/ *$//' | tr ' ' '_'; }
-store_output_fast(){
-    local content="$1" h; h=$(hash_string "$content")
-    if ((${#content} > MAX_RAM_BYTES)); then
-        local f="$SWAP_DIR/$h.txt.gz"
-        echo "$content" | gzip > "$f"
-        echo "$f"
-    else
-        echo "$content"
-    fi
-}
-retrieve_output_fast(){
-    local ref="$1"
-    if [[ -f "$ref" ]]; then
-        [[ "$ref" == *.gz ]] && gzip -dc "$ref" || cat "$ref"
-    else
-        echo "$ref"
-    fi
-}
-get_cached_response(){ 
-    local p_h; p_h=$(semantic_hash_prompt "$1")
-    sqlite3 "$CORE_DB" "SELECT response_ref FROM memories WHERE prompt_hash = '$(sqlite_escape "$p_h")' LIMIT 1;"
-}
-add_to_memory_fast(){
-    local p_h="$1" p="$2" ref="$3"
-    sqlite3 "$CORE_DB" "INSERT INTO memories (prompt_hash, prompt, response_ref) VALUES ('$(sqlite_escape "$p_h")', '$(sqlite_escape "$p")', '$(sqlite_escape "$ref")');"
-}
-
-ensure_ollama() {
-    if ! command -v "$OLLAMA_BIN" &>/dev/null; then
-        log_error "Ollama executable not found at '$OLLAMA_BIN'. Please install Ollama or ensure it's in your PATH."
-    fi
-    if ! curl -s --connect-timeout 2 http://localhost:11434/api/tags >/dev/null; then
-        log_warn "Ollama server is not running. Attempting graceful restart..."
-        pkill -f "$OLLAMA_BIN serve" || true # Terminate existing processes silently
-        nohup "$OLLAMA_BIN" serve > "$AI_HOME/ollama.log" 2>&1 & # Start in background with log
-        
-        local start_time=$(date +%s)
-        local timeout=20
-        while ! curl -s --connect-timeout 2 http://localhost:11434/api/tags >/dev/null; do
-            if [[ $(($(date +%s) - start_time)) -gt $timeout ]]; then
-                log_error "Ollama server failed to start within ${timeout} seconds. Check '$AI_HOME/ollama.log'."
-            fi
-            sleep 1
-        done
-        log_success "Ollama server connected and verified."
-    fi
-}
+# --- AI WORKER (FIXED FOR V12.X) ---
 run_worker_fast(){
-    local m="$1" s="$2" p="$3" payload r_json
-    ensure_ollama # MANDATORY CHECK before running
+    local model="$1"; shift
+    local input="$*"
+    local output=""
+
+    if [[ "$model" == "2244:latest" ]] && (( ${#input} > 10 )); then
+        log_warn "Input too long for $model; truncating to 10 chars."
+        input="${input:0:10}"
+    fi
     
-    # Constructing payload safely using jq -nc
-    payload=$(jq -nc --arg m "$m" --arg s "$s" --arg p "$p" '{model:$m,system:$s,prompt:$p,stream:false}')
+    log_debug "Running $model (len=${#input}): $input"
     
-    # Use max-time for connection/transfer timeout
-    r_json=$(curl -s --max-time 300 -X POST http://localhost:11434/api/generate -d "$payload")
+    # FIX: Pipe the prompt content to 'ollama run' standard input
+    # Capture output and check status for self-healing logic
+    if ! output=$(echo "$input" | "$OLLAMA_BIN" run "$model" 2>&1); then
+        OLLAMA_STATUS=$?
+        log_error "Ollama worker failed (Model: $model, Status: $OLLAMA_STATUS). Output:\n$output"
+        # Return an error message the AGI can process
+        echo "[OLLAMA_FAILURE] Model $model failed to execute. Status $OLLAMA_STATUS."
+        return 1
+    fi
+
+    echo "$output"
+}
+
+# --- TOOL DEFINITION: Webkit/Curl Fetch ---
+# Uses curl (standard in Termux) for batch web content retrieval.
+web_fetch(){
+    local url="$1"
+    local output_file="$SWAP_DIR/$(hash_string "$url").html"
+    local MAX_CONTENT_SIZE=10240 # Limit to 10KB to protect model context
     
-    if [[ $(echo "$r_json"|jq -r .error//empty) ]]; then
-        echo "API_ERROR: $(echo "$r_json"|jq -r .error)"
+    if [[ ! "$url" =~ ^https?:// ]]; then
+        log_error "Invalid URL format: $url"
+        echo "ERROR: Invalid URL format. Must start with http:// or https://."
+        return 1
+    fi
+
+    log_info "Attempting to fetch content from: $url"
+
+    if command -v curl >/dev/null 2>&1; then
+        # -s: Silent, -L: Follow redirects, --max-time: Timeout
+        if curl -s -L --max-time 15 "$url" -o "$output_file"; then
+            if [[ -s "$output_file" ]]; then
+                log_success "Successfully fetched content to $output_file"
+                # Output truncated content for the AI to consume
+                head -c $MAX_CONTENT_SIZE "$output_file"
+            else
+                log_warn "Web fetch succeeded but file is empty."
+                echo "ERROR: Fetched content was empty or unreadable."
+                return 1
+            fi
+        else
+            log_error "Curl failed to fetch URL: $url"
+            echo "ERROR: Failed to fetch URL or operation timed out after 15s."
+            return 1
+        fi
     else
-        echo "$r_json"|jq -r .response
+        log_error "Curl command not found. Cannot perform web_fetch."
+        echo "ERROR: 'curl' tool dependency missing. Cannot perform web fetch."
+        return 1
     fi
 }
-export -f hash_string semantic_hash_prompt store_output_fast retrieve_output_fast get_cached_response add_to_memory_fast sqlite_escape run_worker_fast ensure_ollama confirm_action
 
-# ---------------- DEVOPS TOOLSET ----------------
-tool_run_command() {
-    local proj_dir="$1" cmd="$2"
-    log_info "Executing command in $proj_dir: $cmd"
-    # IMPORTANT SECURITY NOTE: This uses 'eval', which is dangerous. 
-    # The AGI loop MUST ensure this is only run AFTER user confirmation.
-    (cd "$proj_dir" && eval "$cmd") 2>&1 || echo "Command failed or returned non-zero exit code."
-}
-tool_write_file() {
-    local proj_dir="$1" f_path="$2" content="$3"
-    local full_path="$proj_dir/$f_path"
-    mkdir -p "$(dirname "$full_path")"
-    echo -e "$content" > "$full_path"
-    echo "File '$f_path' written to workspace."
-}
-export -f tool_run_command tool_write_file
 
-# ---------------- AUTONOMOUS WORKFLOW (Triumvirate Logic) ----------------
-run_agi_workflow() {
+# --- FILE ACCESS TOOLS ---
+file_write(){
+    local path="$1"; shift
+    local content="$*"
+    if [[ "$UNRESTRICTED_ACCESS" != true ]]; then
+        log_warn "Restricted mode: file_write limited to $PROJECTS_DIR"
+        path="$PROJECTS_DIR/$path"
+    fi
+    echo "$content" > "$path"
+    local hmac=$(calculate_hmac "$content")
+    log_info "Wrote file $path (HMAC $hmac)"
+    echo "$hmac"
+}
+
+file_read(){
+    local path="$1"
+    if [[ "$UNRESTRICTED_ACCESS" != true ]]; then
+        log_warn "Restricted mode: file_read limited to $PROJECTS_DIR"
+        path="$PROJECTS_DIR/$path"
+    fi
+    if [[ ! -f "$path" ]]; then
+        log_warn "File not found: $path"; return 1
+    fi
+    local content; content=$(<"$path")
+    local hmac=$(calculate_hmac "$content")
+    log_info "Read file $path (HMAC $hmac)"
+    echo "$content"
+}
+
+# --- CACHE / STORAGE ---
+store_output_fast(){
+    local content="$*"
+    local ref=$(hash_string "$content")
+    file_write "$PROJECTS_DIR/$ref.txt" "$content" >/dev/null
+    echo "$ref"
+}
+
+get_cached_response(){ 
+    local prompt="$*"; local ref; ref=$(hash_string "$prompt")
+    [[ -f "$PROJECTS_DIR/$ref.txt" ]] && <"$PROJECTS_DIR/$ref.txt" || echo "" 
+}
+
+# --- AGI LOOP ---
+run_agi_workflow(){
     local user_prompt="$*"
     local task_id=$(hash_string "$user_prompt$(date +%s%N)" | cut -c1-16)
-    local project_dir="$PROJECTS_DIR/task-$task_id"; mkdir -p "$project_dir"
-    log_success "Project workspace initialized: $project_dir (Task ID: $task_id)"
+    local project_dir="$PROJECTS_DIR/task-$task_id"
+    mkdir -p "$project_dir"
+    log_success "Project workspace: $project_dir (Task ID: $task_id)"
 
-    # --- Cache Check ---
-    local cached_ref; cached_ref=$(get_cached_response "$user_prompt" || echo "")
+    local cached_ref=$(get_cached_response "$user_prompt")
     if [[ -n "$cached_ref" ]]; then
-        log_success "Found high-quality match in fuzzy cache. Returning cached answer."
-        echo -e "\n${CYAN}--- Cached Final Answer ---\n${NC}$(retrieve_output_fast "$cached_ref")"; return
+        log_success "Returning cached response."
+        echo "$cached_ref"
+        return
     fi
 
-    local conversation_history="Initial User Request: $user_prompt"
+    local available_tools="Available tools:\n- web_fetch(url): Fetches web content for analysis (up to 10KB). Call format: [TOOL_CALL:web_fetch:https://example.com]\n"
+    local initial_prompt_for_ai="Initial Request: $user_prompt\n\n$available_tools\n\nBegin Planning:"
+    local conversation_history="$initial_prompt_for_ai"
     local status="IN_PROGRESS"
 
-    for ((i=1; i<=MAX_AGENT_LOOPS; i++)); do
-        log_phase "AGI Loop $i/$MAX_AGENT_LOOPS"
-        
-        # --- Phase 1: Messenger (Context Analysis) ---
-        local messenger_prompt="You are the Messenger. Analyze the current conversation context, tool results, and previous steps. Provide a clear, structured summary of the remaining goal and current working state. Your summary informs the planners."
-        local messenger_output; messenger_output=$(run_worker_fast "$MESSENGER_MODEL" "$messenger_prompt" "$conversation_history")
-        log_think "Messenger (${MESSENGER_MODEL}) Analysis: ${messenger_output}"
+    for ((i=1;i<=MAX_AGENT_LOOPS;i++)); do
+        log_info "AGI Loop $i/$MAX_AGENT_LOOPS"
 
-        # --- Phase 2: Parallel Planners (Strategy Generation) ---
-        local pids=() temp_files=() planner_outputs=()
-        log_think "Starting parallel planners: ${PLANNER_MODELS[*]}"
+        # Messenger: Analyze request and previous context
+        local messenger_input="You are Messenger. Analyze the latest state:\n$conversation_history"
+        local messenger_output=$(run_worker_fast "$MESSENGER_MODEL" "$messenger_input")
+        log_debug "Messenger output: $messenger_output"
+
+        # Planners: Create plans based on Messenger's analysis
+        local planner_outputs=()
         for model in "${PLANNER_MODELS[@]}"; do
-            local temp_file; temp_file=$(mktemp)
-            temp_files+=("$temp_file")
-            (
-                local planner_prompt="You are a strategic Planner. Based on the Messenger's analysis, create a concise, step-by-step plan. Propose the single best, specific tool call for the very next step, formatted as: [TOOL] tool_name <arguments>"
-                run_worker_fast "$model" "$planner_prompt" "$messenger_output" > "$temp_file"
-            ) &
-            pids+=($!)
-        done
-        for pid in "${pids[@]}"; do wait "$pid" || log_warn "A planner model exited with a non-zero status."; done
-
-        # --- Executor Context Build-up ---
-        local executor_context="You are the Executor. Synthesize the plans from the planners, resolve conflicts, and decide on the single best tool to use. Your output MUST strictly adhere to one of two formats:
-1. Tool execution:
-[REASONING] Your synthesis and final decision.
-[TOOL] tool_name <arguments>
-2. Final successful completion:
-[FINAL_ANSWER] Your final summary, formatted as a clear and complete response to the user's initial prompt.
-
---- MESSENGER'S ANALYSIS ---
-$messenger_output"
-
-        for idx in "${!PLANNER_MODELS[@]}"; do
-            local model="${PLANNER_MODELS[$idx]}"
-            local file="${temp_files[$idx]}"
-            local planner_output; planner_output=$(cat "$file")
+            local planner_output=$(run_worker_fast "$model" "Planner input: $messenger_output")
             planner_outputs+=("$planner_output")
-            log_plan "Planner (${model}) Strategy: ${planner_output}"
-            executor_context+="\n\n--- Plan from ${model} ---\n${planner_output}"
+            log_debug "Planner ($model): $planner_output"
         done
-        rm -f "${temp_files[@]}"
 
-        # --- Phase 3: Executor (Tool Selection / Final Answer) ---
-        local final_plan; final_plan=$(run_worker_fast "$EXECUTOR_MODEL" "Executor" "$executor_context")
-        log_execute "Executor (${EXECUTOR_MODEL}) Decision: ${final_plan}"
+        # Executor: Synthesize plans and decide on tool calls
+        local executor_input="You are Executor. Your output must contain a final answer tag or a tool call. Merge and execute plans:\n${planner_outputs[*]}"
+        local final_plan=$(run_worker_fast "$EXECUTOR_MODEL" "$executor_input")
+        log_debug "Executor output: $final_plan"
 
-        if [[ "$final_plan" == *"[FINAL_ANSWER]"* ]]; then 
-            status="SUCCESS"; 
-            conversation_history="$final_plan"; 
-            break; 
-        fi
+        # Write loop summary
+        file_write "$project_dir/loop-$i.txt" "$final_plan" >/dev/null
         
-        local tool_line; tool_line=$(echo "$final_plan" | grep '\[TOOL\]' | head -n 1 || echo "")
-        if [[ -z "$tool_line" ]]; then 
-            log_warn "Executor did not choose a tool or provide a final answer. Ending loop prematurely."
-            status="STUCK";
+        # --- Tool Execution and Self-Healing Feedback ---
+        local tool_results=""
+        # Regex to find tool calls: [TOOL_CALL:tool_name:arg]
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^.*\[TOOL_CALL:([^:]+):([^]]+)\] ]]; then
+                local tool_name="${BASH_REMATCH[1]}"
+                local tool_arg="${BASH_REMATCH[2]}"
+                
+                log_info "Detected Tool Call: $tool_name with argument '$tool_arg'"
+                
+                local result_output
+                case "$tool_name" in
+                    web_fetch)
+                        # Execute tool and capture all output (including errors)
+                        result_output=$(web_fetch "$tool_arg" 2>&1) 
+                        ;;
+                    *)
+                        result_output="ERROR: Unknown tool '$tool_name'. Check syntax."
+                        ;;
+                esac
+                
+                # Append tool result to be fed back to the agents (self-healing)
+                tool_results+="\n[TOOL_RESULT:$tool_name:$tool_arg]\n$result_output\n[/TOOL_RESULT]"
+            fi
+        done <<< "$final_plan"
+
+        # Update conversation history with plan and tool feedback
+        conversation_history="$conversation_history\n--- Loop $i ---\n$final_plan"
+        if [[ -n "$tool_results" ]]; then
+            log_info "Tools executed. Appending feedback for self-healing."
+            conversation_history+="\n--- TOOL FEEDBACK ---\n$tool_results"
+        fi
+
+        # Check for final answer only after processing feedback
+        if [[ "$final_plan" == *"[FINAL_ANSWER]"* ]]; then
+            status="SUCCESS"
             break
         fi
-
-        # --- Tool Execution ---
-        local clean_tool_cmd; clean_tool_cmd=$(echo "${tool_line#\[TOOL\] }" | sed 's/^[ \t]*//;s/[ \t]*$//;s/\r$//')
         
-        # NOTE ON HMAC: The original HMAC check was flawed. Since the LLM is untrusted, 
-        # the only real security is the human in the loop. The HMAC is skipped here 
-        # to prevent false-positives and rely on the manual confirmation.
-        log_warn "Tool execution relies on user confirmation. Auto-execution (without confirmation) is a major security risk."
-        
-        local tool_name; tool_name=$(echo "$clean_tool_cmd" | awk '{print $1}')
-        local args_str; args_str=$(echo "$clean_tool_cmd" | cut -d' ' -f2-)
-        local tool_args=()
-        
-        # CRITICAL SECURITY RISK: Using eval to parse args_str is a potential injection point.
-        # The user's input to the Executor model can lead to arbitrary code execution here.
-        # We rely on the user confirmation step below for safety.
-        eval "tool_args=(\"${args_str}\")"
-        
-        local tool_result="User aborted action."
-        if confirm_action "$clean_tool_cmd"; then
-            if declare -f "tool_$tool_name" > /dev/null; then
-                # Call the tool function with the project directory and arguments
-                tool_result=$(tool_"$tool_name" "$project_dir" "${tool_args[@]}") || tool_result="Tool execution failed: check logs."
-                log_success "Tool '$tool_name' executed successfully."
-            else
-                log_error "AI tried to call an unknown tool: '$tool_name'"
-                tool_result="Error: Tool '$tool_name' does not exist in toolset."
-            fi
+        # Prevent infinite loops due to planning/tool failure by checking MAX_AGENT_LOOPS limit.
+        if (( i == MAX_AGENT_LOOPS )) && [[ "$status" != "SUCCESS" ]]; then
+            log_error "Reached max loops ($MAX_AGENT_LOOPS) without [FINAL_ANSWER]."
+            conversation_history+="\n[FINAL_ANSWER] ERROR: Max agent loops reached without a conclusive answer. Plan execution failed."
+            status="FAILED"
+            break
         fi
-        
-        # Log tool usage
-        sqlite3 "$CORE_DB" "INSERT INTO tool_logs (task_id, tool_name, args, result) VALUES ('$task_id', '$tool_name', '$(sqlite_escape "$args_str")', '$(sqlite_escape "$tool_result")');"
-        
-        # Append to conversation history for next loop
-        local loop_summary="--- Loop $i Tool Execution Summary ---
-[EXECUTOR DECISION]
-${final_plan}
-[TOOL_RESULT]
-${tool_result}"
-        conversation_history="$conversation_history\n$loop_summary"
     done
 
-    # --- Final Output ---
-    log_phase "AGI Workflow Complete (Status: $status)"
-    local final_answer; final_answer=$(echo "$conversation_history" | grep '\[FINAL_ANSWER\]' | sed 's/\[FINAL_ANSWER\]//' | tail -n 1 || echo "The agent finished, but did not produce a final answer. Review the context.")
-    
-    local final_ref; final_ref=$(store_output_fast "$final_answer")
-    add_to_memory_fast "$(semantic_hash_prompt "$user_prompt")" "$user_prompt" "$final_ref"
-    echo -e "\n${GREEN}--- Final Answer ---\n${NC}${final_answer}"
+    # Store final output
+    local final_ref=$(store_output_fast "$conversation_history")
+    log_success "AGI workflow complete (Status: $status), saved to $PROJECTS_DIR/$final_ref.txt"
+    echo -e "\n--- Final Answer (Status: $status) ---\n$conversation_history"
 }
 
-run_default_init() { 
-    log_phase "No prompt given. Scanning context..."; 
-    if [[ -d ".git" ]]; then 
-        log_info "Git repository detected. Showing status:"; 
-        git status; 
-    else 
-        log_info "Standard directory. Showing structure:"; 
-        tree -L 2 . || ls -la; 
-    fi
-}
-
-# ---------------- HELP & MAIN DISPATCHER ----------------
-show_help() {
-    cat << EOF
-${GREEN}AI Autonomic Synthesis Platform v32.0 (Refactored Edition)${NC}
-An agent that uses a fixed, multi-layer reasoning pipeline and ensures Ollama connectivity.
-
-${CYAN}USAGE:${NC}
-  ai serve                             # Start the interactive web UI (Requires Node.js)
-  ai "your high-level goal"            # Run the autonomous AGI workflow
-  ai                                   # (No prompt) Scan current directory context
-  ai --setup                           # Install/verify dependencies (sqlite3, git, curl, nodejs, npm, tree, openssl)
-  ai --help                            # Show this help
-  ai db-query "<SQL>"                  # Directly query the internal SQLite database (for debugging)
-EOF
-}
-
-run_db_query() {
-    local sql_query="$*"
-    log_info "Executing DB query: $sql_query"
-    sqlite3 -header -column "$CORE_DB" "$sql_query" || log_error "SQL execution failed."
-}
-
-
-main() {
-    if [[ "${1:-}" == "serve" ]]; then exit 0; fi
-    
+# --- ENTRY POINT ---
+main(){
     init_environment
-    init_db
-
-    local command="${1:-}"
-    shift || true
-
-    case "$command" in
-        --setup|-s)
-            log_info "Installing dependencies (sqlite3, git, curl, nodejs, npm, tree, openssl)..."
-            if command -v dpkg &>/dev/null; then
-                log_warn "Attempting to remove potentially conflicting 'npm' package for NodeSource compatibility."
-                sudo dpkg -r --force-depends npm 2>/dev/null || true
-            fi
-            
-            if command -v apt-get &>/dev/null; then 
-                sudo apt-get update && sudo apt-get install -y sqlite3 git curl nodejs npm tree openssl
-            else 
-                log_warn "Could not determine package manager (using apt-get). Please install dependencies manually."; 
-            fi
-            
-            # Check for Ollama models needed
-            log_info "Verifying Ollama models: ${MESSENGER_MODEL}, ${PLANNER_MODELS[*]}, ${EXECUTOR_MODEL}"
-            ensure_ollama # Start server if needed
-            log_success "System dependencies and Ollama verification complete."
-            ;;
-        --help|-h) show_help ;;
-        db-query) run_db_query "$*" ;; # New handler for debugging
-        "") run_default_init ;;
-        *) run_agi_workflow "$command" "$@" ;;
+    local cmd="${1:-}"; shift || true
+    case "$cmd" in
+        --setup|-s) log_info "Setup mode: Termux deps handled externally." ;;
+        --help|-h) echo "Usage: $0 \"<prompt>\""; exit 0 ;;
+        serve) log_info "Serve mode not implemented for Termux v12"; exit 0 ;;
+        "") log_info "No prompt given. Run with a task: $0 \"Write a new function.\"" ; exit 0 ;;
+        *) run_agi_workflow "$cmd" "$@" ;;
     esac
 }
 
-# --- SCRIPT ENTRY POINT ---
-if [[ -z "${NODE_ENV:-}" ]]; then
-    main "$@"
-fi
+main "$@"

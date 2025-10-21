@@ -10,9 +10,9 @@ LOG_FILE="$AI_HOME/ai.log"
 LOG_LEVEL="${LOG_LEVEL:-DEBUG}"
 CORE_DB="$AI_HOME/agent_core.db"
 
-MESSENGER_MODEL="loop:latest"
-PLANNER_MODELS=("loop:latest" "core:latest")
-EXECUTOR_MODEL="2244:latest"
+MESSENGER_MODEL=("core:latest" "deepseek-v3.1:671b-cloud" "2244:latest")
+PLANNER_MODELS=("core:latest" "code:latest" "loop:latest" "coin:latest" "deepseek-v3.1:671b-cloud" "gpt-oss:20b-cloud")
+EXECUTOR_MODEL="core:latest"
 OLLAMA_BIN="$(command -v ollama || echo 'ollama')"
 
 MAX_AGENT_LOOPS=7
