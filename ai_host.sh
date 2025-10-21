@@ -1,15 +1,21 @@
-#!/usr/bin/env bash
-# ~/_/ai/ai_host.sh
-
-# Ensure environment
-export PYTHONUNBUFFERED=1
-export NODE_PATH=$(npm root -g)
+#!/bin/bash
+# ai_host.sh - Orchestrate Python + Node.js AI agents
 
 PROMPT="$*"
-if [ -z "$PROMPT" ]; then
-  read -p "Enter human prompt: " PROMPT
-fi
+[ -z "$PROMPT" ] && read -rp "Enter human prompt: " PROMPT
 
-echo "[NEXUS] ⚙️  Starting AI Crew Hyper-Reasoning..."
-python3 "$HOME/_/ai/ai.py" "$PROMPT"
-node "$HOME/_/ai/ai.js" "$PROMPT"
+# Temp folder for JSON outputs
+TMP_DIR="$(pwd)/tmp"
+mkdir -p "$TMP_DIR"
+
+echo "[NEXUS] ⚙️ Generated entropy hash: $(date +%s | sha256sum | cut -c1-64)"
+echo "[NEXUS] 🌡 Temperature set: 0.5, Recursion depth: 5"
+
+# Run Python Neuro (hyper-reasoning)
+python3 ./ai.py "$PROMPT" &
+
+# Run Node.js Crew-AI pool
+node ./ai.js "$PROMPT" &
+
+wait
+echo "[NEXUS] ✅ Hyper-reasoning completed. JSON outputs stored in $TMP_DIR"

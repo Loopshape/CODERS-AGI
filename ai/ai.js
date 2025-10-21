@@ -1,81 +1,108 @@
 #!/usr/bin/env node
-/**
- * ai.js - Node.js ES module stub for Crew-AI
- * Streams AI responses and logs to console with colors
- */
+// ai.js - Node.js Crew AI Orchestrator
 
 import fs from 'fs';
 import path from 'path';
-import chalk from 'chalk';
-import fetch from 'node-fetch'; // or global fetch in Node 18+
 import { fileURLToPath } from 'url';
+import fetch from 'node-fetch';
+import chalk from 'chalk';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const tmpDir = path.join(__dirname, 'tmp');
-if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+// Configuration
+const TMP_DIR = path.join(__dirname, 'tmp');
+if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
 
-const crewAgents = ['core', 'loop', 'code', 'coin', '2244', 'neuro'];
-const modelMap = {
-  core: 'core:latest',
-  loop: 'loop:latest',
-  code: 'code:latest',
-  coin: 'coin:latest',
-  '2244': '2244:latest',
-  neuro: 'gemma3:1b'
-};
+const AGENTS = ['core','loop','code','coin','2244'];
+const CREW_POOL = 'deepseek-coder:latest';
+const LOCAL_API = 'http://localhost:11434/api/generate';
+
+function saveJSON(agent, data) {
+    const filename = path.join(TMP_DIR, `${agent}_${Date.now().toString(16)}.json`);
+    fs.writeFileSync(filename, JSON.stringify(data, null, 2));
+    console.log(chalk.green(`[JS] Crew-AI stub written to ${filename}`));
+}
 
 async function streamAgent(agent, prompt) {
-  const model = modelMap[agent];
-  console.log(chalk.cyan(`[${agent.toUpperCase()}] 🚀 Starting stream...`));
-
-  try {
-    const response = await fetch('http://localhost:11434/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, prompt, stream: true })
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter(l => l.trim());
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line);
-          if (data.response) console.log(chalk.green(`[${agent}] ${data.response}`));
-        } catch (e) {}
-      }
+    console.log(chalk.cyan(`[${agent.toUpperCase()}] 🚀 Starting stream...`));
+    try {
+        const res = await fetch(LOCAL_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: agent, prompt, stream: true })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = '';
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter(l => l.trim());
+            for (const line of lines) {
+                try {
+                    const data = JSON.parse(line);
+                    if (data.response) {
+                        console.log(chalk.blue(`[${agent}] ${data.response}`));
+                        fullResponse += data.response + '\n';
+                    }
+                } catch {}
+            }
+        }
+        saveJSON(agent, { prompt, response: fullResponse });
+        console.log(chalk.cyan(`[${agent}] ✅ Stream ended.`));
+    } catch (e) {
+        console.log(chalk.red(`[${agent}] ❌ Error: ${e.message}`));
     }
-    console.log(chalk.cyan(`[${agent}] ✅ Stream ended.`));
-  } catch (err) {
-    console.log(chalk.red(`[${agent}] ❌ Error: ${err.message}`));
-  }
 }
 
-async function main() {
-  const prompt = process.argv.slice(2).join(' ');
-  if (!prompt) {
-    console.log(chalk.yellow('⚠ Usage: ai.js "<prompt>"'));
-    process.exit(1);
-  }
-
-  console.log(chalk.magenta(`[NEXUS] ⚙️ Generated entropy hash: ${Date.now().toString(16)}`));
-
-  const streams = crewAgents.map(agent => streamAgent(agent, prompt));
-  await Promise.allSettled(streams);
-
-  console.log(chalk.magenta('[NEXUS] ✅ All streams completed.'));
-  // Optional: store JSON/qbit to tmp
-  const filename = path.join(tmpDir, `${Date.now().toString(16)}.json`);
-  fs.writeFileSync(filename, JSON.stringify({ prompt, timestamp: Date.now(), agents: crewAgents }));
-  console.log(chalk.green(`[JS] Crew-AI stub written to ${filename}`));
+async function streamCrewPool(prompt) {
+    const agent = 'Crew-AI';
+    console.log(chalk.cyan(`[${agent}] 🚀 Starting stream...`));
+    try {
+        const res = await fetch(LOCAL_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: CREW_POOL, prompt, stream: true })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = '';
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter(l => l.trim());
+            for (const line of lines) {
+                try {
+                    const data = JSON.parse(line);
+                    if (data.response) {
+                        console.log(chalk.magenta(`[${agent}] ${data.response}`));
+                        fullResponse += data.response + '\n';
+                    }
+                } catch {}
+            }
+        }
+        saveJSON(agent, { prompt, response: fullResponse });
+        console.log(chalk.cyan(`[${agent}] ✅ Crew-Pool stream ended.`));
+    } catch (e) {
+        console.log(chalk.red(`[${agent}] ❌ Error: ${e.message}`));
+    }
 }
 
-main();
+// CLI
+(async () => {
+    const prompt = process.argv.slice(2).join(' ');
+    if (!prompt) {
+        console.log(chalk.yellow('Usage: node ai.js "<prompt>"'));
+        process.exit(1);
+    }
+
+    const streams = AGENTS.map(agent => streamAgent(agent, prompt));
+    streams.push(streamCrewPool(prompt));
+    await Promise.all(streams);
+    console.log(chalk.green('[JS] ✅ All streams completed.'));
+})();

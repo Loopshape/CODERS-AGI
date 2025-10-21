@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>2244 Cosmos + Atomic Phalanx</title>
+<title>2244 Cosmos Standalone</title>
 
 <!-- Monokai-dark theme for logs -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet"/>
@@ -13,6 +13,9 @@
 
 <!-- GSAP -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js"></script>
+
+<!-- Three.js -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.165/build/three.min.js"></script>
 
 <style>
 body, html { margin:0; padding:0; width:100%; height:100%; background:#272822; overflow:hidden; font-family:monospace; }
@@ -24,9 +27,7 @@ canvas { display:block; width:100%; height:100%; }
 <div id="log"></div>
 <canvas id="cosmos"></canvas>
 
-<script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165/build/three.module.js';
-
+<script>
 // --- Logging helper ---
 function log(msg){
   $('#log').append(msg+'<br>').scrollTop($('#log')[0].scrollHeight);
@@ -89,32 +90,23 @@ for(let i=0;i<4;i++){
   scene.add(atomGroup);
 }
 
-// --- WebSocket to local Neuro ---
-let ws;
+// --- Fallback self-test Neuro feed ---
 let lastPkt = null;
-function connectWS(){
-  ws = new WebSocket('ws://localhost:8081');
-  ws.onopen = ()=>log('✅ WS connected');
-  ws.onmessage = e => handleStream(JSON.parse(e.data));
-  ws.onclose = ()=>{ log('⚠️ WS closed, retry 2s'); setTimeout(connectWS,2000); };
-  ws.onerror = err => { log('❌ WS error'); ws.close(); };
+function emitFakeToken(){
+  const pkt = {phi:Math.random()*0.02, omega:Math.random()*0.01, entropy:Math.random(), charge:Math.random()};
+  lastPkt = pkt;
+  handleStream(pkt);
 }
-connectWS();
+setInterval(emitFakeToken,100);
 
-// --- Handle Neuro tokens + hash:rehash logic ---
+// --- Handle Neuro tokens + hash:rehash ---
 function handleStream(pkt){
   lastPkt = pkt;
-  // Update sun emissive by entropy
   sun.material.emissive.setHSL(pkt.entropy,1,0.5);
-
-  // Planets phase rotation
   planets.forEach(p=>p.userData.φ += pkt.phi*0.05);
-
-  // Atoms ions spin via hashStep + charge
   atoms.forEach(atom=>{
     atom.userData.orbitφ += pkt.omega*0.05;
     atom.children.forEach(ion=>{
-      // hash:rehash simulation
       ion.userData.hashStep = (ion.userData.hashStep + pkt.phi*0.1) % 1;
       const h = ion.userData.hashStep*Math.PI*2;
       ion.position.set(
@@ -126,13 +118,6 @@ function handleStream(pkt){
     });
   });
 }
-
-// --- Fallback self-test ---
-setInterval(()=>{
-  if(!lastPkt){
-    handleStream({phi:0.01,omega:0.005,entropy:0.3,charge:0.2});
-  }
-},2000);
 
 // --- Animate ---
 function animate(){

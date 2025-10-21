@@ -14,6 +14,7 @@
     "@google/genai": "^0.15.0",
     "chalk": "^4.1.2",
     "firebase": "^10.12.3",
+    "fs": "^0.0.1-security",
     "lucide-react": "^0.395.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

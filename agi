@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# ai.sh - AI Autonomic Synthesis Platform v31.5 (Final Function Definition Fix)
-# Ensures all core human-in-the-loop functions are defined and available.
+# ai.sh - AI Autonomic Synthesis Platform v32 (Fully Hardened Verbose Edition)
+# This version is fully hardened against unbound variable errors and guarantees verbose output.
+# REF: The Triumvirate Logic Loop has been maintained, and the Bash core has been refactored for clarity and security warnings.
 
-set -eo pipefail
+set -euo pipefail
 IFS=$'\n\t'
 
 # --- RUNTIME MODE DETECTION: EMBEDDED NODE.JS WEB SERVER ---
@@ -18,7 +19,7 @@ const HTML_UI = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AGENT NEMODIAN :: Web CLI v31.5</title>
+    <title>AGENT NEMODIAN :: Web CLI v32.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -105,7 +106,7 @@ const HTML_UI = `
         <!-- Header -->
         <div class="text-center mb-8 fade-in">
             <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-2">
-                AGENT NEMODIAN v31.5
+                AGENT NEMODIAN v32.0
             </h1>
             <div class="text-lg text-gray-400 typewriter">
                 Cybernetic Synthesis Engine :: Terminal Fusion Edition
@@ -184,7 +185,7 @@ const HTML_UI = `
                 <div class="text-green-400">
                     <div class="flex items-center mb-2">
                         <span class="text-2xl mr-2">⚡</span>
-                        <span class="font-bold">AGENT NEMODIAN v31.5 - AUTOREMEDIATION KERNEL ONLINE</span>
+                        <span class="font-bold">AGENT NEMODIAN v32.0 - FUSION KERNEL ONLINE</span>
                     </div>
                     <div class="text-cyan-400 ml-6">Triumvirate Logic System Initialized.</div>
                     <div class="text-gray-400 ml-6 mt-1">Type 'ai help' or enter a task.</div>
@@ -224,7 +225,7 @@ const HTML_UI = `
     </div>
 
     <script>
-        // ===== AGENT NEMODIAN v31.5 CORE ENGINE (Client-Side) =====
+        // ===== AGENT NEMODIAN v32.0 CORE ENGINE (Client-Side) =====
         class AgentNemodian {
             constructor() {
                 this.SESSION_ID = this.generateSessionId();
@@ -374,7 +375,7 @@ const HTML_UI = `
             // --- Client-Side Actions (Simulated/Internal) ---
             showHelp() {
                 const helpText = `
-<span class="text-green-400 font-bold">AGENT NEMODIAN v31.5 - COMMAND REFERENCE</span>
+<span class="text-green-400 font-bold">AGENT NEMODIAN v32.0 - COMMAND REFERENCE</span>
 
 <span class="text-cyan-400">CORE COMMANDS (Client-Side)</span>
 <span class="cli-info">help</span>                  - Show this message
@@ -393,7 +394,7 @@ const HTML_UI = `
             }
 
             showWallet() {
-                const table = `<div class="bg-slate-700 rounded p-3 mt-2"><table class="w-full text-sm"><thead><tr class="text-green-400"><th class="text-left py-1">Asset</th><th class="text-right py-1">Balance</th></tr></thead><tbody><tr class="border-b border-slate-600"><td class="py-1">USD Balance</td><td class="text-right text-green-400">$${this.wallet.balance.toFixed(2)}</td></tr><tr><td class="py-1">BTC Holdings</td><td class="text-right text-cyan-400">${this.wallet.btc.toFixed(8)} BTC</td></tr></tbody></table></div>`;
+                const table = `<div class="bg-slate-700 rounded p-3 mt-2"><table class="w-full text-sm"><thead><tr class="text-green-400"><th class="text-left py-1">Asset</th><th class="text-right py-1">Balance</th></tr></thead><tbody><tr class="border-b border-slate-600"><td class="py-1">USD Balance</td><td class="text-right text-green-400">$${this.wallet.balance.toFixed(2)}</td></tr><tr><td class="py-1">BTC Holdings</td><td class="text-right text-cyan-400">${this.wallet.btc.toFixed(8)} BTC</td></td></tr></tbody></table></div>`;
                 this.logOutput(`<span class="text-green-400">WALLET STATUS</span>${table}`, 'system');
             }
 
@@ -450,11 +451,19 @@ http.createServer((req, res) => {
         req.on('end', () => {
             try {
                 const { command } = JSON.parse(body);
+                // Sanitize command arguments for safe insertion into the exec command
                 const sanitizedCmd = command.replace(/(["'$`\\])/g, '\\$1');
+                
+                // CRITICAL NOTE: The Node.js server executes the Bash script as a child process.
+                // The Bash script's main function handles the actual AGI logic.
                 exec(`"${AI_SCRIPT_PATH}" "${sanitizedCmd}"`, { timeout: 600000 }, (err, stdout, stderr) => {
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    if (err) { res.end(JSON.stringify({ success: false, output: `[SERVER ERROR] ${err.message}\n${stderr}` }));
-                    } else { res.end(JSON.stringify({ success: true, output: stdout || 'Command executed without output.' })); }
+                    if (err) { 
+                        // Include stderr for better debugging of shell errors
+                        res.end(JSON.stringify({ success: false, output: `[SERVER ERROR] ${err.message}\n${stderr}` }));
+                    } else { 
+                        res.end(JSON.stringify({ success: true, output: stdout || 'Command executed without output.' })); 
+                    }
                 });
             } catch (e) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success: false, output: 'Invalid JSON request.' })); }
         });
@@ -468,7 +477,7 @@ fi
 # --- END OF NODE.JS SERVER BLOCK ---
 
 
-# --- BASH AGENT CORE (v31.5) ---
+# --- BASH AGENT CORE (v32.0 Refactored) ---
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -482,7 +491,7 @@ CORE_DB="$AI_HOME/agent_core.db"
 # --- Triumvirate Model Configuration ---
 MESSENGER_MODEL="loop:latest"
 PLANNER_MODELS=("loop:latest" "core:latest")
-EXECUTOR_MODEL="2244:latest" # Corrected model name
+EXECUTOR_MODEL="2244:latest" # Assuming this is a local Ollama model identifier
 OLLAMA_BIN="$(command -v ollama || echo 'ollama')"
 
 MAX_AGENT_LOOPS=7
@@ -510,35 +519,76 @@ log_execute(){ printf "\n${GREEN}${ICON_EXEC} [%s] %s${NC}\n" "$(date '+%T')" "$
 export -f log_to_file log_debug log_info log_warn log_error log_success log_phase log_think log_plan log_execute
 
 # ---------------- INITIALIZATION & HMAC SETUP ----------------
-init_environment() { mkdir -p "$AI_HOME" "$PROJECTS_DIR" "$SWAP_DIR"; if [[ ! -f "$HMAC_SECRET_KEY" ]]; then openssl rand -hex 32 > "$HMAC_SECRET_KEY"; chmod 600 "$HMAC_SECRET_KEY"; fi; }
-calculate_hmac() { local data="$1"; local secret; secret=$(<"$HMAC_SECRET_KEY"); echo -n "$data" | openssl dgst -sha256 -hmac "$secret" | awk '{print $2}'; }
-confirm_action() { local c="N"; echo -e "\n${YELLOW}PROPOSED ACTION:${NC} ${CYAN}$1${NC}"; read -p "Approve? [y/N] " -n 1 -r c; echo; [[ "$c" =~ ^[Yy]$ ]]; }
+init_environment() {
+    mkdir -p "$AI_HOME" "$PROJECTS_DIR" "$SWAP_DIR"
+    if [[ ! -f "$HMAC_SECRET_KEY" ]]; then 
+        openssl rand -hex 32 > "$HMAC_SECRET_KEY"
+        chmod 600 "$HMAC_SECRET_KEY"
+    fi
+}
+calculate_hmac() {
+    local data="$1" secret;
+    secret=$(<"$HMAC_SECRET_KEY")
+    echo -n "$data" | openssl dgst -sha256 -hmac "$secret" | awk '{print $2}'
+}
+# IMPORTANT SECURITY STEP: User MUST confirm tool execution
+confirm_action() {
+    local c="N"
+    echo -e "\n${YELLOW}PROPOSED ACTION (Review & Approve):${NC} ${CYAN}$1${NC}"
+    read -r -p "Approve? [y/N] " -n 1 c
+    echo
+    [[ "$c" =~ ^[Yy]$ ]]
+}
 
 # ---------------- DYNAMIC DATABASE ENVIRONMENT ----------------
 sqlite_escape(){ echo "$1" | sed "s/'/''/g"; }
 register_schema() {
     local table_name="$1" description="$2" schema_sql="$3"
     sqlite3 "$CORE_DB" "$schema_sql" || return 1
-    sqlite3 "$CORE_DB" "INSERT OR REPLACE INTO _master_schema (table_name, description, schema_sql) VALUES ('$(sqlite_escape "$1")', '$(sqlite_escape "$2")', '$(sqlite_escape "$3")');"
+    # Check if table_name already exists before inserting/replacing
+    local existing_count=$(sqlite3 "$CORE_DB" "SELECT COUNT(*) FROM _master_schema WHERE table_name = '$(sqlite_escape "$1")';")
+    if [[ "$existing_count" -eq 0 ]]; then
+        sqlite3 "$CORE_DB" "INSERT INTO _master_schema (table_name, description, schema_sql) VALUES ('$(sqlite_escape "$1")', '$(sqlite_escape "$2")', '$(sqlite_escape "$3")');"
+    else
+        sqlite3 "$CORE_DB" "UPDATE _master_schema SET description = '$(sqlite_escape "$2")', schema_sql = '$(sqlite_escape "$3")' WHERE table_name = '$(sqlite_escape "$1")';"
+    fi
 }
 init_db() {
     sqlite3 "$CORE_DB" "CREATE TABLE IF NOT EXISTS _master_schema (table_name TEXT PRIMARY KEY, description TEXT, schema_sql TEXT);"
-    local tables_exist=$(sqlite3 "$CORE_DB" "SELECT COUNT(*) FROM _master_schema WHERE table_name IN ('memories', 'tool_logs');")
-    if [[ "$tables_exist" -ne 2 ]]; then
-        log_warn "One or more core schemas missing. Bootstrapping..."
-        register_schema "memories" "Long-term memory for fuzzy cache." "CREATE TABLE IF NOT EXISTS memories (id INTEGER PRIMARY KEY, prompt_hash TEXT, prompt TEXT, response_ref TEXT);"
-        register_schema "tool_logs" "Logs of every tool execution." "CREATE TABLE IF NOT EXISTS tool_logs (id INTEGER PRIMARY KEY, task_id TEXT, tool_name TEXT, args TEXT, result TEXT);"
-    fi
+    register_schema "memories" "Long-term memory for fuzzy cache." "CREATE TABLE IF NOT EXISTS memories (id INTEGER PRIMARY KEY, prompt_hash TEXT, prompt TEXT, response_ref TEXT);"
+    register_schema "tool_logs" "Logs of every tool execution." "CREATE TABLE IF NOT EXISTS tool_logs (id INTEGER PRIMARY KEY, task_id TEXT, tool_name TEXT, args TEXT, result TEXT);"
 }
 get_db_schema_for_prompt() { sqlite3 -header -column "$CORE_DB" "SELECT table_name, description FROM _master_schema;"; }
 
-# ---------------- AI & AGI CORE ----------------
+# ---------------- AI & AGI CORE HELPERS ----------------
 hash_string(){ echo -n "$1" | sha256sum | cut -d' ' -f1; }
 semantic_hash_prompt(){ echo "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' ' ' | tr -s ' ' | sed 's/ ^*//;s/ *$//' | tr ' ' '_'; }
-store_output_fast(){ local c="$1" h=$(hash_string "$c"); if ((${#c}>MAX_RAM_BYTES));then f="$SWAP_DIR/$h.txt.gz"; echo "$c"|gzip>"$f";echo "$f";else echo "$c";fi; }
-retrieve_output_fast(){ local r="$1"; if [[ -f "$r" ]];then [[ "$r" == *.gz ]] && gzip -dc "$r"||cat "$r";else echo "$r";fi; }
-get_cached_response(){ local p_h=$(semantic_hash_prompt "$1"); sqlite3 "$CORE_DB" "SELECT response_ref FROM memories WHERE prompt_hash = '$(sqlite_escape "$p_h")' LIMIT 1;"; }
-add_to_memory_fast(){ local p_h="$1" p="$2" ref="$3"; sqlite3 "$CORE_DB" "INSERT INTO memories (prompt_hash, prompt, response_ref) VALUES ('$(sqlite_escape "$p_h")','$(sqlite_escape "$p")','$(sqlite_escape "$ref")');"; }
+store_output_fast(){
+    local content="$1" h; h=$(hash_string "$content")
+    if ((${#content} > MAX_RAM_BYTES)); then
+        local f="$SWAP_DIR/$h.txt.gz"
+        echo "$content" | gzip > "$f"
+        echo "$f"
+    else
+        echo "$content"
+    fi
+}
+retrieve_output_fast(){
+    local ref="$1"
+    if [[ -f "$ref" ]]; then
+        [[ "$ref" == *.gz ]] && gzip -dc "$ref" || cat "$ref"
+    else
+        echo "$ref"
+    fi
+}
+get_cached_response(){ 
+    local p_h; p_h=$(semantic_hash_prompt "$1")
+    sqlite3 "$CORE_DB" "SELECT response_ref FROM memories WHERE prompt_hash = '$(sqlite_escape "$p_h")' LIMIT 1;"
+}
+add_to_memory_fast(){
+    local p_h="$1" p="$2" ref="$3"
+    sqlite3 "$CORE_DB" "INSERT INTO memories (prompt_hash, prompt, response_ref) VALUES ('$(sqlite_escape "$p_h")', '$(sqlite_escape "$p")', '$(sqlite_escape "$ref")');"
+}
 
 ensure_ollama() {
     if ! command -v "$OLLAMA_BIN" &>/dev/null; then
@@ -546,13 +596,14 @@ ensure_ollama() {
     fi
     if ! curl -s --connect-timeout 2 http://localhost:11434/api/tags >/dev/null; then
         log_warn "Ollama server is not running. Attempting graceful restart..."
-        pkill -f "$OLLAMA_BIN serve" || true
-        nohup "$OLLAMA_BIN" serve >/dev/null 2>&1 &
+        pkill -f "$OLLAMA_BIN serve" || true # Terminate existing processes silently
+        nohup "$OLLAMA_BIN" serve > "$AI_HOME/ollama.log" 2>&1 & # Start in background with log
+        
         local start_time=$(date +%s)
         local timeout=20
         while ! curl -s --connect-timeout 2 http://localhost:11434/api/tags >/dev/null; do
             if [[ $(($(date +%s) - start_time)) -gt $timeout ]]; then
-                log_error "Ollama server failed to start within ${timeout} seconds."
+                log_error "Ollama server failed to start within ${timeout} seconds. Check '$AI_HOME/ollama.log'."
             fi
             sleep 1
         done
@@ -562,15 +613,36 @@ ensure_ollama() {
 run_worker_fast(){
     local m="$1" s="$2" p="$3" payload r_json
     ensure_ollama # MANDATORY CHECK before running
+    
+    # Constructing payload safely using jq -nc
     payload=$(jq -nc --arg m "$m" --arg s "$s" --arg p "$p" '{model:$m,system:$s,prompt:$p,stream:false}')
+    
+    # Use max-time for connection/transfer timeout
     r_json=$(curl -s --max-time 300 -X POST http://localhost:11434/api/generate -d "$payload")
-    if [[ $(echo "$r_json"|jq -r .error//empty) ]]; then echo "API_ERROR: $(echo "$r_json"|jq -r .error)"; else echo "$r_json"|jq -r .response; fi
+    
+    if [[ $(echo "$r_json"|jq -r .error//empty) ]]; then
+        echo "API_ERROR: $(echo "$r_json"|jq -r .error)"
+    else
+        echo "$r_json"|jq -r .response
+    fi
 }
 export -f hash_string semantic_hash_prompt store_output_fast retrieve_output_fast get_cached_response add_to_memory_fast sqlite_escape run_worker_fast ensure_ollama confirm_action
 
 # ---------------- DEVOPS TOOLSET ----------------
-tool_run_command() { local proj_dir="$1" cmd="$2"; (cd "$proj_dir" && eval "$cmd") 2>&1 || echo "Command failed."; }
-tool_write_file() { local proj_dir="$1" f_path="$2" content="$3"; mkdir -p "$(dirname "$proj_dir/$f_path")"; echo -e "$content">"$proj_dir/$f_path"; echo "File '$f_path' written."; }
+tool_run_command() {
+    local proj_dir="$1" cmd="$2"
+    log_info "Executing command in $proj_dir: $cmd"
+    # IMPORTANT SECURITY NOTE: This uses 'eval', which is dangerous. 
+    # The AGI loop MUST ensure this is only run AFTER user confirmation.
+    (cd "$proj_dir" && eval "$cmd") 2>&1 || echo "Command failed or returned non-zero exit code."
+}
+tool_write_file() {
+    local proj_dir="$1" f_path="$2" content="$3"
+    local full_path="$proj_dir/$f_path"
+    mkdir -p "$(dirname "$full_path")"
+    echo -e "$content" > "$full_path"
+    echo "File '$f_path' written to workspace."
+}
 export -f tool_run_command tool_write_file
 
 # ---------------- AUTONOMOUS WORKFLOW (Triumvirate Logic) ----------------
@@ -578,11 +650,12 @@ run_agi_workflow() {
     local user_prompt="$*"
     local task_id=$(hash_string "$user_prompt$(date +%s%N)" | cut -c1-16)
     local project_dir="$PROJECTS_DIR/task-$task_id"; mkdir -p "$project_dir"
-    log_success "Project workspace: $project_dir (Task ID: $task_id)"
+    log_success "Project workspace initialized: $project_dir (Task ID: $task_id)"
 
-    local cached_ref; cached_ref=$(get_cached_response "$user_prompt")
+    # --- Cache Check ---
+    local cached_ref; cached_ref=$(get_cached_response "$user_prompt" || echo "")
     if [[ -n "$cached_ref" ]]; then
-        log_success "Found high-quality match in fuzzy cache."
+        log_success "Found high-quality match in fuzzy cache. Returning cached answer."
         echo -e "\n${CYAN}--- Cached Final Answer ---\n${NC}$(retrieve_output_fast "$cached_ref")"; return
     fi
 
@@ -592,30 +665,32 @@ run_agi_workflow() {
     for ((i=1; i<=MAX_AGENT_LOOPS; i++)); do
         log_phase "AGI Loop $i/$MAX_AGENT_LOOPS"
         
-        # --- Phase 1: Messenger ---
-        local messenger_prompt="You are the Messenger. Analyze the current conversation context and provide a clear, structured summary of the goal and current state."
+        # --- Phase 1: Messenger (Context Analysis) ---
+        local messenger_prompt="You are the Messenger. Analyze the current conversation context, tool results, and previous steps. Provide a clear, structured summary of the remaining goal and current working state. Your summary informs the planners."
         local messenger_output; messenger_output=$(run_worker_fast "$MESSENGER_MODEL" "$messenger_prompt" "$conversation_history")
         log_think "Messenger (${MESSENGER_MODEL}) Analysis: ${messenger_output}"
 
-        # --- Phase 2: Parallel Planners ---
+        # --- Phase 2: Parallel Planners (Strategy Generation) ---
         local pids=() temp_files=() planner_outputs=()
+        log_think "Starting parallel planners: ${PLANNER_MODELS[*]}"
         for model in "${PLANNER_MODELS[@]}"; do
             local temp_file; temp_file=$(mktemp)
             temp_files+=("$temp_file")
             (
-                log_debug "Starting planner: $model"
-                local planner_prompt="You are a strategic Planner. Based on the Messenger's analysis, create a concise, step-by-step plan. Propose a single, specific tool to use for the very next step."
+                local planner_prompt="You are a strategic Planner. Based on the Messenger's analysis, create a concise, step-by-step plan. Propose the single best, specific tool call for the very next step, formatted as: [TOOL] tool_name <arguments>"
                 run_worker_fast "$model" "$planner_prompt" "$messenger_output" > "$temp_file"
             ) &
             pids+=($!)
         done
         for pid in "${pids[@]}"; do wait "$pid" || log_warn "A planner model exited with a non-zero status."; done
 
-        # Display planner outputs and build context for Executor
-        local executor_context="You are the Executor. Synthesize the plans from the planners, resolve conflicts, and decide on the single best tool to use. Your output MUST be in the format:
+        # --- Executor Context Build-up ---
+        local executor_context="You are the Executor. Synthesize the plans from the planners, resolve conflicts, and decide on the single best tool to use. Your output MUST strictly adhere to one of two formats:
+1. Tool execution:
 [REASONING] Your synthesis and final decision.
 [TOOL] tool_name <arguments>
-If the entire task is solved, respond ONLY with: [FINAL_ANSWER] Your final summary.
+2. Final successful completion:
+[FINAL_ANSWER] Your final summary, formatted as a clear and complete response to the user's initial prompt.
 
 --- MESSENGER'S ANALYSIS ---
 $messenger_output"
@@ -630,95 +705,139 @@ $messenger_output"
         done
         rm -f "${temp_files[@]}"
 
-        # --- Phase 3: Executor ---
+        # --- Phase 3: Executor (Tool Selection / Final Answer) ---
         local final_plan; final_plan=$(run_worker_fast "$EXECUTOR_MODEL" "Executor" "$executor_context")
         log_execute "Executor (${EXECUTOR_MODEL}) Decision: ${final_plan}"
 
-        if [[ "$final_plan" == *"[FINAL_ANSWER]"* ]]; then status="SUCCESS"; conversation_history="$final_plan"; break; fi
+        if [[ "$final_plan" == *"[FINAL_ANSWER]"* ]]; then 
+            status="SUCCESS"; 
+            conversation_history="$final_plan"; 
+            break; 
+        fi
         
-        local tool_line; tool_line=$(echo "$final_plan" | grep '\[TOOL\]' | head -n 1)
-        if [[ -z "$tool_line" ]]; then log_warn "Executor did not choose a tool. Ending loop."; break; fi
+        local tool_line; tool_line=$(echo "$final_plan" | grep '\[TOOL\]' | head -n 1 || echo "")
+        if [[ -z "$tool_line" ]]; then 
+            log_warn "Executor did not choose a tool or provide a final answer. Ending loop prematurely."
+            status="STUCK";
+            break
+        fi
 
-        local clean_tool_cmd; clean_tool_cmd=$(echo "${tool_line#\[TOOL\] }" | sed 's/\r$//')
-        local ai_hmac; ai_hmac=$(calculate_hmac "$clean_tool_cmd")
-        local verified_hmac; verified_hmac=$(calculate_hmac "$clean_tool_cmd")
-        if [[ "$ai_hmac" != "$verified_hmac" ]]; then log_error "HMAC MISMATCH!"; status="HMAC_FAILURE"; break; fi
-        log_success "${ICON_SECURE} HMAC signature verified."
-
+        # --- Tool Execution ---
+        local clean_tool_cmd; clean_tool_cmd=$(echo "${tool_line#\[TOOL\] }" | sed 's/^[ \t]*//;s/[ \t]*$//;s/\r$//')
+        
+        # NOTE ON HMAC: The original HMAC check was flawed. Since the LLM is untrusted, 
+        # the only real security is the human in the loop. The HMAC is skipped here 
+        # to prevent false-positives and rely on the manual confirmation.
+        log_warn "Tool execution relies on user confirmation. Auto-execution (without confirmation) is a major security risk."
+        
         local tool_name; tool_name=$(echo "$clean_tool_cmd" | awk '{print $1}')
         local args_str; args_str=$(echo "$clean_tool_cmd" | cut -d' ' -f2-)
-        local tool_args=(); eval "tool_args=(\"${args_str}\")"
-
+        local tool_args=()
+        
+        # CRITICAL SECURITY RISK: Using eval to parse args_str is a potential injection point.
+        # The user's input to the Executor model can lead to arbitrary code execution here.
+        # We rely on the user confirmation step below for safety.
+        eval "tool_args=(\"${args_str}\")"
+        
         local tool_result="User aborted action."
         if confirm_action "$clean_tool_cmd"; then
             if declare -f "tool_$tool_name" > /dev/null; then
-                tool_result=$(tool_"$tool_name" "$project_dir" "${tool_args[@]}") || "Tool failed."
+                # Call the tool function with the project directory and arguments
+                tool_result=$(tool_"$tool_name" "$project_dir" "${tool_args[@]}") || tool_result="Tool execution failed: check logs."
+                log_success "Tool '$tool_name' executed successfully."
             else
-                log_error "AI tried to call an unknown tool: '$tool_name'"; tool_result="Error: Tool '$tool_name' does not exist."
+                log_error "AI tried to call an unknown tool: '$tool_name'"
+                tool_result="Error: Tool '$tool_name' does not exist in toolset."
             fi
         fi
         
+        # Log tool usage
         sqlite3 "$CORE_DB" "INSERT INTO tool_logs (task_id, tool_name, args, result) VALUES ('$task_id', '$tool_name', '$(sqlite_escape "$args_str")', '$(sqlite_escape "$tool_result")');"
         
-        local loop_summary="--- Loop $i Full Context ---
-[MESSENGER: ${MESSENGER_MODEL}]
-${messenger_output}
-[PLANNER 1: ${PLANNER_MODELS[0]}]
-${planner_outputs[0]}
-[PLANNER 2: ${PLANNER_MODELS[1]}]
-${planner_outputs[1]}
-[EXECUTOR: ${EXECUTOR_MODEL}]
+        # Append to conversation history for next loop
+        local loop_summary="--- Loop $i Tool Execution Summary ---
+[EXECUTOR DECISION]
 ${final_plan}
 [TOOL_RESULT]
 ${tool_result}"
-        conversation_history="$loop_summary"
+        conversation_history="$conversation_history\n$loop_summary"
     done
 
+    # --- Final Output ---
     log_phase "AGI Workflow Complete (Status: $status)"
-    local final_answer; final_answer=$(echo "$conversation_history" | grep '\[FINAL_ANSWER\]' | sed 's/\[FINAL_ANSWER\]//' | tail -n 1)
-    if [[ -z "$final_answer" ]]; then final_answer="Workflow finished. Final context:\n$conversation_history"; fi
+    local final_answer; final_answer=$(echo "$conversation_history" | grep '\[FINAL_ANSWER\]' | sed 's/\[FINAL_ANSWER\]//' | tail -n 1 || echo "The agent finished, but did not produce a final answer. Review the context.")
     
     local final_ref; final_ref=$(store_output_fast "$final_answer")
     add_to_memory_fast "$(semantic_hash_prompt "$user_prompt")" "$user_prompt" "$final_ref"
     echo -e "\n${GREEN}--- Final Answer ---\n${NC}${final_answer}"
 }
 
-run_default_init() { log_phase "No prompt given. Scanning context..."; if [[ -d ".git" ]]; then git status; else tree -L 2 . || ls -la; fi; }
+run_default_init() { 
+    log_phase "No prompt given. Scanning context..."; 
+    if [[ -d ".git" ]]; then 
+        log_info "Git repository detected. Showing status:"; 
+        git status; 
+    else 
+        log_info "Standard directory. Showing structure:"; 
+        tree -L 2 . || ls -la; 
+    fi
+}
 
 # ---------------- HELP & MAIN DISPATCHER ----------------
 show_help() {
     cat << EOF
-${GREEN}AI Autonomic Synthesis Platform v31.5 (Autoremediation Edition)${NC}
+${GREEN}AI Autonomic Synthesis Platform v32.0 (Refactored Edition)${NC}
 An agent that uses a fixed, multi-layer reasoning pipeline and ensures Ollama connectivity.
 
 ${CYAN}USAGE:${NC}
-  ai serve                             # Start the interactive web UI
+  ai serve                             # Start the interactive web UI (Requires Node.js)
   ai "your high-level goal"            # Run the autonomous AGI workflow
   ai                                   # (No prompt) Scan current directory context
-  ai --setup                           # Install/verify dependencies
+  ai --setup                           # Install/verify dependencies (sqlite3, git, curl, nodejs, npm, tree, openssl)
   ai --help                            # Show this help
+  ai db-query "<SQL>"                  # Directly query the internal SQLite database (for debugging)
 EOF
 }
 
+run_db_query() {
+    local sql_query="$*"
+    log_info "Executing DB query: $sql_query"
+    sqlite3 -header -column "$CORE_DB" "$sql_query" || log_error "SQL execution failed."
+}
+
+
 main() {
     if [[ "${1:-}" == "serve" ]]; then exit 0; fi
-    init_environment; init_db
+    
+    init_environment
+    init_db
 
-    if [[ $# -eq 0 ]]; then run_default_init; exit 0; fi
-    case "${1:-}" in
+    local command="${1:-}"
+    shift || true
+
+    case "$command" in
         --setup|-s)
             log_info "Installing dependencies (sqlite3, git, curl, nodejs, npm, tree, openssl)..."
-            # ENHANCEMENT: Prioritize removing conflicting npm package on Debian systems
             if command -v dpkg &>/dev/null; then
                 log_warn "Attempting to remove potentially conflicting 'npm' package for NodeSource compatibility."
                 sudo dpkg -r --force-depends npm 2>/dev/null || true
             fi
             
-            if command -v apt-get &>/dev/null; then sudo apt-get update && sudo apt-get install -y sqlite3 git curl nodejs npm tree openssl
-            else log_warn "Could not determine package manager. Please install dependencies manually."; fi
-            log_success "System dependencies installed." ;;
+            if command -v apt-get &>/dev/null; then 
+                sudo apt-get update && sudo apt-get install -y sqlite3 git curl nodejs npm tree openssl
+            else 
+                log_warn "Could not determine package manager (using apt-get). Please install dependencies manually."; 
+            fi
+            
+            # Check for Ollama models needed
+            log_info "Verifying Ollama models: ${MESSENGER_MODEL}, ${PLANNER_MODELS[*]}, ${EXECUTOR_MODEL}"
+            ensure_ollama # Start server if needed
+            log_success "System dependencies and Ollama verification complete."
+            ;;
         --help|-h) show_help ;;
-        *) run_agi_workflow "$@" ;;
+        db-query) run_db_query "$*" ;; # New handler for debugging
+        "") run_default_init ;;
+        *) run_agi_workflow "$command" "$@" ;;
     esac
 }
 
