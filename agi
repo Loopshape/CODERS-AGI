@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# ai.sh - AI Autonomic Synthesis Platform v32 (Real-time CypherStream Edition)
-# The final agent build: rich, verbosed, and featuring code highlighting via Pygments.
+# ai.sh - AI Autonomic Synthesis Platform v31.5 (Final Function Definition Fix)
+# Ensures all core human-in-the-loop functions are defined and available.
 
-set -euo pipefail
+set -eo pipefail
 IFS=$'\n\t'
 
 # --- RUNTIME MODE DETECTION: EMBEDDED NODE.JS WEB SERVER ---
@@ -18,93 +18,273 @@ const HTML_UI = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AGENT NEMODIAN :: Web CLI v32.0</title>
+    <title>AGENT NEMODIAN :: Web CLI v31.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --nemodian-green: #38a169; --nemodian-dark: #0f172a; --nemodian-darker: #020617;
-            --nemodian-cyan: #22d3ee; --nemodian-purple: #a855f7;
+            --nemodian-green: #38a169;
+            --nemodian-dark: #0f172a;
+            --nemodian-darker: #020617;
+            --nemodian-light: #1e293b;
+            --nemodian-cyan: #22d3ee;
+            --nemodian-purple: #a855f7;
+            --bg: var(--nemodian-darker);
         }
-        body { font-family: 'JetBrains Mono', monospace; background: linear-gradient(135deg, var(--nemodian-darker) 0%, var(--nemodian-dark) 100%); color: #e2e8f0; min-height: 100vh; }
-        .terminal-glow { box-shadow: 0 0 20px rgba(56, 161, 105, 0.3); }
-        .quantum-pulse { animation: quantumPulse 2s ease-in-out infinite alternate; }
-        @keyframes quantumPulse { from { box-shadow: 0 0 10px rgba(56, 161, 105, 0.4); } to { box-shadow: 0 0 20px rgba(34, 211, 238, 0.6); } }
-        .fade-in { animation: fadeIn 0.5s ease-in; } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(135deg, var(--nemodian-darker) 0%, var(--nemodian-dark) 100%);
+            color: #e2e8f0;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        
+        .terminal-glow {
+            box-shadow: 
+                0 0 20px rgba(56, 161, 105, 0.3),
+                0 0 40px rgba(56, 161, 105, 0.2),
+                0 0 60px rgba(56, 161, 105, 0.1);
+        }
+        
+        .quantum-pulse {
+            animation: quantumPulse 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes quantumPulse {
+            from { box-shadow: 0 0 10px rgba(56, 161, 105, 0.4); }
+            to { box-shadow: 0 0 20px rgba(34, 211, 238, 0.6), 0 0 30px rgba(168, 85, 247, 0.4); }
+        }
+        
+        .node-superposition { border-left: 3px solid #63b3ed; }
+        .node-high-entropy { border-left: 3px solid #f56565; }
+        .node-high-qbit { border-left: 3px solid #48bb78; }
+        .node-cooldown { border-left: 3px solid #22d3ee; }
+        .node-collapsed { border-left: 3px solid #f6e05e; }
+        
+        .typewriter {
+            overflow: hidden;
+            border-right: 2px solid var(--nemodian-green);
+            white-space: nowrap;
+            animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+        }
+        
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+        
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: var(--nemodian-green) }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
         /* Output Formatting for Backend */
-        .cli-prompt { color: var(--nemodian-green); font-weight: bold; } .cli-output { color: #e2e8f0; } .cli-info { color: var(--nemodian-cyan); } .cli-success { color: #48bb78; } .cli-error { color: #f56565; } .cli-warning { color: #f6e05e; } .cli-phase { color: var(--nemodian-purple); font-weight: bold; margin-top: 10px; }
-        
-        /* Pygments Monokai Dark Theme for Code (Converted from ANSI to HTML for consistency) */
-        .pyg_keyword { color: #F92672; } .pyg_name_class { color: #A6E22E; } .pyg_name_function { color: #A6E22E; } .pyg_string { color: #E6DB74; } .pyg_comment { color: #75715E; } .pyg_number { color: #AE81FF; } .pyg_operator { color: #F8F8F2; } .pyg_builtin { color: #66D9EF; } .pyg_text { color: #F8F8F2; }
+        .cli-prompt { color: var(--nemodian-green); font-weight: bold; }
+        .cli-output { color: #e2e8f0; }
+        .cli-info { color: var(--nemodian-cyan); }
+        .cli-success { color: #48bb78; }
+        .cli-error { color: #f56565; }
+        .cli-warning { color: #f6e05e; }
+        .cli-phase { color: var(--nemodian-purple); font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body class="flex items-center justify-center p-4">
     <div id="app" class="w-full max-w-6xl">
-        <!-- Header & Dashboard (Retained for style) -->
-        <div class="text-center mb-8 fade-in"><h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-2">AGENT NEMODIAN v32.0</h1><div class="text-lg text-gray-400 typewriter">Cybernetic Synthesis Engine :: Terminal Fusion Edition</div></div>
+        <!-- Header -->
+        <div class="text-center mb-8 fade-in">
+            <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-2">
+                AGENT NEMODIAN v31.5
+            </h1>
+            <div class="text-lg text-gray-400 typewriter">
+                Cybernetic Synthesis Engine :: Terminal Fusion Edition
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div class="bg-slate-800 rounded-lg p-6 terminal-glow"><h3 class="text-green-400 font-bold mb-4">STATUS</h3><div class="flex justify-between"><span>Triumvirate Core:</span><span class="text-green-400">ONLINE</span></div></div>
-            <div class="bg-slate-800 rounded-lg p-6"><h3 class="text-cyan-400 font-bold mb-4">QUICK ACTIONS</h3><button onclick="executeAction('db-schema')" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm transition-colors">🗃️ DB Schema</button></div>
-            <div class="bg-slate-800 rounded-lg p-6"><h3 class="text-purple-400 font-bold mb-4">QUANTUM METRICS</h3><canvas id="quantumChart" width="200" height="120"></canvas></div>
+            <!-- System Status -->
+            <div class="bg-slate-800 rounded-lg p-6 terminal-glow">
+                <h3 class="text-green-400 font-bold mb-4 flex items-center">
+                    <span class="quantum-pulse w-3 h-3 bg-green-400 rounded-full mr-2"></span>
+                    SYSTEM STATUS
+                </h3>
+                <div id="system-status" class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span>Triumvirate Core:</span>
+                        <span class="text-green-400">ONLINE</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Model Pool:</span>
+                        <span class="text-green-400">3/3 MODELS</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Entropy Level:</span>
+                        <span class="text-cyan-400" id="entropy-level">0.42</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Memory Hash:</span>
+                        <span class="text-green-400" id="qbit-stability">0x0000...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-slate-800 rounded-lg p-6">
+                <h3 class="text-cyan-400 font-bold mb-4">QUICK ACTIONS</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="executeAction('snapshot')" class="bg-green-600 hover:bg-green-700 text-white p-2 rounded text-sm transition-colors">
+                        📸 Snapshot
+                    </button>
+                    <button onclick="executeAction('db-schema')" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm transition-colors">
+                        🗃️ DB Schema
+                    </button>
+                    <button onclick="executeAction('mindflow')" class="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded text-sm transition-colors">
+                        🧠 Mindflow
+                    </button>
+                    <button onclick="executeAction('wallet')" class="bg-yellow-600 hover:bg-yellow-700 text-white p-2 rounded text-sm transition-colors">
+                        💰 Wallet
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quantum Metrics -->
+            <div class="bg-slate-800 rounded-lg p-6">
+                <h3 class="text-purple-400 font-bold mb-4">QUANTUM METRICS</h3>
+                <canvas id="quantumChart" width="200" height="120"></canvas>
+            </div>
         </div>
 
         <!-- Terminal Interface -->
         <div class="bg-slate-900 rounded-lg terminal-glow quantum-pulse overflow-hidden">
-            <div class="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-green-400/30"><span class="text-green-400 font-bold ml-2">NEMODIAN_TERMINAL</span><div class="text-gray-400 text-sm" id="session-id">Session: Loading...</div></div>
+            <!-- Terminal Header -->
+            <div class="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-green-400/30">
+                <div class="flex items-center space-x-2">
+                    <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                    <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span class="text-green-400 font-bold ml-2">NEMODIAN_TERMINAL</span>
+                </div>
+                <div class="text-gray-400 text-sm" id="session-id">Session: Loading...</div>
+            </div>
 
             <!-- Terminal Output -->
             <div id="terminal-output" class="h-96 overflow-y-auto p-4 font-mono text-sm space-y-2">
-                <div class="text-green-400"><span class="font-bold">AGENT NEMODIAN v32.0 - CYBERSTREAM KERNEL ONLINE</span><div class="text-gray-400 ml-6 mt-1">Type 'ai help' or enter a task.</div></div>
+                <div class="text-green-400">
+                    <div class="flex items-center mb-2">
+                        <span class="text-2xl mr-2">⚡</span>
+                        <span class="font-bold">AGENT NEMODIAN v31.5 - AUTOREMEDIATION KERNEL ONLINE</span>
+                    </div>
+                    <div class="text-cyan-400 ml-6">Triumvirate Logic System Initialized.</div>
+                    <div class="text-gray-400 ml-6 mt-1">Type 'ai help' or enter a task.</div>
+                </div>
             </div>
 
             <!-- Terminal Input -->
-            <div class="border-t border-green-400/30 bg-slate-800 px-4 py-3"><div class="flex items-center"><span class="text-green-400 font-bold mr-3">≫</span><input type="text" id="terminal-input" class="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500" placeholder="Enter command or neural prompt..." autocomplete="off" autofocus>
-            <div id="loading-indicator" class="hidden ml-3">...</div></div></div>
+            <div class="border-t border-green-400/30 bg-slate-800 px-4 py-3">
+                <div class="flex items-center">
+                    <span class="text-green-400 font-bold mr-3">≫</span>
+                    <input 
+                        type="text" 
+                        id="terminal-input" 
+                        class="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500"
+                        placeholder="Enter command or neural prompt..."
+                        autocomplete="off"
+                        autofocus
+                    >
+                    <div id="loading-indicator" class="hidden ml-3">
+                        <div class="flex space-x-1">
+                            <div class="w-2 h-2 bg-green-400 rounded-full animate-bounce"></div>
+                            <div class="w-2 h-2 bg-green-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                            <div class="w-2 h-2 bg-green-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mindflow Visualization Panel (Simplified for this version) -->
+        <div id="mindflow-panel" class="hidden mt-6 bg-slate-800 rounded-lg p-6 terminal-glow">
+            <h3 class="text-cyan-400 font-bold mb-4">MINDFLOW VISUALIZATION</h3>
+            <div id="mindflow-content" class="font-mono text-sm space-y-1 max-h-80 overflow-y-auto">
+                <!-- Content will be rendered dynamically -->
+            </div>
         </div>
     </div>
 
     <script>
-        // ===== AGENT NEMODIAN v32.0 CORE ENGINE (Client-Side) =====
+        // ===== AGENT NEMODIAN v31.5 CORE ENGINE (Client-Side) =====
         class AgentNemodian {
             constructor() {
                 this.SESSION_ID = this.generateSessionId();
+                this.wallet = { balance: 1000.0, btc: 0.0 };
+                this.quantumChart = null;
                 this.init();
             }
 
             generateSessionId() { return 'session_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36); }
             updateSessionDisplay() { document.getElementById('session-id').textContent = \`Session: \${this.SESSION_ID.substr(0, 12)}...\`; }
             clearTerminal() { document.getElementById('terminal-output').innerHTML = ''; }
-            
             logOutput(content, type = 'cli-output') {
                 const output = document.getElementById('terminal-output');
                 const message = document.createElement('div');
-                message.className = 'fade-in ' + type;
+                message.className = 'fade-in';
                 message.innerHTML = content;
                 output.appendChild(message);
                 output.scrollTop = output.scrollHeight;
             }
             showLoading(show) { document.getElementById('loading-indicator').classList.toggle('hidden', !show); }
-            escapeHtml(text) { 
-                const div = document.createElement('div');
-                // Replace special characters with HTML entities before setting textContent
-                // This is specifically for displaying raw Bash output containing color codes/emojis that we want to render as text first
-                div.textContent = text.replace(/\\u001b\\[[0-9;]*m/g, ''); 
-                let html = div.innerHTML;
-
-                // --- HACK to translate Pygments/ANSI codes to CSS classes ---
-                // Pygments HTML output uses <span> tags with class names like 'c' (comment), 'k' (keyword).
-                // We'll rename them here for our style sheet.
-                html = html.replace(/<span class="([a-z0-9_]+)">/g, (match, p1) => {
-                    return \`<span class="pyg_\${p1}">\`;
-                });
-                return html;
-            }
+            escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
 
             init() {
                 this.updateSessionDisplay();
+                this.initQuantumChart();
                 this.setupEventListeners();
+                this.simulateQuantumActivity();
+            }
+
+            initQuantumChart() {
+                const ctx = document.getElementById('quantumChart').getContext('2d');
+                this.quantumChart = new Chart(ctx, {
+                    type: 'line', data: { labels: Array.from({length: 20}, (_, i) => i + 1),
+                        datasets: [
+                            { label: 'Qbit Factor', data: Array(20).fill(0.5), borderColor: '#48bb78', backgroundColor: 'rgba(72, 187, 120, 0.1)', tension: 0.4, fill: true },
+                            { label: 'Entropy', data: Array(20).fill(0.42), borderColor: '#22d3ee', backgroundColor: 'rgba(34, 211, 238, 0.1)', tension: 0.4, fill: true }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                        scales: { y: { min: 0, max: 1, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } }, x: { display: false } }
+                    }
+                });
+            }
+
+            simulateQuantumActivity() {
+                setInterval(() => {
+                    const entropy = 0.3 + Math.random() * 0.4;
+                    const qbit = 0.4 + Math.random() * 0.5;
+                    document.getElementById('entropy-level').textContent = entropy.toFixed(3);
+                    document.getElementById('qbit-stability').textContent = '86%';
+                    if (this.quantumChart) {
+                        this.quantumChart.data.datasets[0].data.push(qbit);
+                        this.quantumChart.data.datasets[1].data.push(entropy);
+                        if (this.quantumChart.data.datasets[0].data.length > 20) {
+                            this.quantumChart.data.datasets[0].data.shift();
+                            this.quantumChart.data.datasets[1].data.shift();
+                        }
+                        this.quantumChart.update('none');
+                    }
+                }, 2000);
             }
 
             setupEventListeners() {
@@ -120,13 +300,16 @@ const HTML_UI = `
             processCommand(input) {
                 if (!input) return;
 
-                this.logOutput(`<span class="cli-prompt">≫</span> <span class="cli-output">\${this.escapeHtml(input)}</span>`, 'user');
+                this.logOutput(`<span class="cli-prompt">≫</span> <span class="cli-output">${this.escapeHtml(input)}</span>`, 'user');
                 
                 const command = input.toLowerCase().split(' ')[0];
 
                 switch (command) {
                     case 'help': this.showHelp(); break;
                     case 'clear': this.clearTerminal(); break;
+                    case 'wallet': this.showWallet(); break;
+                    case 'mindflow': this.showMindflow(); break;
+                    case 'snapshot': this.createSnapshot(); break;
                     case 'db-schema': this.executeBackendCommand(\`ai db-query "SELECT table_name, description FROM _master_schema"\`); break;
                     default: this.executeBackendCommand(\`ai \${input}\`); break;
                 }
@@ -144,12 +327,12 @@ const HTML_UI = `
                     const result = await response.json();
                     
                     if (!result.success) {
-                        this.logOutput(\`<span class="cli-error">❌ KERNEL ERROR</span><br><span class="cli-error">\${this.escapeHtml(result.output)}</span>\`, 'error');
+                        this.logOutput(`<span class="cli-error">❌ KERNEL ERROR</span><br><span class="cli-error">${this.escapeHtml(result.output)}</span>`, 'error');
                     } else {
                         this.parseBackendOutput(result.output);
                     }
                 } catch (e) {
-                    this.logOutput(\`<span class="cli-error">❌ NETWORK ERROR:</span> \${e.message}\`, 'error');
+                    this.logOutput(`<span class="cli-error">❌ NETWORK ERROR:</span> ${e.message}`, 'error');
                 } finally {
                     this.showLoading(false);
                 }
@@ -159,32 +342,31 @@ const HTML_UI = `
             parseBackendOutput(output) {
                 const lines = output.split('\n');
                 lines.forEach(line => {
-                    // Stripping ANSI codes first (important for web output)
+                    // Stripping ANSI codes first
                     const cleanLine = line.replace(/\\u001b\\[[0-9;]*m/g, '').trim();
                     if (!cleanLine) return;
 
                     // Parse based on the Triumvirate Verbose Format
                     if (cleanLine.startsWith('--- Final Answer ---')) {
-                        this.logOutput(\`<span class="cli-success font-bold">🎯 FINAL ANSWER</span><br><span class="cli-output">\${this.escapeHtml(cleanLine.substring(21).trim())}</span>\`, 'cli-success');
+                        this.logOutput(`<span class="cli-success font-bold">🎯 FINAL ANSWER</span><br><span class="cli-output">${this.escapeHtml(cleanLine.substring(21).trim())}</span>`, 'cli-success');
                     } else if (cleanLine.startsWith('AGI Loop') || cleanLine.startsWith('--- Loop')) {
-                        this.logOutput(\`<span class="cli-purple font-bold">🔄 \${this.escapeHtml(cleanLine)}</span>\`, 'cli-output');
+                        this.logOutput(`<span class="cli-purple font-bold">🔄 ${this.escapeHtml(cleanLine)}</span>`, 'cli-output');
                     } else if (cleanLine.startsWith('Messenger') || cleanLine.startsWith('Planner') || cleanLine.startsWith('EXECUTOR')) {
-                        this.logOutput(\`<span class="cli-info font-bold">🧠 \${this.escapeHtml(cleanLine)}</span>\`, 'cli-output');
+                        this.logOutput(`<span class="cli-info font-bold">🧠 ${this.escapeHtml(cleanLine)}</span>`, 'cli-output');
                     } else if (cleanLine.startsWith('---')) {
-                         this.logOutput(\`<span class="text-gray-500 font-bold">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-output');
+                         this.logOutput(`<span class="text-gray-500 font-bold">${this.escapeHtml(cleanLine)}</span>`, 'cli-output');
                     } else if (cleanLine.startsWith('✅')) {
-                        this.logOutput(\`<span class="cli-success">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-success');
+                        this.logOutput(`<span class="cli-success">${this.escapeHtml(cleanLine)}</span>`, 'cli-success');
                     } else if (cleanLine.startsWith('ℹ️')) {
-                        this.logOutput(\`<span class="cli-info">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-info');
+                        this.logOutput(`<span class="cli-info">${this.escapeHtml(cleanLine)}</span>`, 'cli-info');
                     } else if (cleanLine.startsWith('⚠️') || cleanLine.startsWith('[WARN')) {
-                        this.logOutput(\`<span class="cli-warning">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-warning');
+                        this.logOutput(`<span class="cli-warning">${this.escapeHtml(cleanLine)}</span>`, 'cli-warning');
                     } else if (cleanLine.startsWith('❌') || cleanLine.startsWith('[ERROR')) {
-                        this.logOutput(\`<span class="cli-error">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-error');
+                        this.logOutput(`<span class="cli-error">${this.escapeHtml(cleanLine)}</span>`, 'cli-error');
                     } else if (cleanLine.startsWith('🚀')) {
-                        this.logOutput(\`<span class="cli-phase">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-phase');
+                        this.logOutput(`<span class="cli-phase">${this.escapeHtml(cleanLine)}</span>`, 'cli-phase');
                     } else {
-                        // Default output, includes Pygments HTML output if present
-                        this.logOutput(cleanLine, 'cli-output');
+                        this.logOutput(this.escapeHtml(cleanLine), 'cli-output');
                     }
                 });
             }
@@ -192,19 +374,49 @@ const HTML_UI = `
             // --- Client-Side Actions (Simulated/Internal) ---
             showHelp() {
                 const helpText = `
-<span class="text-green-400 font-bold">CYBERSPACE AGENT v32.0 - COMMAND REFERENCE</span>
+<span class="text-green-400 font-bold">AGENT NEMODIAN v31.5 - COMMAND REFERENCE</span>
 
+<span class="text-cyan-400">CORE COMMANDS (Client-Side)</span>
 <span class="cli-info">help</span>                  - Show this message
 <span class="cli-info">clear</span>                 - Clear terminal output
+<span class="cli-info">wallet</span>                - Show BTC wallet status (Simulated)
+<span class="cli-info">btc buy &lt;amount&gt;</span>     - Buy BTC (Simulated)
 
 <span class="text-cyan-400">AGI & DEVOPS (Backend)</span>
 <span class="cli-info">ai &lt;prompt&gt;</span>            - Run Triumvirate Agent workflow
 <span class="cli-info">ai serve</span>               - Start the web server (MUST be run from Bash)
 <span class="cli-info">ai --setup</span>             - Install all system dependencies
 <span class="cli-info">db-schema</span>             - Quick action to show database schema
+<span class="cli-info">snapshot</span>              - Quick action (Simulated)
                 `.trim();
                 this.logOutput(helpText, 'system');
             }
+
+            showWallet() {
+                const table = `<div class="bg-slate-700 rounded p-3 mt-2"><table class="w-full text-sm"><thead><tr class="text-green-400"><th class="text-left py-1">Asset</th><th class="text-right py-1">Balance</th></tr></thead><tbody><tr class="border-b border-slate-600"><td class="py-1">USD Balance</td><td class="text-right text-green-400">$${this.wallet.balance.toFixed(2)}</td></tr><tr><td class="py-1">BTC Holdings</td><td class="text-right text-cyan-400">${this.wallet.btc.toFixed(8)} BTC</td></tr></tbody></table></div>`;
+                this.logOutput(`<span class="text-green-400">WALLET STATUS</span>${table}`, 'system');
+            }
+
+            processBtcTransaction(args) {
+                if (args.length < 2) { this.logOutput('<span class="text-yellow-400">Usage: btc [buy|sell] &lt;amount&gt;</span>', 'system'); return; }
+                const action = args[0];
+                const amount = parseFloat(args[1]);
+                if (isNaN(amount) || amount <= 0) { this.logOutput('<span class="text-red-400">Invalid amount</span>', 'system'); return; }
+                if (action === 'buy') {
+                    if (this.wallet.balance < amount) { this.logOutput('<span class="text-red-400">Insufficient USD balance</span>', 'system'); return; }
+                    this.wallet.balance -= amount;
+                    this.wallet.btc += amount;
+                    this.logOutput(`<span class="text-green-400">✓ Purchased ${amount.toFixed(8)} BTC</span>`, 'system');
+                } else if (action === 'sell') {
+                    if (this.wallet.btc < amount) { this.logOutput('<span class="text-red-400">Insufficient BTC balance</span>', 'system'); return; }
+                    this.wallet.balance += amount;
+                    this.wallet.btc -= amount;
+                    this.logOutput(`<span class="text-green-400">✓ Sold ${amount.toFixed(8)} BTC</span>`, 'system');
+                } else { this.logOutput('<span class="text-yellow-400">Invalid action. Use "buy" or "sell"</span>', 'system'); }
+            }
+            createSnapshot() { this.logOutput(`<span class="text-purple-400">💾 Neuro snapshot created: snap_...</span>`, 'system'); }
+            autoCollapseNodes() { this.logOutput(`<span class="text-green-400">⚡ Auto-collapse completed.</span>`, 'system'); }
+            showMindflow() { this.logOutput(`<span class="text-cyan-400">Mindflow panel is active (not fully implemented in this version).</span>`, 'system'); }
         }
 
         // ===== GLOBAL FUNCTIONS AND INIT =====
@@ -212,14 +424,16 @@ const HTML_UI = `
             const agent = window.agent;
             const terminalInput = document.getElementById('terminal-input');
             switch (action) {
+                case 'snapshot': agent.createSnapshot(); break;
                 case 'db-schema': agent.processCommand('ai db-query "SELECT table_name, description FROM _master_schema"'); break;
-                // Add logic for other actions if needed
+                case 'mindflow': agent.showMindflow(); break;
+                case 'wallet': agent.showWallet(); break;
             }
             terminalInput.focus();
         }
         
         document.addEventListener('DOMContentLoaded', () => {
-            window.agent = new CyberAgentCLI();
+            window.agent = new AgentNemodian();
         });
     </script>
 </body>
@@ -254,7 +468,7 @@ fi
 # --- END OF NODE.JS SERVER BLOCK ---
 
 
-# --- BASH AGENT CORE (v32) ---
+# --- BASH AGENT CORE (v31.5) ---
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -268,7 +482,7 @@ CORE_DB="$AI_HOME/agent_core.db"
 # --- Triumvirate Model Configuration ---
 MESSENGER_MODEL="loop:latest"
 PLANNER_MODELS=("loop:latest" "core:latest")
-EXECUTOR_MODEL="2244:latest" 
+EXECUTOR_MODEL="2244:latest" # Corrected model name
 OLLAMA_BIN="$(command -v ollama || echo 'ollama')"
 
 MAX_AGENT_LOOPS=7
@@ -298,6 +512,7 @@ export -f log_to_file log_debug log_info log_warn log_error log_success log_phas
 # ---------------- INITIALIZATION & HMAC SETUP ----------------
 init_environment() { mkdir -p "$AI_HOME" "$PROJECTS_DIR" "$SWAP_DIR"; if [[ ! -f "$HMAC_SECRET_KEY" ]]; then openssl rand -hex 32 > "$HMAC_SECRET_KEY"; chmod 600 "$HMAC_SECRET_KEY"; fi; }
 calculate_hmac() { local data="$1"; local secret; secret=$(<"$HMAC_SECRET_KEY"); echo -n "$data" | openssl dgst -sha256 -hmac "$secret" | awk '{print $2}'; }
+confirm_action() { local c="N"; echo -e "\n${YELLOW}PROPOSED ACTION:${NC} ${CYAN}$1${NC}"; read -p "Approve? [y/N] " -n 1 -r c; echo; [[ "$c" =~ ^[Yy]$ ]]; }
 
 # ---------------- DYNAMIC DATABASE ENVIRONMENT ----------------
 sqlite_escape(){ echo "$1" | sed "s/'/''/g"; }
@@ -351,7 +566,7 @@ run_worker_fast(){
     r_json=$(curl -s --max-time 300 -X POST http://localhost:11434/api/generate -d "$payload")
     if [[ $(echo "$r_json"|jq -r .error//empty) ]]; then echo "API_ERROR: $(echo "$r_json"|jq -r .error)"; else echo "$r_json"|jq -r .response; fi
 }
-export -f hash_string semantic_hash_prompt store_output_fast retrieve_output_fast get_cached_response add_to_memory_fast sqlite_escape run_worker_fast ensure_ollama
+export -f hash_string semantic_hash_prompt store_output_fast retrieve_output_fast get_cached_response add_to_memory_fast sqlite_escape run_worker_fast ensure_ollama confirm_action
 
 # ---------------- DEVOPS TOOLSET ----------------
 tool_run_command() { local proj_dir="$1" cmd="$2"; (cd "$proj_dir" && eval "$cmd") 2>&1 || echo "Command failed."; }
@@ -473,7 +688,7 @@ run_default_init() { log_phase "No prompt given. Scanning context..."; if [[ -d 
 # ---------------- HELP & MAIN DISPATCHER ----------------
 show_help() {
     cat << EOF
-${GREEN}AI Autonomic Synthesis Platform v31.4 (Autoremediation Edition)${NC}
+${GREEN}AI Autonomic Synthesis Platform v31.5 (Autoremediation Edition)${NC}
 An agent that uses a fixed, multi-layer reasoning pipeline and ensures Ollama connectivity.
 
 ${CYAN}USAGE:${NC}

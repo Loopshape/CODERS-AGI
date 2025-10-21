@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "An AGI framework for generating and managing code, powered by Google Gemini.",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

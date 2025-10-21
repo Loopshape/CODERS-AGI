@@ -1,26 +1,41 @@
-import numpy as np  # multidimensional qbit arrays
+#!/usr/bin/env python3
+import os, sys, json, sqlite3, time, hashlib, asyncio, aiohttp
 
-async def neuro_mindmap(conn, prompt, fractal_hash, temp, websocket):
-    AGENTS = ["core","loop","code","coin","2244","neuro"]
-    iter_depth = 5
+DB_FILE = os.path.join(os.path.dirname(__file__), 'ai.db')
+os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
 
-    # --- Create 3D qbit array: agents x iterations x channels ---
-    qbits = np.zeros((len(AGENTS), iter_depth, 8))  # 8 channels per qbit
+# Initialize SQLite
+conn = sqlite3.connect(DB_FILE)
+c = conn.cursor()
+c.execute('''
+CREATE TABLE IF NOT EXISTS qbits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent TEXT,
+    prompt TEXT,
+    hash TEXT,
+    iteration INTEGER,
+    response TEXT,
+    timestamp REAL,
+    temp REAL
+)
+''')
+conn.commit()
 
-    for i, agent in enumerate(AGENTS):
-        for j in range(iter_depth):
-            # simulate qbit values with some entropy
-            qbits[i,j] = np.random.rand(8) * temp
+prompt = sys.argv[1] if len(sys.argv) > 1 else input("Enter human prompt: ")
 
-    # --- Compute Neuro reasoning as weighted sum of all qbits ---
-    neuro_output = np.sum(qbits, axis=(0,1))
-    neuro_response = f"[NEURO] Mindmap output: {neuro_output.tolist()}"
+# Generate entropy hash
+fractal_hash = hashlib.sha256(prompt.encode()).hexdigest()
+print(f"[NEXUS] ⚙️ Generated entropy hash: {fractal_hash}")
 
-    # --- Store in SQLite ---
-    c = conn.cursor()
-    c.execute("INSERT INTO qbits VALUES (?,?,?,?,?,?,?)",
-              ("neuro", prompt, fractal_hash, 0, str(neuro_output.tolist()), time.time(), temp))
-    conn.commit()
+# Example iteration
+temp_factor = 0.5
+recursion_depth = 5
 
-    # --- Send to cockpit live ---
-    await websocket.send(neuro_response)
+for i in range(1, recursion_depth + 1):
+    response = f"{prompt} (iteration {i})"
+    c.execute(
+        "INSERT INTO qbits (agent,prompt,hash,iteration,response,timestamp,temp) VALUES (?,?,?,?,?,?,?)",
+        ("neuro", prompt, fractal_hash, i, response, time.time(), temp_factor)
+    )
+conn.commit()
+print(f"[PY] Qbit stored -> {fractal_hash[:8]}")
