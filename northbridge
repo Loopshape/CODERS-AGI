@@ -1,0 +1,144 @@
+#!/bin/bash
+# ~/_/ai.sh - Parallel AI Cockpit w/ Neuro fractal recursion
+
+export AI_BASE="$HOME/_"
+export PATH="$AI_BASE/ai:$PATH"
+MEM_DIR="$AI_BASE/memory"
+DB_FILE="$MEM_DIR/crew.db"
+
+mkdir -p "$MEM_DIR"
+
+# Python3 memory bridge (qbit store/fetch)
+MEMORY_BRIDGE=$(cat <<'PYTHON'
+#!/usr/bin/env python3
+import sqlite3, sys, json, hashlib, os, datetime
+DB_FILE = os.path.expanduser(sys.argv[1])
+action = sys.argv[2]
+agent = sys.argv[3]
+prompt = sys.argv[4] if len(sys.argv) > 4 else ""
+qbit = sys.argv[5] if len(sys.argv) > 5 else "{}"
+
+phash = hashlib.sha256(prompt.encode()).hexdigest()
+conn = sqlite3.connect(DB_FILE)
+c = conn.cursor()
+c.execute('''CREATE TABLE IF NOT EXISTS qbits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    agent TEXT NOT NULL,
+    prompt_hash TEXT NOT NULL,
+    qbit TEXT NOT NULL
+)''')
+if action=="store":
+    c.execute("INSERT INTO qbits (timestamp,agent,prompt_hash,qbit) VALUES (?,?,?,?)",
+              (datetime.datetime.utcnow().isoformat(),agent,phash,qbit))
+elif action=="fetch":
+    c.execute("SELECT * FROM qbits WHERE agent=? AND prompt_hash=?", (agent,phash))
+    rows = c.fetchall()
+    print(json.dumps([{"id":r[0],"timestamp":r[1],"agent":r[2],"prompt_hash":r[3],"qbit":r[4]} for r in rows]))
+conn.commit()
+conn.close()
+PYTHON
+)
+BRIDGE_FILE="$MEM_DIR/memory_bridge.py"
+echo "$MEMORY_BRIDGE" > "$BRIDGE_FILE"
+chmod +x "$BRIDGE_FILE"
+
+# Agents and models
+AGENTS=("core" "loop" "code" "coin" "2244" "neuro")
+declare -A MODELS=(
+  [core]="core:latest"
+  [loop]="loop:latest"
+  [code]="code:latest"
+  [coin]="coin:latest"
+  [2244]="2244:latest"
+  [neuro]="gemma3:1b"
+)
+CREW_POOL="deepseek-coder:latest"
+
+function log() {
+  local agent=$1; shift
+  echo "[$agent] $*"
+}
+
+function store_qbit() {
+  local agent=$1 prompt=$2 qbit=$3
+  python3 "$BRIDGE_FILE" "$DB_FILE" store "$agent" "$prompt" "$qbit" >/dev/null
+}
+
+function fetch_qbit() {
+  local agent=$1 prompt=$2
+  python3 "$BRIDGE_FILE" "$DB_FILE" fetch "$agent" "$prompt"
+}
+
+function stream_agent() {
+  local agent=$1 prompt=$2
+  local model=${MODELS[$agent]}
+  log "$agent" "🚀 Streaming..."
+  response=$(curl -s -N -X POST "http://localhost:11434/api/generate" \
+    -H 'Content-Type: application/json' \
+    -d "{\"model\":\"$model\",\"prompt\":\"$prompt\",\"stream\":true}")
+  qbit=$(echo "$response" | jq -s '{response:[.[].response]}')
+  store_qbit "$agent" "$prompt" "$qbit"
+  log "$agent" "✅ Done."
+  echo "$qbit"
+}
+
+function neuro_fractal() {
+  local prompt=$1 depth=${2:-2}
+  local agent="neuro"
+  local fractal_prompt="$prompt"
+  log "$agent" "🚀 Fractal recursion start (depth=$depth)..."
+  for ((i=0;i<depth;i++)); do
+    # Fetch previous outputs as context
+    local context=""
+    for a in "${AGENTS[@]}"; do
+      context+=$(fetch_qbit "$a" "$fractal_prompt")
+    done
+    fractal_prompt="$prompt\nFractal-Depth:$i\nContext:$context"
+    response=$(curl -s -N -X POST "http://localhost:11434/api/generate" \
+      -H 'Content-Type: application/json' \
+      -d "{\"model\":\"${MODELS[$agent]}\",\"prompt\":\"$fractal_prompt\",\"stream\":true}")
+    qbit=$(echo "$response" | jq -s '{response:[.[].response]}')
+    store_qbit "$agent" "$fractal_prompt" "$qbit"
+    log "$agent" "✅ Depth $i complete."
+  done
+  echo "$qbit"
+}
+
+function stream_crew_pool() {
+  local prompt=$1
+  local agent="Crew-AI"
+  log "$agent" "🚀 Start streaming..."
+  response=$(curl -s -N -X POST "http://localhost:11434/api/generate" \
+    -H 'Content-Type: application/json' \
+    -d "{\"model\":\"$CREW_POOL\",\"prompt\":\"$prompt\",\"stream\":true}")
+  qbit=$(echo "$response" | jq -s '{response:[.[].response]}')
+  store_qbit "$agent" "$prompt" "$qbit"
+  log "$agent" "✅ Done."
+  echo "$qbit"
+}
+
+function crew_send() {
+  local prompt=$1
+  log "Cockpit" "Sending prompt to all agents..."
+  # Parallel agent streams
+  for agent in "${AGENTS[@]}"; do
+    stream_agent "$agent" "$prompt" &
+  done
+  # Crew pool stream
+  stream_crew_pool "$prompt" &
+  wait
+  # Neuro fractal reasoning (pre-processing)
+  neuro_fractal "$prompt" 3
+  log "Cockpit" "All streams & Neuro reasoning completed."
+}
+
+# CLI interactive
+if [[ -t 1 ]]; then
+  echo "-- 2244 AI Cockpit CLI --"
+  while true; do
+    read -p "Enter prompt> " PROMPT
+    [[ -z "$PROMPT" ]] && continue
+    crew_send "$PROMPT"
+  done
+fi

@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+// ~/_/ai/memory.js
+const sqlite3 = require('sqlite3').verbose();
+const crypto = require('crypto');
+const [,,action,agent,prompt,qbit] = process.argv;
+const db = new sqlite3.Database(`${process.env.HOME}/_ /memory/crew.db`);
+
+function hashPrompt(p) { return crypto.createHash('sha256').update(p).digest('hex'); }
+
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS qbits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp TEXT NOT NULL,
+      agent TEXT NOT NULL,
+      prompt_hash TEXT NOT NULL,
+      qbit JSON NOT NULL
+  )`);
+  if(action==='store'){
+    const phash = hashPrompt(prompt);
+    db.run(`INSERT INTO qbits (timestamp, agent, prompt_hash, qbit) VALUES (?,?,?,?)`,
+           [new Date().toISOString(), agent, phash, qbit], ()=>db.close());
+  } else if(action==='fetch'){
+    const phash = hashPrompt(prompt);
+    db.all(`SELECT * FROM qbits WHERE agent=? AND prompt_hash=?`, [agent, phash],
+           (err,rows)=>{ console.log(JSON.stringify(rows)); db.close(); });
+  } else db.close();
+});

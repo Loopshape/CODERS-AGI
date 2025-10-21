@@ -1,0 +1,9 @@
+flask
+aiohttp
+rich
+numpy
+pandas
+orjson
+SQLAlchemy
+anyio
+httpx

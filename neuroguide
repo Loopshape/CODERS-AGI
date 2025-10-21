@@ -1,0 +1,86 @@
+#!/bin/bash
+# ~/ai.sh - Parallel Ollama AI Crew with Neuro-Fractal Memory Guidance
+
+PROMPT="$1"
+[ -z "$PROMPT" ] && echo "⚠ Usage: $0 '<prompt>'" && exit 1
+
+AGENTS=(core loop code coin 2244 neuro)
+MODEL_MAP=( ["core"]="core:latest" ["loop"]="loop:latest" ["code"]="code:latest" ["coin"]="coin:latest" ["2244"]="2244:latest" ["neuro"]="gemma3:1b" )
+CREW_POOL_MODEL="deepseek-coder:latest"
+
+DB_DIR="$HOME/_/db"
+mkdir -p "$DB_DIR"
+DB_FILE="$DB_DIR/qbits.db"
+sqlite3 "$DB_FILE" "CREATE TABLE IF NOT EXISTS qbits(hash TEXT PRIMARY KEY, agent TEXT, prompt TEXT, response TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP);"
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+
+hash_prompt() { echo -n "$1 $(date +%s%N)" | sha256sum | awk '{print $1}'; }
+store_qbit() {
+    local hash=$1 agent=$2 prompt=$3 response=$4
+    sqlite3 "$DB_FILE" "INSERT OR IGNORE INTO qbits(hash, agent, prompt, response) VALUES('$hash','$agent','$prompt','$response');"
+}
+
+# Fetch Neuro-recommended context from previous qbits
+neuro_context() {
+    # Return concatenated last 5 Qbit responses for similar prompts (partial match)
+    sqlite3 "$DB_FILE" "SELECT response FROM qbits WHERE prompt LIKE '%$PROMPT%' ORDER BY timestamp DESC LIMIT 5;" \
+    | tr '\n' ' '
+}
+
+stream_agent() {
+    local agent=$1
+    local model=${MODEL_MAP[$agent]}
+    local hash=$(hash_prompt "$PROMPT-$agent")
+    
+    # Include Neuro's context if agent is not Neuro itself
+    local context=""
+    if [ "$agent" != "neuro" ]; then
+        context=$(neuro_context)
+    fi
+    local final_prompt="$PROMPT"
+    [ -n "$context" ] && final_prompt="Neuro Context: $context\nUser Prompt: $PROMPT"
+
+    echo -e "${CYAN}[${agent^^}] 🚀 Starting stream...${NC}"
+
+    curl -s -X POST "http://localhost:11434/api/generate" \
+        -H "Content-Type: application/json" \
+        -d "{\"model\":\"$model\",\"prompt\":\"$final_prompt\",\"stream\":true}" \
+        | while read -r line; do
+            [[ "$line" =~ response ]] && {
+                echo -e "${YELLOW}[${agent^^}]${NC} $line"
+                store_qbit "$hash" "$agent" "$PROMPT" "$line"
+            }
+        done
+    echo -e "${GREEN}[${agent^^}] ✅ Stream ended.${NC}"
+}
+
+stream_crew_pool() {
+    local agent="Crew-Pool"
+    local hash=$(hash_prompt "$PROMPT-Crew")
+    echo -e "${CYAN}[${agent}] 🚀 Starting stream...${NC}"
+
+    # Include Neuro context in Crew Pool as well
+    local context=$(neuro_context)
+    local final_prompt="$PROMPT"
+    [ -n "$context" ] && final_prompt="Neuro Context: $context\nUser Prompt: $PROMPT"
+
+    curl -s -X POST "http://localhost:11434/api/generate" \
+        -H "Content-Type: application/json" \
+        -d "{\"model\":\"$CREW_POOL_MODEL\",\"prompt\":\"$final_prompt\",\"stream\":true}" \
+        | while read -r line; do
+            [[ "$line" =~ response ]] && {
+                echo -e "${YELLOW}[${agent}]${NC} $line"
+                store_qbit "$hash" "$agent" "$PROMPT" "$line"
+            }
+        done
+    echo -e "${GREEN}[${agent^^}] ✅ Stream ended.${NC}"
+}
+
+for AG in "${AGENTS[@]}"; do
+    stream_agent "$AG" &
+done
+stream_crew_pool &
+wait
+
+echo -e "${GREEN}💡 All streams completed. Neuro-fractal Qbits stored.${NC}"

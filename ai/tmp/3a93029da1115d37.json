@@ -1,0 +1,13 @@
+{
+  "hash": "3a93029da1115d37",
+  "prompt": "project-2244/system/runner.sh",
+  "agents": [
+    "core",
+    "loop",
+    "code",
+    "coin",
+    "2244"
+  ],
+  "mindmap": [],
+  "neuro_score": {}
+}

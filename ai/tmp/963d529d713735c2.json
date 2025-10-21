@@ -1,0 +1,11 @@
+{
+  "hash": "963d529d713735c2",
+  "prompt": "project-2244/system/runner.sh",
+  "agents": [
+    "core",
+    "loop",
+    "code",
+    "coin",
+    "2244"
+  ]
+}
