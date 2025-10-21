@@ -1,26 +1,26 @@
-#!/usr/bin/env python3
-import sys, os, json, sqlite3, hashlib, time
+import numpy as np  # multidimensional qbit arrays
 
-prompt = sys.argv[1]
-hash_val = sys.argv[2]
-db_file = sys.argv[3]
-tmp_dir = sys.argv[4]
+async def neuro_mindmap(conn, prompt, fractal_hash, temp, websocket):
+    AGENTS = ["core","loop","code","coin","2244","neuro"]
+    iter_depth = 5
 
-# Connect SQLite
-conn = sqlite3.connect(db_file)
-c = conn.cursor()
-c.execute("""CREATE TABLE IF NOT EXISTS qbits (id INTEGER PRIMARY KEY, agent TEXT, hash TEXT, output TEXT)""")
+    # --- Create 3D qbit array: agents x iterations x channels ---
+    qbits = np.zeros((len(AGENTS), iter_depth, 8))  # 8 channels per qbit
 
-# Example: process prompt
-agents = ['core','loop','code','coin','2244','neuro']
-for agent in agents:
-    output = f"{agent} processed: {prompt} [{hash_val[:8]}]"
-    # Store qbit
-    c.execute("INSERT INTO qbits(agent, hash, output) VALUES (?,?,?)", (agent, hash_val, output))
-    # Store JSON
-    tmp_file = os.path.join(tmp_dir, f"{hash_val}_{agent}.json")
-    with open(tmp_file,'w') as f: json.dump({'agent':agent,'output':output}, f)
+    for i, agent in enumerate(AGENTS):
+        for j in range(iter_depth):
+            # simulate qbit values with some entropy
+            qbits[i,j] = np.random.rand(8) * temp
 
-conn.commit()
-conn.close()
-print("[PY] Qbits processed & JSON stored.")
+    # --- Compute Neuro reasoning as weighted sum of all qbits ---
+    neuro_output = np.sum(qbits, axis=(0,1))
+    neuro_response = f"[NEURO] Mindmap output: {neuro_output.tolist()}"
+
+    # --- Store in SQLite ---
+    c = conn.cursor()
+    c.execute("INSERT INTO qbits VALUES (?,?,?,?,?,?,?)",
+              ("neuro", prompt, fractal_hash, 0, str(neuro_output.tolist()), time.time(), temp))
+    conn.commit()
+
+    # --- Send to cockpit live ---
+    await websocket.send(neuro_response)

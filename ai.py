@@ -1,42 +1,55 @@
 #!/usr/bin/env python3
-import sys, json, sqlite3, hashlib, time
+# ~/_/ai/ai.py
+import os, sys, sqlite3, time, hashlib, json
+PROMPT = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else input("Enter human prompt: ")
 
-vibe_file = sys.argv[1]
-db_file = sys.argv[2]
-iterations = int(sys.argv[3])
+# DB setup
+DB_DIR = os.path.expanduser("~/__ai_db")
+DB_PATH = os.path.join(DB_DIR, "qbits.db")
+os.makedirs(DB_DIR, exist_ok=True)
 
-# Load prompt JSON
-with open(vibe_file, 'r') as f:
-    data = json.load(f)
-prompt = data['prompt']
-hashval = data['hash']
+conn = sqlite3.connect(DB_PATH)
+c = conn.cursor()
 
-# Initialize SQLite
-conn = sqlite3.connect(db_file)
-cur = conn.cursor()
-cur.execute("""
+# Table creation
+c.execute('''
 CREATE TABLE IF NOT EXISTS qbits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    hash TEXT,
     agent TEXT,
+    prompt TEXT,
+    hash TEXT,
     iteration INTEGER,
     response TEXT,
-    timestamp REAL
+    timestamp REAL,
+    temp REAL
 )
-""")
-
-# Example: split prompt into 'qbit' chunks
-qbits = [prompt[i:i+8] for i in range(0, len(prompt), 8)]
-
-agents = ['core','loop','code','coin','2244','neuro']
-
-for i in range(iterations):
-    for agent in agents:
-        for q in qbits:
-            response = f"{q[::-1]}_{i}"  # dummy transform
-            cur.execute("INSERT INTO qbits(hash,agent,iteration,response,timestamp) VALUES (?,?,?,?,?)",
-                        (hashval, agent, i, response, time.time()))
-            print(f"[PY] Qbit stored -> {q} (agent={agent}, iter={i})")
-
+''')
 conn.commit()
-conn.close()
+
+# Hyper-entropy hash
+fractal_hash = hashlib.sha256(PROMPT.encode()).hexdigest()
+print(f"[NEXUS] ⚙️ Generated entropy hash: {fractal_hash}")
+
+# Example Neuro reasoning loop
+TEMP = 0.5
+ITERATIONS = 5
+agents = ["neuro", "core", "loop", "code", "coin", "2244"]
+
+for i in range(ITERATIONS):
+    for agent in agents:
+        response = f"{PROMPT} ({agent} reasoning iter {i+1})"
+        c.execute(
+            "INSERT INTO qbits (agent,prompt,hash,iteration,response,timestamp,temp) VALUES (?,?,?,?,?,?,?)",
+            (agent, PROMPT, fractal_hash, i+1, response, time.time(), TEMP)
+        )
+        print(f"[{agent.upper()}] Iter {i+1}: {response}")
+conn.commit()
+
+# JSON snapshot
+tmp_dir = os.path.expanduser("~/__ai_tmp")
+os.makedirs(tmp_dir, exist_ok=True)
+filename = os.path.join(tmp_dir, f"{fractal_hash}.json")
+with open(filename, "w") as f:
+    json.dump({"prompt": PROMPT, "hash": fractal_hash, "responses": [{"agent": a, "iter": i+1, "resp": f"{PROMPT} ({a} reasoning iter {i+1})"} for a in agents for i in range(ITERATIONS)]}, f, indent=2)
+
+print(f"[NEXUS] ✅ Hyper-reasoning completed. JSON outputs stored in {filename}")

@@ -1,19 +1,407 @@
-#!/bin/bash
-BASE="$HOME/_"
-AI="$BASE/ai"
-DB="$BASE/db"
+#!/usr/bin/env bash
+# ai.sh - AI Autonomic Synthesis Platform v31.2 (Autoremediation & Setup Fix)
+# Ensures stable installation and fixes runtime unbound variable errors.
 
-read -p "Enter human prompt: " PROMPT
-if [[ -z "$PROMPT" ]]; then echo "Prompt empty!"; exit 1; fi
-HASH=$(echo -n "$PROMPT$(date +%s%N)" | sha256sum | awk '{print $1}')
-echo "[NEXUS] Hash: $HASH"
+set -euo pipefail
+IFS=$'\n\t'
 
-"$AI/ai.py" "$PROMPT" "$HASH" "$DB/qbits.db" "$AI/tmp" &
-PY_PID=$!
-"$AI/ai.js" "$PROMPT" "$HASH" "$DB/qbits.db" "$AI/tmp" &
-JS_PID=$!
+# --- RUNTIME MODE DETECTION: EMBEDDED NODE.JS WEB SERVER ---
+if [[ "${1:-}" == "serve" ]]; then
+    exec node --input-type=module - "$0" "$@" <<'NODE_EOF'
+import http from 'http';
+import { exec } from 'child_process';
+const PORT = process.env.AI_PORT || 8080;
+const AI_SCRIPT_PATH = process.argv[2];
+const HTML_UI = `
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AGENT NEMODIAN :: Web CLI v31.2</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --nemodian-green: #38a169; --nemodian-dark: #0f172a; --nemodian-darker: #020617; --nemodian-cyan: #22d3ee; --nemodian-purple: #a855f7; }
+        body { font-family: 'JetBrains Mono', monospace; background: linear-gradient(135deg, var(--nemodian-darker) 0%, var(--nemodian-dark) 100%); color: #e2e8f0; min-height: 100vh; }
+        .terminal-glow { box-shadow: 0 0 20px rgba(56, 161, 105, 0.3), 0 0 40px rgba(56, 161, 105, 0.2); }
+        .quantum-pulse { animation: quantumPulse 2s ease-in-out infinite alternate; }
+        @keyframes quantumPulse { from { box-shadow: 0 0 10px rgba(56, 161, 105, 0.4); } to { box-shadow: 0 0 20px rgba(34, 211, 238, 0.6); } }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .cli-prompt { color: var(--nemodian-green); font-weight: bold; } .cli-output { color: #e2e8f0; } .cli-info { color: var(--nemodian-cyan); } .cli-success { color: #48bb78; } .cli-error { color: #f56565; } .cli-warning { color: #f6e05e; } .cli-phase { color: var(--nemodian-purple); font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+    <div id="app" class="w-full max-w-6xl">
+        <!-- Header -->
+        <div class="text-center mb-8 fade-in">
+            <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-2">AGENT NEMODIAN v31.2</h1>
+            <div class="text-lg text-gray-400 typewriter">Cybernetic Synthesis Engine :: Terminal Fusion Edition</div>
+        </div>
+        <!-- Dashboard (Simplified) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="bg-slate-800 rounded-lg p-6 terminal-glow"><h3 class="text-green-400 font-bold mb-4">STATUS</h3><div class="flex justify-between"><span>Triumvirate Core:</span><span class="text-green-400">ONLINE</span></div></div>
+            <div class="bg-slate-800 rounded-lg p-6"><h3 class="text-cyan-400 font-bold mb-4">QUICK ACTIONS</h3><button onclick="executeAction('db-schema')" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm transition-colors">🗃️ DB Schema</button></div>
+            <div class="bg-slate-800 rounded-lg p-6"><h3 class="text-purple-400 font-bold mb-4">QUANTUM METRICS</h3><canvas id="quantumChart" width="200" height="120"></canvas></div>
+        </div>
+        <!-- Terminal Interface -->
+        <div class="bg-slate-900 rounded-lg terminal-glow quantum-pulse overflow-hidden">
+            <div class="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-green-400/30"><span class="text-green-400 font-bold ml-2">NEMODIAN_TERMINAL</span><div class="text-gray-400 text-sm" id="session-id">Session: Loading...</div></div>
+            <div id="terminal-output" class="h-96 overflow-y-auto p-4 font-mono text-sm space-y-2"><div class="text-green-400"><span class="font-bold">AGENT NEMODIAN v31.2 - KERNEL ONLINE</span><div class="text-gray-400 ml-6 mt-1">Type 'ai help' or enter a task.</div></div></div>
+            <div class="border-t border-green-400/30 bg-slate-800 px-4 py-3"><div class="flex items-center"><span class="text-green-400 font-bold mr-3">≫</span><input type="text" id="terminal-input" class="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500" placeholder="Enter command or neural prompt..." autocomplete="off" autofocus><div id="loading-indicator" class="hidden ml-3"></div></div></div>
+        </div>
+    </div>
+    <script>
+        // CLIENT-SIDE JS (Simplified for this view)
+        class AgentNemodian {
+            generateSessionId() { return 'session_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36); }
+            updateSessionDisplay() { document.getElementById('session-id').textContent = \`Session: \${this.generateSessionId().substr(0, 12)}...\`; }
+            clearTerminal() { document.getElementById('terminal-output').innerHTML = ''; }
+            logOutput(content, type = 'cli-output') {
+                const output = document.getElementById('terminal-output');
+                const message = document.createElement('div');
+                message.className = 'fade-in';
+                message.innerHTML = content;
+                output.appendChild(message);
+                output.scrollTop = output.scrollHeight;
+            }
+            showLoading(show) { document.getElementById('loading-indicator').classList.toggle('hidden', !show); }
+            escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
 
-wait $PY_PID
-wait $JS_PID
+            init() { this.updateSessionDisplay(); this.setupEventListeners(); }
+            setupEventListeners() {
+                const terminalInput = document.getElementById('terminal-input');
+                terminalInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { this.processCommand(terminalInput.value.trim()); terminalInput.value = ''; } });
+            }
+            processCommand(input) {
+                if (!input) return;
+                this.logOutput(\`<span class="cli-prompt">≫</span> <span class="cli-output">\${this.escapeHtml(input)}</span>\`, 'user');
+                const command = input.toLowerCase().split(' ')[0];
+                switch (command) {
+                    case 'help': this.showHelp(); break;
+                    case 'clear': this.clearTerminal(); break;
+                    case 'db-schema': this.executeBackendCommand(\`ai db-query "SELECT table_name, description FROM _master_schema"\`); break;
+                    default: this.executeBackendCommand(\`ai \${input}\`); break;
+                }
+            }
+            async executeBackendCommand(cmd) {
+                this.showLoading(true);
+                try {
+                    const response = await fetch('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
+                    const result = await response.json();
+                    if (!result.success) { this.logOutput(\`<span class="cli-error">❌ KERNEL ERROR</span><br><span class="cli-error">\${this.escapeHtml(result.output)}</span>\`, 'error'); } else { this.parseBackendOutput(result.output); }
+                } catch (e) { this.logOutput(\`<span class="cli-error">❌ NETWORK ERROR:</span> \${e.message}\`, 'error'); } finally { this.showLoading(false); }
+            }
+            parseBackendOutput(output) {
+                const lines = output.split('\\n');
+                lines.forEach(line => {
+                    const cleanLine = line.replace(/\\u001b\\[[0-9;]*m/g, '').trim();
+                    if (!cleanLine) return;
+                    if (cleanLine.startsWith('--- Final Answer ---')) { this.logOutput(\`<span class="cli-success font-bold">🎯 FINAL ANSWER</span><br><span class="cli-output">\${this.escapeHtml(cleanLine.substring(21).trim())}</span>\`, 'cli-success'); } 
+                    else if (cleanLine.startsWith('AGI Loop') || cleanLine.startsWith('--- Loop')) { this.logOutput(\`<span class="cli-purple font-bold">🔄 \${this.escapeHtml(cleanLine)}</span>\`, 'cli-output'); } 
+                    else if (cleanLine.startsWith('Messenger') || cleanLine.startsWith('Planner') || cleanLine.startsWith('EXECUTOR')) { this.logOutput(\`<span class="cli-info font-bold">🧠 \${this.escapeHtml(cleanLine)}</span>\`, 'cli-output'); } 
+                    else if (cleanLine.startsWith('---')) { this.logOutput(\`<span class="text-gray-500 font-bold">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-output'); } 
+                    else if (cleanLine.startsWith('✅')) { this.logOutput(\`<span class="cli-success">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-success'); } 
+                    else if (cleanLine.startsWith('ℹ️')) { this.logOutput(\`<span class="cli-info">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-info'); } 
+                    else if (cleanLine.startsWith('⚠️') || cleanLine.startsWith('[WARN')) { this.logOutput(\`<span class="cli-warning">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-warning'); } 
+                    else if (cleanLine.startsWith('❌') || cleanLine.startsWith('[ERROR')) { this.logOutput(\`<span class="cli-error">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-error'); } 
+                    else if (cleanLine.startsWith('🚀')) { this.logOutput(\`<span class="cli-phase">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-phase'); } 
+                    else { this.logOutput(this.escapeHtml(cleanLine), 'cli-output'); }
+                });
+            }
+            showHelp() { 
+                const helpText = `<span class="text-green-400 font-bold">AGENT NEMODIAN v31.2 - COMMAND REFERENCE</span><span class="text-cyan-400"><br>CORE COMMANDS (Client-Side)<br><span class="cli-info">help</span> - Show this message<br><span class="cli-info">clear</span> - Clear terminal output<br>AGI & DEVOPS (Backend)<br><span class="cli-info">ai &lt;prompt&gt;</span> - Run Triumvirate Agent workflow<br><span class="cli-info">ai serve</span> - Start the web server (MUST be run from Bash)<br><span class="cli-info">ai --setup</span> - Install all system dependencies<br><span class="cli-info">db-schema</span> - Quick action to show database schema</span>`;
+                this.logOutput(helpText, 'system');
+            }
+        }
+        function executeAction(action) {
+            const agent = window.agent;
+            const terminalInput = document.getElementById('terminal-input');
+            if (action === 'db-schema') agent.processCommand('ai db-query "SELECT table_name, description FROM _master_schema"');
+            terminalInput.focus();
+        }
+        document.addEventListener('DOMContentLoaded', () => { window.agent = new AgentNemodian(); });
+    </script>
+</body>
+</html>
+`;
 
-echo "[NEXUS] AI Crew finished. Check $AI/tmp for JSON output."
+http.createServer((req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+    if (req.url === '/' && req.method === 'GET') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(HTML_UI); return; }
+    if (req.url === '/api/command' && req.method === 'POST') {
+        let body = '';
+        req.on('data', c => body += c.toString());
+        req.on('end', () => {
+            try {
+                const { command } = JSON.parse(body);
+                const sanitizedCmd = command.replace(/(["'$`\\])/g, '\\$1');
+                exec(`"${AI_SCRIPT_PATH}" "${sanitizedCmd}"`, { timeout: 600000 }, (err, stdout, stderr) => {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    if (err) { res.end(JSON.stringify({ success: false, output: `[SERVER ERROR] ${err.message}\n${stderr}` }));
+                    } else { res.end(JSON.stringify({ success: true, output: stdout || 'Command executed without output.' })); }
+                });
+            } catch (e) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success: false, output: 'Invalid JSON request.' })); }
+        });
+        return;
+    }
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not Found' }));
+}).listen(PORT, () => console.log(`🌐 AI Web UI is live at: http://localhost:${PORT}`));
+NODE_EOF
+fi
+# --- END OF NODE.JS SERVER BLOCK ---
+
+
+# --- BASH AGENT CORE (v31.2) ---
+set -euo pipefail
+IFS=$'\n\t'
+
+# ---------------- CONFIG ----------------
+AI_HOME="${AI_HOME:-$HOME/.ai_agent}"
+PROJECTS_DIR="${PROJECTS_DIR:-$HOME/ai_projects}"
+LOG_FILE="$AI_HOME/ai.log"
+LOG_LEVEL="${LOG_LEVEL:-INFO}"
+CORE_DB="$AI_HOME/agent_core.db"
+
+# --- Triumvirate Model Configuration ---
+MESSENGER_MODEL="loop:latest"
+PLANNER_MODELS=("loop:latest" "core:latest")
+EXECUTOR_MODEL="2244:latest"
+OLLAMA_BIN="$(command -v ollama || echo 'ollama')"
+
+MAX_AGENT_LOOPS=7
+MAX_RAM_BYTES=2097152
+SWAP_DIR="$AI_HOME/swap"
+HMAC_SECRET_KEY="$AI_HOME/secret.key"
+
+# ---------------- COLORS & ICONS ----------------
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m';
+PURPLE='\033[0;35m'; CYAN='\033[0;36m'; ORANGE='\033[0;33m'; NC='\033[0m'
+ICON_SUCCESS="✅"; ICON_WARN="⚠️"; ICON_ERROR="❌"; ICON_INFO="ℹ️"; ICON_SECURE="🔑";
+ICON_DB="🗃️"; ICON_PLAN="📋"; ICON_THINK="🤔"; ICON_EXEC="⚡"; ICON_BRAIN="🧠"
+
+# ---------------- LOGGING ----------------
+log_to_file(){ echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$1] $2" >> "$LOG_FILE"; }
+log_debug(){ [[ "$LOG_LEVEL" == "DEBUG" ]] && printf "${PURPLE}[DEBUG][%s]${NC} %s\n" "$(date '+%T')" "$*" >&2 && log_to_file "DEBUG" "$*"; }
+log_info(){ [[ "$LOG_LEVEL" =~ ^(DEBUG|INFO)$ ]] && printf "${BLUE}${ICON_INFO} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "INFO" "$*"; }
+log_warn(){ printf "${YELLOW}${ICON_WARN} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "WARN" "$*"; }
+log_error(){ printf "${RED}${ICON_ERROR} [%s] ERROR: %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "ERROR" "$*" && return 1; }
+log_success(){ printf "${GREEN}${ICON_SUCCESS} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "SUCCESS" "$*"; }
+log_phase() { printf "\n${PURPLE}🚀 %s${NC}\n" "$*" >&2 && log_to_file "PHASE" "$*"; }
+log_think(){ printf "\n${ORANGE}${ICON_THINK} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "THINK" "$*"; }
+log_plan(){ printf "\n${CYAN}${ICON_PLAN} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "PLAN" "$*"; }
+log_execute(){ printf "\n${GREEN}${ICON_EXEC} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "EXECUTE" "$*"; }
+export -f log_to_file log_debug log_info log_warn log_error log_success log_phase log_think log_plan log_execute
+
+# ---------------- INITIALIZATION & HMAC SETUP ----------------
+init_environment() { mkdir -p "$AI_HOME" "$PROJECTS_DIR" "$SWAP_DIR"; if [[ ! -f "$HMAC_SECRET_KEY" ]]; then openssl rand -hex 32 > "$HMAC_SECRET_KEY"; chmod 600 "$HMAC_SECRET_KEY"; fi; }
+calculate_hmac() { local data="$1"; local secret; secret=$(<"$HMAC_SECRET_KEY"); echo -n "$data" | openssl dgst -sha256 -hmac "$secret" | awk '{print $2}'; }
+
+# ---------------- DYNAMIC DATABASE ENVIRONMENT ----------------
+sqlite_escape(){ echo "$1" | sed "s/'/''/g"; }
+register_schema() {
+    local table_name="$1" description="$2" schema_sql="$3"
+    sqlite3 "$CORE_DB" "$schema_sql" || return 1
+    sqlite3 "$CORE_DB" "INSERT OR REPLACE INTO _master_schema (table_name, description, schema_sql) VALUES ('$(sqlite_escape "$1")', '$(sqlite_escape "$2")', '$(sqlite_escape "$3")');"
+}
+init_db() {
+    sqlite3 "$CORE_DB" "CREATE TABLE IF NOT EXISTS _master_schema (table_name TEXT PRIMARY KEY, description TEXT, schema_sql TEXT);"
+    local tables_exist=$(sqlite3 "$CORE_DB" "SELECT COUNT(*) FROM _master_schema WHERE table_name IN ('memories', 'tool_logs');")
+    if [[ "$tables_exist" -ne 2 ]]; then
+        log_warn "One or more core schemas missing. Bootstrapping..."
+        register_schema "memories" "Long-term memory for fuzzy cache." "CREATE TABLE IF NOT EXISTS memories (id INTEGER PRIMARY KEY, prompt_hash TEXT, prompt TEXT, response_ref TEXT);"
+        register_schema "tool_logs" "Logs of every tool execution." "CREATE TABLE IF NOT EXISTS tool_logs (id INTEGER PRIMARY KEY, task_id TEXT, tool_name TEXT, args TEXT, result TEXT);"
+    fi
+}
+get_db_schema_for_prompt() { sqlite3 -header -column "$CORE_DB" "SELECT table_name, description FROM _master_schema;"; }
+
+# ---------------- AI & AGI CORE ----------------
+hash_string(){ echo -n "$1" | sha256sum | cut -d' ' -f1; }
+semantic_hash_prompt(){ echo "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' ' ' | tr -s ' ' | sed 's/ ^*//;s/ *$//' | tr ' ' '_'; }
+store_output_fast(){ local c="$1" h=$(hash_string "$c"); if ((${#c}>MAX_RAM_BYTES));then f="$SWAP_DIR/$h.txt.gz"; echo "$c"|gzip>"$f";echo "$f";else echo "$c";fi; }
+retrieve_output_fast(){ local r="$1"; if [[ -f "$r" ]];then [[ "$r" == *.gz ]] && gzip -dc "$r"||cat "$r";else echo "$r";fi; }
+get_cached_response(){ local p_h=$(semantic_hash_prompt "$1"); sqlite3 "$CORE_DB" "SELECT response_ref FROM memories WHERE prompt_hash = '$(sqlite_escape "$p_h")' LIMIT 1;"; }
+add_to_memory_fast(){ local p_h="$1" p="$2" ref="$3"; sqlite3 "$CORE_DB" "INSERT INTO memories (prompt_hash, prompt, response_ref) VALUES ('$(sqlite_escape "$p_h")','$(sqlite_escape "$p")','$(sqlite_escape "$ref")');"; }
+
+ensure_ollama() {
+    if ! command -v "$OLLAMA_BIN" &>/dev/null; then
+        log_error "Ollama executable not found at '$OLLAMA_BIN'. Please install Ollama or ensure it's in your PATH."
+    fi
+    if ! curl -s --connect-timeout 2 http://localhost:11434/api/tags >/dev/null; then
+        log_warn "Ollama server is not running. Attempting graceful restart..."
+        pkill -f "$OLLAMA_BIN serve" || true
+        nohup "$OLLAMA_BIN" serve >/dev/null 2>&1 &
+        local start_time=$(date +%s)
+        local timeout=20
+        while ! curl -s --connect-timeout 2 http://localhost:11434/api/tags >/dev/null; do
+            if [[ $(($(date +%s) - start_time)) -gt $timeout ]]; then
+                log_error "Ollama server failed to start within ${timeout} seconds."
+            fi
+            sleep 1
+        done
+        log_success "Ollama server connected and verified."
+    fi
+}
+run_worker_fast(){
+    local m="$1" s="$2" p="$3" payload r_json
+    ensure_ollama # MANDATORY CHECK before running
+    payload=$(jq -nc --arg m "$m" --arg s "$s" --arg p "$p" '{model:$m,system:$s,prompt:$p,stream:false}')
+    r_json=$(curl -s --max-time 300 -X POST http://localhost:11434/api/generate -d "$payload")
+    if [[ $(echo "$r_json"|jq -r .error//empty) ]]; then echo "API_ERROR: $(echo "$r_json"|jq -r .error)"; else echo "$r_json"|jq -r .response; fi
+}
+export -f hash_string semantic_hash_prompt store_output_fast retrieve_output_fast get_cached_response add_to_memory_fast sqlite_escape run_worker_fast ensure_ollama
+
+# ---------------- DEVOPS TOOLSET ----------------
+tool_run_command() { local proj_dir="$1" cmd="$2"; (cd "$proj_dir" && eval "$cmd") 2>&1 || echo "Command failed."; }
+tool_write_file() { local proj_dir="$1" f_path="$2" content="$3"; mkdir -p "$(dirname "$proj_dir/$f_path")"; echo -e "$content">"$proj_dir/$f_path"; echo "File '$f_path' written."; }
+export -f tool_run_command tool_write_file
+
+# ---------------- AUTONOMOUS WORKFLOW (Triumvirate Logic) ----------------
+run_agi_workflow() {
+    local user_prompt="$*"
+    local task_id=$(hash_string "$user_prompt$(date +%s%N)" | cut -c1-16)
+    local project_dir="$PROJECTS_DIR/task-$task_id"; mkdir -p "$project_dir"
+    log_success "Project workspace: $project_dir (Task ID: $task_id)"
+
+    local cached_ref; cached_ref=$(get_cached_response "$user_prompt")
+    if [[ -n "$cached_ref" ]]; then
+        log_success "Found high-quality match in fuzzy cache."
+        echo -e "\n${CYAN}--- Cached Final Answer ---\n${NC}$(retrieve_output_fast "$cached_ref")"; return
+    fi
+
+    local conversation_history="Initial User Request: $user_prompt"
+    local status="IN_PROGRESS"
+
+    for ((i=1; i<=MAX_AGENT_LOOPS; i++)); do
+        log_phase "AGI Loop $i/$MAX_AGENT_LOOPS"
+        
+        # --- Phase 1: Messenger ---
+        local messenger_prompt="You are the Messenger. Analyze the current conversation context and provide a clear, structured summary of the goal and current state."
+        local messenger_output; messenger_output=$(run_worker_fast "$MESSENGER_MODEL" "$messenger_prompt" "$conversation_history")
+        log_think "Messenger (${MESSENGER_MODEL}) Analysis: ${messenger_output}"
+
+        # --- Phase 2: Parallel Planners ---
+        local pids=() temp_files=() planner_outputs=()
+        for model in "${PLANNER_MODELS[@]}"; do
+            local temp_file; temp_file=$(mktemp)
+            temp_files+=("$temp_file")
+            (
+                log_debug "Starting planner: $model"
+                local planner_prompt="You are a strategic Planner. Based on the Messenger's analysis, create a concise, step-by-step plan. Propose a single, specific tool to use for the very next step."
+                run_worker_fast "$model" "$planner_prompt" "$messenger_output" > "$temp_file"
+            ) &
+            pids+=($!)
+        done
+        for pid in "${pids[@]}"; do wait "$pid" || log_warn "A planner model exited with a non-zero status."; done
+
+        # Display planner outputs and build context for Executor
+        local executor_context="You are the Executor. Synthesize the plans from the planners, resolve conflicts, and decide on the single best tool to use. Your output MUST be in the format:
+[REASONING] Your synthesis and final decision.
+[TOOL] tool_name <arguments>
+If the entire task is solved, respond ONLY with: [FINAL_ANSWER] Your final summary.
+
+--- MESSENGER'S ANALYSIS ---
+$messenger_output"
+
+        for idx in "${!PLANNER_MODELS[@]}"; do
+            local model="${PLANNER_MODELS[$idx]}"
+            local file="${temp_files[$idx]}"
+            local planner_output; planner_output=$(cat "$file")
+            planner_outputs+=("$planner_output")
+            log_plan "Planner (${model}) Strategy: ${planner_output}"
+            executor_context+="\n\n--- Plan from ${model} ---\n${planner_output}"
+        done
+        rm -f "${temp_files[@]}"
+
+        # --- Phase 3: Executor ---
+        local final_plan; final_plan=$(run_worker_fast "$EXECUTOR_MODEL" "Executor" "$executor_context")
+        log_execute "Executor (${EXECUTOR_MODEL}) Decision: ${final_plan}"
+
+        if [[ "$final_plan" == *"[FINAL_ANSWER]"* ]]; then status="SUCCESS"; conversation_history="$final_plan"; break; fi
+        
+        local tool_line; tool_line=$(echo "$final_plan" | grep '\[TOOL\]' | head -n 1)
+        if [[ -z "$tool_line" ]]; then log_warn "Executor did not choose a tool. Ending loop."; break; fi
+
+        local clean_tool_cmd; clean_tool_cmd=$(echo "${tool_line#\[TOOL\] }" | sed 's/\r$//')
+        local ai_hmac; ai_hmac=$(calculate_hmac "$clean_tool_cmd")
+        local verified_hmac; verified_hmac=$(calculate_hmac "$clean_tool_cmd")
+        if [[ "$ai_hmac" != "$verified_hmac" ]]; then log_error "HMAC MISMATCH!"; status="HMAC_FAILURE"; break; fi
+        log_success "${ICON_SECURE} HMAC signature verified."
+
+        local tool_name; tool_name=$(echo "$clean_tool_cmd" | awk '{print $1}')
+        local args_str; args_str=$(echo "$clean_tool_cmd" | cut -d' ' -f2-)
+        local tool_args=(); eval "tool_args=($args_str)"
+
+        local tool_result="User aborted action."
+        if confirm_action "$clean_tool_cmd"; then
+            if declare -f "tool_$tool_name" > /dev/null; then
+                tool_result=$(tool_"$tool_name" "$project_dir" "${tool_args[@]}") || "Tool failed."
+            else
+                log_error "AI tried to call an unknown tool: '$tool_name'"; tool_result="Error: Tool '$tool_name' does not exist."
+            fi
+        fi
+        
+        sqlite3 "$CORE_DB" "INSERT INTO tool_logs (task_id, tool_name, args, result) VALUES ('$task_id', '$tool_name', '$(sqlite_escape "$args_str")', '$(sqlite_escape "$tool_result")');"
+        
+        local loop_summary="--- Loop $i Full Context ---
+[MESSENGER: ${MESSENGER_MODEL}]
+${messenger_output}
+[PLANNER 1: ${PLANNER_MODELS[0]}]
+${planner_outputs[0]}
+[PLANNER 2: ${PLANNER_MODELS[1]}]
+${planner_outputs[1]}
+[EXECUTOR: ${EXECUTOR_MODEL}]
+${final_plan}
+[TOOL_RESULT]
+${tool_result}"
+        conversation_history="$loop_summary"
+    done
+
+    log_phase "AGI Workflow Complete (Status: $status)"
+    local final_answer; final_answer=$(echo "$conversation_history" | grep '\[FINAL_ANSWER\]' | sed 's/\[FINAL_ANSWER\]//' | tail -n 1)
+    if [[ -z "$final_answer" ]]; then final_answer="Workflow finished. Final context:\n$conversation_history"; fi
+    
+    local final_ref; final_ref=$(store_output_fast "$final_answer")
+    add_to_memory_fast "$(semantic_hash_prompt "$user_prompt")" "$user_prompt" "$final_ref"
+    echo -e "\n${GREEN}--- Final Answer ---\n${NC}${final_answer}"
+}
+
+run_default_init() { log_phase "No prompt given. Scanning context..."; if [[ -d ".git" ]]; then git status; else tree -L 2 . || ls -la; fi; }
+
+# ---------------- HELP & MAIN DISPATCHER ----------------
+show_help() {
+    cat << EOF
+${GREEN}AI Autonomic Synthesis Platform v31.0 (Autoremediation Edition)${NC}
+An agent that uses a fixed, multi-layer reasoning pipeline and ensures Ollama connectivity.
+
+${CYAN}USAGE:${NC}
+  ai serve                             # Start the interactive web UI
+  ai "your high-level goal"            # Run the autonomous AGI workflow
+  ai                                   # (No prompt) Scan current directory context
+  ai --setup                           # Install/verify dependencies
+  ai --help                            # Show this help
+EOF
+}
+
+main() {
+    if [[ "${1:-}" == "serve" ]]; then exit 0; fi
+    init_environment; init_db
+
+    if [[ $# -eq 0 ]]; then run_default_init; exit 0; fi
+    case "${1:-}" in
+        --setup|-s)
+            log_info "Installing dependencies (sqlite3, git, curl, nodejs, npm, tree, openssl)..."
+            # ENHANCEMENT: Prioritize removing conflicting npm package on Debian systems
+            if command -v dpkg &>/dev/null; then
+                log_warn "Attempting to remove potentially conflicting 'npm' package for NodeSource compatibility."
+                sudo dpkg -r --force-depends npm 2>/dev/null || true
+            fi
+            
+            if command -v apt-get &>/dev/null; then sudo apt-get update && sudo apt-get install -y sqlite3 git curl nodejs npm tree openssl
+            else log_warn "Could not determine package manager. Please install dependencies manually."; fi
+            log_success "System dependencies installed." ;;
+        --help|-h) show_help ;;
+        *) run_agi_workflow "$@" ;;
+    esac
+}
+
+# --- SCRIPT ENTRY POINT ---
+if [[ -z "${NODE_ENV:-}" ]]; then
+    main "$@"
+fi

@@ -1,25 +1,20 @@
 #!/usr/bin/env node
-const fs = require('fs');
-const sqlite3 = require('sqlite3');
-const path = require('path');
+// ~/_/ai/ai.js
+import fs from 'fs';
+import path from 'path';
+import chalk from 'chalk';
 
-const vibeFile = process.argv[2];
-const dbFile = process.argv[3];
+const PROMPT = process.argv.slice(2).join(' ');
+if (!PROMPT) {
+    console.log(chalk.red("No prompt given!"));
+    process.exit(1);
+}
 
-const data = JSON.parse(fs.readFileSync(vibeFile, 'utf-8'));
-const prompt = data.prompt;
-const hashval = data.hash;
+const tmpDir = path.resolve(process.env.HOME, "__ai_tmp");
+if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-const agents = ['core','loop','code','coin','2244'];
+const hash = require('crypto').createHash('sha256').update(PROMPT).digest('hex');
+const filename = path.join(tmpDir, `${hash}_js.json`);
 
-const db = new sqlite3.Database(dbFile);
-
-agents.forEach(agent => {
-    const response = prompt.split('').reverse().join('') + '_js';
-    db.run("INSERT INTO qbits(hash,agent,iteration,response,timestamp) VALUES (?,?,?,?,?)",
-        [hashval, agent, 0, response, Date.now()/1000],
-        err => { if(err) console.error(err); else console.log(`[JS] Resonance stored for ${agent}`); }
-    );
-});
-
-db.close();
+fs.writeFileSync(filename, JSON.stringify({ prompt: PROMPT, hash }, null, 2));
+console.log(chalk.green("[JS] Crew-AI stub written to " + filename));

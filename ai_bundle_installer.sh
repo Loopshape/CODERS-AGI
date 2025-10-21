@@ -1,113 +1,96 @@
-#!/bin/bash
-# AI Bundle Installer — sets up full CLI AI Cockpit
+#!/usr/bin/env bash
+# Full AI Bundle Installer (Python3 + Node.js + CLI scripts)
 
-BASE="$HOME/_"
-AI="$BASE/ai"
-DB="$BASE/db"
-TMP="$AI/tmp"
-ENV_FILE="$BASE/.env.local"
+set -e
+echo "[Installer] Starting full AI bundle installation..."
 
-echo "[Installer] Starting AI bundle installation..."
+BASE_DIR="$HOME/_/ai"
+ENV_DIR="$BASE_DIR/.env"
+TMP_DIR="$BASE_DIR/tmp"
+DB_DIR="$BASE_DIR/db"
 
-# 1. Create directories
-mkdir -p "$AI" "$DB" "$TMP"
+# 1️⃣ Create folders
+mkdir -p "$BASE_DIR" "$TMP_DIR" "$DB_DIR"
 
-# 2. Create .env.local
-if [[ ! -f "$ENV_FILE" ]]; then
-    echo "Creating .env.local..."
-    cat <<EOF > "$ENV_FILE"
-# Environment config for 2244 AI Crew
-BASE=$BASE
-AI=$AI
-DB=$DB/qbits.db
-TMP=$TMP
-EOF
+# 2️⃣ Setup Python venv
+if [ ! -d "$ENV_DIR" ]; then
+    echo "[Installer] Creating Python virtual environment..."
+    python3 -m venv "$ENV_DIR"
 fi
+source "$ENV_DIR/bin/activate"
 
-# 3. Check/install Python dependencies
-echo "[Installer] Installing Python dependencies..."
+# 3️⃣ Upgrade pip
 python3 -m pip install --upgrade pip
-python3 -m pip install --upgrade aiohttp sqlite3 || echo "[Warning] sqlite3 may be builtin"
 
-# 4. Check/install Node.js dependencies
+# 4️⃣ Install Python deps
+echo "[Installer] Installing Python dependencies..."
+python3 -m pip install aiohttp
+
+# 5️⃣ Node.js setup
 echo "[Installer] Installing Node.js dependencies..."
-npm install -g fs-extra axios || echo "[Warning] Node packages installed globally"
+cd "$BASE_DIR"
+npm init -y >/dev/null 2>&1
+npm install chalk >/dev/null 2>&1
 
-# 5. Create default Python AI script
-cat <<'PY' > "$AI/ai.py"
+# 6️⃣ Write AI Python script
+cat > "$BASE_DIR/ai.py" <<'EOF'
 #!/usr/bin/env python3
-import sys, os, json, sqlite3, hashlib, time
+import sqlite3, json, time, hashlib, asyncio, aiohttp, os, sys
 
-prompt = sys.argv[1]
-hash_val = sys.argv[2]
-db_file = sys.argv[3]
-tmp_dir = sys.argv[4]
+DB_PATH = os.path.expanduser("~/_/ai/db/ai_memory.sqlite")
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
-# Connect SQLite
-conn = sqlite3.connect(db_file)
+conn = sqlite3.connect(DB_PATH)
 c = conn.cursor()
-c.execute("""CREATE TABLE IF NOT EXISTS qbits (id INTEGER PRIMARY KEY, agent TEXT, hash TEXT, output TEXT)""")
-
-# Example: process prompt
-agents = ['core','loop','code','coin','2244','neuro']
-for agent in agents:
-    output = f"{agent} processed: {prompt} [{hash_val[:8]}]"
-    # Store qbit
-    c.execute("INSERT INTO qbits(agent, hash, output) VALUES (?,?,?)", (agent, hash_val, output))
-    # Store JSON
-    tmp_file = os.path.join(tmp_dir, f"{hash_val}_{agent}.json")
-    with open(tmp_file,'w') as f: json.dump({'agent':agent,'output':output}, f)
-
+# create qbits table if missing
+c.execute('''CREATE TABLE IF NOT EXISTS qbits
+(agent TEXT, prompt TEXT, hash TEXT, iteration INTEGER, response TEXT, timestamp REAL, temp REAL)''')
 conn.commit()
-conn.close()
-print("[PY] Qbits processed & JSON stored.")
-PY
 
-chmod +x "$AI/ai.py"
+prompt = sys.argv[1] if len(sys.argv) > 1 else input("Enter human prompt: ")
+temp_factor = 0.5
+depth = 5
 
-# 6. Create default Node.js AI script
-cat <<'JS' > "$AI/ai.js"
+for i in range(1, depth+1):
+    fractal_hash = hashlib.sha256(f"{prompt}{time.time()}{i}".encode()).hexdigest()
+    response = f"[Neuro] Iteration {i} response to '{prompt}'"
+    c.execute("INSERT INTO qbits (agent,prompt,hash,iteration,response,timestamp,temp) VALUES (?,?,?,?,?,?,?)",
+              ("neuro", prompt, fractal_hash, i, response, time.time(), temp_factor))
+    conn.commit()
+    print(response)
+EOF
+
+chmod +x "$BASE_DIR/ai.py"
+
+# 7️⃣ Write AI JS script
+cat > "$BASE_DIR/ai.js" <<'EOF'
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
+const chalk = require('chalk');
 
-const [,, prompt, hash, dbFile, tmpDir] = process.argv;
-const agents = ['core','loop','code','coin','2244','neuro'];
+const prompt = process.argv[2] || '.';
+const tmpDir = path.resolve(__dirname,'tmp');
+if(!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
-agents.forEach(agent => {
-    const output = `${agent} JS processed: ${prompt} [${hash.slice(0,8)}]`;
-    const file = path.join(tmpDir, `${hash}_${agent}_js.json`);
-    fs.writeFileSync(file, JSON.stringify({agent, output}));
-});
-console.log("[JS] Qbits processed & JSON stored.");
-JS
+const filename = path.join(tmpDir, Date.now() + '.json');
+fs.writeFileSync(filename, JSON.stringify({prompt,promptId:Date.now()}));
+console.log(chalk.green("[JS] Crew-AI stub written to " + filename));
+EOF
 
-chmod +x "$AI/ai.js"
+chmod +x "$BASE_DIR/ai.js"
 
-# 7. Create Bash CLI host script
-cat <<'BASH' > "$AI/ai_host.sh"
-#!/bin/bash
-# Host CLI to run Python + Node AI scripts
+# 8️⃣ Write host CLI
+cat > "$BASE_DIR/ai_host.sh" <<'EOF'
+#!/usr/bin/env bash
+source "$HOME/_/ai/.env/bin/activate"
+python3 "$HOME/_/ai/ai.py" "$1"
+node "$HOME/_/ai/ai.js" "$1"
+EOF
 
-read -p "Enter human prompt: " PROMPT
-if [[ -z "$PROMPT" ]]; then echo "Prompt empty!"; exit 1; fi
+chmod +x "$BASE_DIR/ai_host.sh"
 
-HASH=$(echo -n "$PROMPT$(date +%s%N)" | sha256sum | awk '{print $1}')
-echo "[NEXUS] Hash: $HASH"
-
-$AI/ai.py "$PROMPT" "$HASH" "$DB/qbits.db" "$AI/tmp" &
-PY_PID=$!
-$AI/ai.js "$PROMPT" "$HASH" "$DB/qbits.db" "$AI/tmp" &
-JS_PID=$!
-
-wait $PY_PID
-wait $JS_PID
-
-echo "[NEXUS] AI Crew finished. Check $AI/tmp for JSON output."
-BASH
-
-chmod +x "$AI/ai_host.sh"
-
-echo "[Installer] Installation complete. Run the AI cockpit using:"
-echo "  source $ENV_FILE"
-echo "  $AI/ai_host.sh"
+# ✅ Done
+echo "[Installer] Full AI bundle installation complete!"
+echo "Activate environment: source $BASE_DIR/.env/bin/activate"
+echo "Run AI cockpit: $BASE_DIR/ai_host.sh \"Your prompt here\""
