@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# ai.sh - AI Autonomic Synthesis Platform v32 (Real-time CypherStream Edition)
-# The final agent build: rich, verbosed, and featuring code highlighting via Pygments.
+# ai.sh - AI Autonomic Synthesis Platform v31.2 (Autoremediation & Setup Fix)
+# Ensures stable installation and fixes runtime unbound variable errors.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -13,117 +13,64 @@ import { exec } from 'child_process';
 const PORT = process.env.AI_PORT || 8080;
 const AI_SCRIPT_PATH = process.argv[2];
 const HTML_UI = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AGENT NEMODIAN :: Web CLI v32.0</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AGENT NEMODIAN :: Web CLI v31.2</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --nemodian-green: #38a169; --nemodian-dark: #0f172a; --nemodian-darker: #020617;
-            --nemodian-cyan: #22d3ee; --nemodian-purple: #a855f7;
-        }
+        :root { --nemodian-green: #38a169; --nemodian-dark: #0f172a; --nemodian-darker: #020617; --nemodian-cyan: #22d3ee; --nemodian-purple: #a855f7; }
         body { font-family: 'JetBrains Mono', monospace; background: linear-gradient(135deg, var(--nemodian-darker) 0%, var(--nemodian-dark) 100%); color: #e2e8f0; min-height: 100vh; }
-        .terminal-glow { box-shadow: 0 0 20px rgba(56, 161, 105, 0.3); }
+        .terminal-glow { box-shadow: 0 0 20px rgba(56, 161, 105, 0.3), 0 0 40px rgba(56, 161, 105, 0.2); }
         .quantum-pulse { animation: quantumPulse 2s ease-in-out infinite alternate; }
         @keyframes quantumPulse { from { box-shadow: 0 0 10px rgba(56, 161, 105, 0.4); } to { box-shadow: 0 0 20px rgba(34, 211, 238, 0.6); } }
-        .fade-in { animation: fadeIn 0.5s ease-in; } @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Output Formatting for Backend */
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .cli-prompt { color: var(--nemodian-green); font-weight: bold; } .cli-output { color: #e2e8f0; } .cli-info { color: var(--nemodian-cyan); } .cli-success { color: #48bb78; } .cli-error { color: #f56565; } .cli-warning { color: #f6e05e; } .cli-phase { color: var(--nemodian-purple); font-weight: bold; margin-top: 10px; }
-        
-        /* Pygments Monokai Dark Theme for Code (Converted from ANSI to HTML for consistency) */
-        .pyg_keyword { color: #F92672; } .pyg_name_class { color: #A6E22E; } .pyg_name_function { color: #A6E22E; } .pyg_string { color: #E6DB74; } .pyg_comment { color: #75715E; } .pyg_number { color: #AE81FF; } .pyg_operator { color: #F8F8F2; } .pyg_builtin { color: #66D9EF; } .pyg_text { color: #F8F8F2; }
     </style>
 </head>
 <body class="flex items-center justify-center p-4">
     <div id="app" class="w-full max-w-6xl">
-        <!-- Header & Dashboard (Retained for style) -->
-        <div class="text-center mb-8 fade-in"><h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-2">AGENT NEMODIAN v32.0</h1><div class="text-lg text-gray-400 typewriter">Cybernetic Synthesis Engine :: Terminal Fusion Edition</div></div>
+        <!-- Header -->
+        <div class="text-center mb-8 fade-in">
+            <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-2">AGENT NEMODIAN v31.2</h1>
+            <div class="text-lg text-gray-400 typewriter">Cybernetic Synthesis Engine :: Terminal Fusion Edition</div>
+        </div>
+        <!-- Dashboard (Simplified) -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <div class="bg-slate-800 rounded-lg p-6 terminal-glow"><h3 class="text-green-400 font-bold mb-4">STATUS</h3><div class="flex justify-between"><span>Triumvirate Core:</span><span class="text-green-400">ONLINE</span></div></div>
             <div class="bg-slate-800 rounded-lg p-6"><h3 class="text-cyan-400 font-bold mb-4">QUICK ACTIONS</h3><button onclick="executeAction('db-schema')" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm transition-colors">🗃️ DB Schema</button></div>
             <div class="bg-slate-800 rounded-lg p-6"><h3 class="text-purple-400 font-bold mb-4">QUANTUM METRICS</h3><canvas id="quantumChart" width="200" height="120"></canvas></div>
         </div>
-
         <!-- Terminal Interface -->
         <div class="bg-slate-900 rounded-lg terminal-glow quantum-pulse overflow-hidden">
             <div class="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-green-400/30"><span class="text-green-400 font-bold ml-2">NEMODIAN_TERMINAL</span><div class="text-gray-400 text-sm" id="session-id">Session: Loading...</div></div>
-
-            <!-- Terminal Output -->
-            <div id="terminal-output" class="h-96 overflow-y-auto p-4 font-mono text-sm space-y-2">
-                <div class="text-green-400"><span class="font-bold">AGENT NEMODIAN v32.0 - CYBERSTREAM KERNEL ONLINE</span><div class="text-gray-400 ml-6 mt-1">Type 'ai help' or enter a task.</div></div>
-            </div>
-
-            <!-- Terminal Input -->
-            <div class="border-t border-green-400/30 bg-slate-800 px-4 py-3"><div class="flex items-center"><span class="text-green-400 font-bold mr-3">≫</span><input type="text" id="terminal-input" class="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500" placeholder="Enter command or neural prompt..." autocomplete="off" autofocus>
-            <div id="loading-indicator" class="hidden ml-3">...</div></div></div>
+            <div id="terminal-output" class="h-96 overflow-y-auto p-4 font-mono text-sm space-y-2"><div class="text-green-400"><span class="font-bold">AGENT NEMODIAN v31.2 - KERNEL ONLINE</span><div class="text-gray-400 ml-6 mt-1">Type 'ai help' or enter a task.</div></div></div>
+            <div class="border-t border-green-400/30 bg-slate-800 px-4 py-3"><div class="flex items-center"><span class="text-green-400 font-bold mr-3">≫</span><input type="text" id="terminal-input" class="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500" placeholder="Enter command or neural prompt..." autocomplete="off" autofocus><div id="loading-indicator" class="hidden ml-3"></div></div></div>
         </div>
     </div>
-
     <script>
-        // ===== AGENT NEMODIAN v32.0 CORE ENGINE (Client-Side) =====
+        // CLIENT-SIDE JS (Simplified for this view)
         class AgentNemodian {
-            constructor() {
-                this.SESSION_ID = this.generateSessionId();
-                this.init();
-            }
-
             generateSessionId() { return 'session_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36); }
-            updateSessionDisplay() { document.getElementById('session-id').textContent = \`Session: \${this.SESSION_ID.substr(0, 12)}...\`; }
+            updateSessionDisplay() { document.getElementById('session-id').textContent = \`Session: \${this.generateSessionId().substr(0, 12)}...\`; }
             clearTerminal() { document.getElementById('terminal-output').innerHTML = ''; }
-            
             logOutput(content, type = 'cli-output') {
                 const output = document.getElementById('terminal-output');
                 const message = document.createElement('div');
-                message.className = 'fade-in ' + type;
+                message.className = 'fade-in';
                 message.innerHTML = content;
                 output.appendChild(message);
                 output.scrollTop = output.scrollHeight;
             }
             showLoading(show) { document.getElementById('loading-indicator').classList.toggle('hidden', !show); }
-            escapeHtml(text) { 
-                const div = document.createElement('div');
-                // Replace special characters with HTML entities before setting textContent
-                // This is specifically for displaying raw Bash output containing color codes/emojis that we want to render as text first
-                div.textContent = text.replace(/\\u001b\\[[0-9;]*m/g, ''); 
-                let html = div.innerHTML;
+            escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
 
-                // --- HACK to translate Pygments/ANSI codes to CSS classes ---
-                // Pygments HTML output uses <span> tags with class names like 'c' (comment), 'k' (keyword).
-                // We'll rename them here for our style sheet.
-                html = html.replace(/<span class="([a-z0-9_]+)">/g, (match, p1) => {
-                    return \`<span class="pyg_\${p1}">\`;
-                });
-                return html;
-            }
-
-            init() {
-                this.updateSessionDisplay();
-                this.setupEventListeners();
-            }
-
+            init() { this.updateSessionDisplay(); this.setupEventListeners(); }
             setupEventListeners() {
                 const terminalInput = document.getElementById('terminal-input');
-                terminalInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        this.processCommand(terminalInput.value.trim());
-                        terminalInput.value = '';
-                    }
-                });
+                terminalInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { this.processCommand(terminalInput.value.trim()); terminalInput.value = ''; } });
             }
-
             processCommand(input) {
                 if (!input) return;
-
-                this.logOutput(`<span class="cli-prompt">≫</span> <span class="cli-output">\${this.escapeHtml(input)}</span>`, 'user');
-                
+                this.logOutput(\`<span class="cli-prompt">≫</span> <span class="cli-output">\${this.escapeHtml(input)}</span>\`, 'user');
                 const command = input.toLowerCase().split(' ')[0];
-
                 switch (command) {
                     case 'help': this.showHelp(); break;
                     case 'clear': this.clearTerminal(); break;
@@ -131,96 +78,43 @@ const HTML_UI = `
                     default: this.executeBackendCommand(\`ai \${input}\`); break;
                 }
             }
-
-            // --- Backend Execution ---
             async executeBackendCommand(cmd) {
                 this.showLoading(true);
                 try {
-                    const response = await fetch('/api/command', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ command: cmd })
-                    });
+                    const response = await fetch('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
                     const result = await response.json();
-                    
-                    if (!result.success) {
-                        this.logOutput(\`<span class="cli-error">❌ KERNEL ERROR</span><br><span class="cli-error">\${this.escapeHtml(result.output)}</span>\`, 'error');
-                    } else {
-                        this.parseBackendOutput(result.output);
-                    }
-                } catch (e) {
-                    this.logOutput(\`<span class="cli-error">❌ NETWORK ERROR:</span> \${e.message}\`, 'error');
-                } finally {
-                    this.showLoading(false);
-                }
+                    if (!result.success) { this.logOutput(\`<span class="cli-error">❌ KERNEL ERROR</span><br><span class="cli-error">\${this.escapeHtml(result.output)}</span>\`, 'error'); } else { this.parseBackendOutput(result.output); }
+                } catch (e) { this.logOutput(\`<span class="cli-error">❌ NETWORK ERROR:</span> \${e.message}\`, 'error'); } finally { this.showLoading(false); }
             }
-
-            // --- Output Parsing for Verbose Thinking ---
             parseBackendOutput(output) {
-                const lines = output.split('\n');
+                const lines = output.split('\\n');
                 lines.forEach(line => {
-                    // Stripping ANSI codes first (important for web output)
                     const cleanLine = line.replace(/\\u001b\\[[0-9;]*m/g, '').trim();
                     if (!cleanLine) return;
-
-                    // Parse based on the Triumvirate Verbose Format
-                    if (cleanLine.startsWith('--- Final Answer ---')) {
-                        this.logOutput(\`<span class="cli-success font-bold">🎯 FINAL ANSWER</span><br><span class="cli-output">\${this.escapeHtml(cleanLine.substring(21).trim())}</span>\`, 'cli-success');
-                    } else if (cleanLine.startsWith('AGI Loop') || cleanLine.startsWith('--- Loop')) {
-                        this.logOutput(\`<span class="cli-purple font-bold">🔄 \${this.escapeHtml(cleanLine)}</span>\`, 'cli-output');
-                    } else if (cleanLine.startsWith('Messenger') || cleanLine.startsWith('Planner') || cleanLine.startsWith('EXECUTOR')) {
-                        this.logOutput(\`<span class="cli-info font-bold">🧠 \${this.escapeHtml(cleanLine)}</span>\`, 'cli-output');
-                    } else if (cleanLine.startsWith('---')) {
-                         this.logOutput(\`<span class="text-gray-500 font-bold">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-output');
-                    } else if (cleanLine.startsWith('✅')) {
-                        this.logOutput(\`<span class="cli-success">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-success');
-                    } else if (cleanLine.startsWith('ℹ️')) {
-                        this.logOutput(\`<span class="cli-info">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-info');
-                    } else if (cleanLine.startsWith('⚠️') || cleanLine.startsWith('[WARN')) {
-                        this.logOutput(\`<span class="cli-warning">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-warning');
-                    } else if (cleanLine.startsWith('❌') || cleanLine.startsWith('[ERROR')) {
-                        this.logOutput(\`<span class="cli-error">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-error');
-                    } else if (cleanLine.startsWith('🚀')) {
-                        this.logOutput(\`<span class="cli-phase">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-phase');
-                    } else {
-                        // Default output, includes Pygments HTML output if present
-                        this.logOutput(cleanLine, 'cli-output');
-                    }
+                    if (cleanLine.startsWith('--- Final Answer ---')) { this.logOutput(\`<span class="cli-success font-bold">🎯 FINAL ANSWER</span><br><span class="cli-output">\${this.escapeHtml(cleanLine.substring(21).trim())}</span>\`, 'cli-success'); } 
+                    else if (cleanLine.startsWith('AGI Loop') || cleanLine.startsWith('--- Loop')) { this.logOutput(\`<span class="cli-purple font-bold">🔄 \${this.escapeHtml(cleanLine)}</span>\`, 'cli-output'); } 
+                    else if (cleanLine.startsWith('Messenger') || cleanLine.startsWith('Planner') || cleanLine.startsWith('EXECUTOR')) { this.logOutput(\`<span class="cli-info font-bold">🧠 \${this.escapeHtml(cleanLine)}</span>\`, 'cli-output'); } 
+                    else if (cleanLine.startsWith('---')) { this.logOutput(\`<span class="text-gray-500 font-bold">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-output'); } 
+                    else if (cleanLine.startsWith('✅')) { this.logOutput(\`<span class="cli-success">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-success'); } 
+                    else if (cleanLine.startsWith('ℹ️')) { this.logOutput(\`<span class="cli-info">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-info'); } 
+                    else if (cleanLine.startsWith('⚠️') || cleanLine.startsWith('[WARN')) { this.logOutput(\`<span class="cli-warning">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-warning'); } 
+                    else if (cleanLine.startsWith('❌') || cleanLine.startsWith('[ERROR')) { this.logOutput(\`<span class="cli-error">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-error'); } 
+                    else if (cleanLine.startsWith('🚀')) { this.logOutput(\`<span class="cli-phase">\${this.escapeHtml(cleanLine)}</span>\`, 'cli-phase'); } 
+                    else { this.logOutput(this.escapeHtml(cleanLine), 'cli-output'); }
                 });
             }
-
-            // --- Client-Side Actions (Simulated/Internal) ---
-            showHelp() {
-                const helpText = `
-<span class="text-green-400 font-bold">CYBERSPACE AGENT v32.0 - COMMAND REFERENCE</span>
-
-<span class="cli-info">help</span>                  - Show this message
-<span class="cli-info">clear</span>                 - Clear terminal output
-
-<span class="text-cyan-400">AGI & DEVOPS (Backend)</span>
-<span class="cli-info">ai &lt;prompt&gt;</span>            - Run Triumvirate Agent workflow
-<span class="cli-info">ai serve</span>               - Start the web server (MUST be run from Bash)
-<span class="cli-info">ai --setup</span>             - Install all system dependencies
-<span class="cli-info">db-schema</span>             - Quick action to show database schema
-                `.trim();
+            showHelp() { 
+                const helpText = `<span class="text-green-400 font-bold">AGENT NEMODIAN v31.2 - COMMAND REFERENCE</span><span class="text-cyan-400"><br>CORE COMMANDS (Client-Side)<br><span class="cli-info">help</span> - Show this message<br><span class="cli-info">clear</span> - Clear terminal output<br>AGI & DEVOPS (Backend)<br><span class="cli-info">ai &lt;prompt&gt;</span> - Run Triumvirate Agent workflow<br><span class="cli-info">ai serve</span> - Start the web server (MUST be run from Bash)<br><span class="cli-info">ai --setup</span> - Install all system dependencies<br><span class="cli-info">db-schema</span> - Quick action to show database schema</span>`;
                 this.logOutput(helpText, 'system');
             }
         }
-
-        // ===== GLOBAL FUNCTIONS AND INIT =====
         function executeAction(action) {
             const agent = window.agent;
             const terminalInput = document.getElementById('terminal-input');
-            switch (action) {
-                case 'db-schema': agent.processCommand('ai db-query "SELECT table_name, description FROM _master_schema"'); break;
-                // Add logic for other actions if needed
-            }
+            if (action === 'db-schema') agent.processCommand('ai db-query "SELECT table_name, description FROM _master_schema"');
             terminalInput.focus();
         }
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            window.agent = new CyberAgentCLI();
-        });
+        document.addEventListener('DOMContentLoaded', () => { window.agent = new AgentNemodian(); });
     </script>
 </body>
 </html>
@@ -254,7 +148,7 @@ fi
 # --- END OF NODE.JS SERVER BLOCK ---
 
 
-# --- BASH AGENT CORE (v32) ---
+# --- BASH AGENT CORE (v31.2) ---
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -268,7 +162,7 @@ CORE_DB="$AI_HOME/agent_core.db"
 # --- Triumvirate Model Configuration ---
 MESSENGER_MODEL="loop:latest"
 PLANNER_MODELS=("loop:latest" "core:latest")
-EXECUTOR_MODEL="2244:latest" 
+EXECUTOR_MODEL="2244:latest"
 OLLAMA_BIN="$(command -v ollama || echo 'ollama')"
 
 MAX_AGENT_LOOPS=7
@@ -432,7 +326,7 @@ $messenger_output"
 
         local tool_name; tool_name=$(echo "$clean_tool_cmd" | awk '{print $1}')
         local args_str; args_str=$(echo "$clean_tool_cmd" | cut -d' ' -f2-)
-        local tool_args=(); eval "tool_args=(\"${args_str}\")"
+        local tool_args=(); eval "tool_args=($args_str)"
 
         local tool_result="User aborted action."
         if confirm_action "$clean_tool_cmd"; then
@@ -473,7 +367,7 @@ run_default_init() { log_phase "No prompt given. Scanning context..."; if [[ -d 
 # ---------------- HELP & MAIN DISPATCHER ----------------
 show_help() {
     cat << EOF
-${GREEN}AI Autonomic Synthesis Platform v31.4 (Autoremediation Edition)${NC}
+${GREEN}AI Autonomic Synthesis Platform v31.0 (Autoremediation Edition)${NC}
 An agent that uses a fixed, multi-layer reasoning pipeline and ensures Ollama connectivity.
 
 ${CYAN}USAGE:${NC}

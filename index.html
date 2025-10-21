@@ -1,1 +1,169 @@
-/var/www/html/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2244 Cosmos + Atomic Phalanx</title>
+
+<!-- Monokai-dark theme for logs -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet"/>
+
+<!-- jQuery 3 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+<!-- GSAP -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js"></script>
+
+<style>
+body, html { margin:0; padding:0; width:100%; height:100%; background:#272822; overflow:hidden; font-family:monospace; }
+#log { position:absolute; top:0; left:0; width:100%; max-height:150px; overflow-y:auto; background:rgba(0,0,0,0.3); color:#f8f8f2; z-index:1000; padding:5px; }
+canvas { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<div id="log"></div>
+<canvas id="cosmos"></canvas>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165/build/three.module.js';
+
+// --- Logging helper ---
+function log(msg){
+  $('#log').append(msg+'<br>').scrollTop($('#log')[0].scrollHeight);
+}
+
+// --- Scene setup ---
+const canvas = document.getElementById('cosmos');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+camera.position.z = 20;
+
+// Lights
+scene.add(new THREE.AmbientLight(0x555555));
+const pointLight = new THREE.PointLight(0xffffff,1.5);
+scene.add(pointLight);
+
+// --- Sun ---
+const sun = new THREE.Mesh(
+  new THREE.SphereGeometry(1,64,64),
+  new THREE.MeshStandardMaterial({color:0xffcc00, emissive:0xff6600, emissiveIntensity:1})
+);
+scene.add(sun);
+pointLight.position.copy(sun.position);
+
+// --- Planets ---
+const planets=[];
+const planetColors=[0x66ccff,0xff6699,0x99ff66,0xcc99ff];
+for(let i=0;i<4;i++){
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.3,32,32),
+    new THREE.MeshStandardMaterial({color:planetColors[i]})
+  );
+  mesh.userData = {r:2+i*2, φ:Math.random()*2*Math.PI, ω:0.01*(i+1)};
+  planets.push(mesh);
+  scene.add(mesh);
+}
+
+// --- Atomic ions ---
+const atoms = [];
+for(let i=0;i<4;i++){
+  const atomGroup = new THREE.Group();
+  const numIons = 20;
+  for(let j=0;j<numIons;j++){
+    const ion = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05,8,8),
+      new THREE.MeshStandardMaterial({color:0x00ffff})
+    );
+    ion.userData = {
+      r: 0.4 + Math.random()*0.6,
+      θ: Math.random()*Math.PI,
+      φ: Math.random()*2*Math.PI,
+      hashStep: Math.random()
+    };
+    atomGroup.add(ion);
+  }
+  atomGroup.userData = {orbitR: 2+i*2, orbitφ: Math.random()*2*Math.PI, ω:0.02*(i+1)};
+  atoms.push(atomGroup);
+  scene.add(atomGroup);
+}
+
+// --- WebSocket to local Neuro ---
+let ws;
+let lastPkt = null;
+function connectWS(){
+  ws = new WebSocket('ws://localhost:8081');
+  ws.onopen = ()=>log('✅ WS connected');
+  ws.onmessage = e => handleStream(JSON.parse(e.data));
+  ws.onclose = ()=>{ log('⚠️ WS closed, retry 2s'); setTimeout(connectWS,2000); };
+  ws.onerror = err => { log('❌ WS error'); ws.close(); };
+}
+connectWS();
+
+// --- Handle Neuro tokens + hash:rehash logic ---
+function handleStream(pkt){
+  lastPkt = pkt;
+  // Update sun emissive by entropy
+  sun.material.emissive.setHSL(pkt.entropy,1,0.5);
+
+  // Planets phase rotation
+  planets.forEach(p=>p.userData.φ += pkt.phi*0.05);
+
+  // Atoms ions spin via hashStep + charge
+  atoms.forEach(atom=>{
+    atom.userData.orbitφ += pkt.omega*0.05;
+    atom.children.forEach(ion=>{
+      // hash:rehash simulation
+      ion.userData.hashStep = (ion.userData.hashStep + pkt.phi*0.1) % 1;
+      const h = ion.userData.hashStep*Math.PI*2;
+      ion.position.set(
+        Math.sin(ion.userData.θ)*Math.cos(h)*ion.userData.r,
+        Math.cos(ion.userData.θ)*ion.userData.r,
+        Math.sin(ion.userData.θ)*Math.sin(h)*ion.userData.r
+      );
+      ion.material.color.setHSL(0.55 + pkt.charge*0.3,1,0.5);
+    });
+  });
+}
+
+// --- Fallback self-test ---
+setInterval(()=>{
+  if(!lastPkt){
+    handleStream({phi:0.01,omega:0.005,entropy:0.3,charge:0.2});
+  }
+},2000);
+
+// --- Animate ---
+function animate(){
+  requestAnimationFrame(animate);
+
+  // Planets orbit
+  planets.forEach(p=>{
+    const d=p.userData;
+    p.position.set(Math.cos(d.φ)*d.r, Math.sin(d.φ)*d.r*0.5, Math.sin(d.φ)*d.r*0.5);
+    d.φ += d.ω;
+  });
+
+  // Atoms orbit around sun
+  atoms.forEach(atom=>{
+    const d=atom.userData;
+    const x = Math.cos(d.orbitφ)*d.orbitR;
+    const z = Math.sin(d.orbitφ)*d.orbitR;
+    atom.position.set(x,0,z);
+    d.orbitφ += d.ω;
+  });
+
+  renderer.render(scene,camera);
+}
+animate();
+
+// --- Resize ---
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
