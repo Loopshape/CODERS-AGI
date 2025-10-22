@@ -1,7 +1,267 @@
 #!/usr/bin/env bash
-# ai.sh - AI Autonomic Synthesis Platform v32.1 (Maintenance Features)
-# Added rebuild, script, repair, and status commands for agent management.
+# ai.sh - AI Autonomic Synthesis Platform v33 (Cyberspace Cockpit Edition)
+# A single-file polyglot agent with WebGL 3D live monitoring via WebSockets.
 
+set -euo pipefail
+IFS=$'\n\t'
+
+# --- RUNTIME MODE DETECTION: EMBEDDED NODE.JS WEB SERVER (WS Enabled) ---
+if [[ "${1:-}" == "serve" ]]; then
+    exec node --input-type=module - "$0" "$@" <<'NODE_EOF'
+import http from 'http';
+import { exec } from 'child_process';
+import { WebSocketServer } from 'ws'; // Requires 'npm install ws'
+import { parse } from 'url';
+
+const PORT = process.env.AI_PORT || 8080;
+const WS_PORT = process.env.AI_WS_PORT || 8081; // Separate port for WebSocket traffic
+const AI_SCRIPT_PATH = process.argv[2];
+
+// --- WEBGL ATOM COCKPIT HTML ---
+const HTML_UI = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2244 Atom Cockpit</title>
+<style>
+  html, body { margin:0; padding:0; background:black; overflow:hidden; height:100%; }
+  canvas { display:block; }
+  #stats { position:absolute; top:10px; left:10px; color:#0f0; font-family:'JetBrains Mono', monospace; font-size: 14px; text-shadow: 0 0 5px #0f0; }
+  #terminal-overlay {
+    position: absolute; top: 0; right: 0; width: 400px; height: 100%; 
+    background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px);
+    padding: 10px; box-sizing: border-box; overflow-y: auto;
+    color: #00ffff; font-family: 'JetBrains Mono', monospace; border-left: 2px solid #00ffff;
+  }
+  .log-line { margin-bottom: 5px; border-bottom: 1px solid rgba(0, 255, 255, 0.1); }
+  .prompt { color: #ff0040; font-weight: bold; }
+</style>
+</head>
+<body>
+<div id="stats">Loading...</div>
+<div id="terminal-overlay">
+    <h2>AGENT LOG</h2>
+    <div id="log-output"></div>
+    <div style="margin-top: 10px;" class="input-line">
+        <span class="prompt">AI></span>
+        <input type="text" id="commandInput" style="background:none; border:none; color:white; width:100%; outline:none;" placeholder="Run a task..." />
+    </div>
+</div>
+
+<script>
+// --- CORE WEBGL CODE ---
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
+camera.position.z = 5;
+
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha: true});
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Atom nucleus
+const nucleus = new THREE.Mesh(
+  new THREE.SphereGeometry(0.5, 32, 32),
+  new THREE.MeshPhongMaterial({color:0xff0040, emissive:0x550000})
+);
+scene.add(nucleus);
+
+// Electrons
+const electrons = [];
+for(let i=0;i<5;i++){
+  let geom = new THREE.SphereGeometry(0.1,16,16);
+  let mat = new THREE.MeshPhongMaterial({color:0x00ffff, emissive:0x005555});
+  let mesh = new THREE.Mesh(geom, mat);
+  mesh.userData = {angle:Math.random()*Math.PI*2, radius:1+Math.random()*1.5, speed:0.01+Math.random()*0.02};
+  electrons.push(mesh);
+  scene.add(mesh);
+}
+
+// Lights
+const light1 = new THREE.PointLight(0xffffff,1);
+light1.position.set(10,10,10);
+scene.add(light1);
+const ambient = new THREE.AmbientLight(0x111111);
+scene.add(ambient);
+
+// --- AGENT INTERACTION ---
+const statsDiv = document.getElementById('stats');
+const logOutputDiv = document.getElementById('log-output');
+const cmdInput = document.getElementById('commandInput');
+
+let ws;
+
+function initWebSocket() {
+    // Connect to the WebSocket port (8081) for real-time data
+    ws = new WebSocket('ws://' + window.location.hostname + ':${WS_PORT}');
+    
+    ws.onopen = () => {
+        console.log('WebSocket connected to Agent.');
+        statsDiv.textContent = 'CONNECTED';
+    };
+
+    ws.onmessage = (message) => {
+        try{
+            let data = JSON.parse(message.data);
+            if (data.type === 'status') {
+                statsDiv.innerHTML = \`Timestamp:\${data.timestamp}<br>Memories:\${data.memories}<br>Logs:\${data.logs}\`;
+            } else if (data.type === 'log') {
+                 logOutputDiv.innerHTML += \`<div class="log-line" style="color:\${data.color};">\${data.message}</div>\`;
+                 logOutputDiv.scrollTop = logOutputDiv.scrollHeight;
+            }
+        }catch(e){console.error('WS Data Error:', e);}
+    };
+
+    ws.onclose = () => {
+        console.warn('WebSocket disconnected. Retrying in 5s...');
+        statsDiv.textContent = 'DISCONNECTED. Reconnecting...';
+        setTimeout(initWebSocket, 5000);
+    };
+}
+
+// --- COMMAND HANDLER ---
+function executeAgentCommand(command) {
+    if (!command) return;
+    
+    logOutputDiv.innerHTML += \`<div class="log-line prompt">AI> \${command}</div>\`;
+    cmdInput.disabled = true;
+
+    fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: 'ai ' + command })
+    })
+    .then(r => r.json())
+    .then(data => {
+        const output = data.output.replace(/\\u001b\\[[0-9;]*m/g, ''); // Strip ANSI for clean display
+        const color = data.success ? '#00ff40' : '#ff0040';
+        logOutputDiv.innerHTML += \`<div class="log-line" style="color:\${color};">\${output}</div>\`;
+    })
+    .catch(e => {
+        logOutputDiv.innerHTML += \`<div class="log-line" style="color:#ff0040;">[NETWORK ERROR] \${e.message}</div>\`;
+    })
+    .finally(() => {
+        cmdInput.disabled = false;
+        cmdInput.focus();
+        logOutputDiv.scrollTop = logOutputDiv.scrollHeight;
+    });
+}
+
+cmdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        executeAgentCommand(cmdInput.value);
+        cmdInput.value = '';
+    }
+});
+
+
+// --- ANIMATION LOOP ---
+function animate(){
+  requestAnimationFrame(animate);
+  
+  electrons.forEach(e=>{
+    e.userData.angle += e.userData.speed;
+    e.position.x = Math.cos(e.userData.angle)*e.userData.radius;
+    e.position.y = Math.sin(e.userData.angle)*e.userData.radius;
+  });
+
+  nucleus.rotation.y += 0.002;
+  renderer.render(scene, camera);
+}
+
+// --- INIT ---
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+initWebSocket();
+animate();
+</script>
+</body>
+</html>
+`;
+
+// --- START HTTP SERVER (for the initial HTML page) ---
+const httpServer = http.createServer((req, res) => {
+    const parsedUrl = parse(req.url, true);
+
+    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+    if (parsedUrl.pathname === '/' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(HTML_UI.replace(/\$\{WS_PORT\}/g, WS_PORT)); // Inject the WS port
+        return;
+    }
+
+    if (parsedUrl.pathname === '/api/command' && req.method === 'POST') {
+        let body = '';
+        req.on('data', c => body += c.toString());
+        req.on('end', () => {
+            try {
+                const { command } = JSON.parse(body);
+                const sanitizedCmd = command.replace(/(["'$`\\])/g, '\\$1');
+                
+                // Execute the main bash script for AGI processing
+                exec(`"${AI_SCRIPT_PATH}" "${sanitizedCmd}"`, { timeout: 600000 }, (err, stdout, stderr) => {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    if (err) { res.end(JSON.stringify({ success: false, output: `[SERVER ERROR] ${err.message}\n${stderr}` }));
+                    } else { res.end(JSON.stringify({ success: true, output: stdout || 'Command executed without output.' })); }
+                });
+            } catch (e) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success: false, output: 'Invalid JSON request.' })); }
+        });
+        return;
+    }
+
+    res.writeHead(404);
+    res.end();
+});
+
+// --- START WEBSOCKET SERVER (for real-time status) ---
+const wss = new WebSocketServer({ port: WS_PORT });
+console.log(`📡 WebSocket Status Bridge is live at ws://localhost:${WS_PORT}`);
+
+// --- CORE BROADCAST FUNCTION (called by the Bash Agent) ---
+function broadcastStatus(statusData) {
+    const data = JSON.stringify(statusData);
+    wss.clients.forEach(client => {
+        if (client.readyState === 1) { // 1 means OPEN
+            client.send(data);
+        }
+    });
+}
+
+// --- LOGGING INTERCEPTOR API (called by the Bash Agent) ---
+httpServer.on('request', (req, res) => {
+    if (req.method === 'POST' && req.url === '/api/broadcast') {
+        let body = '';
+        req.on('data', chunk => body += chunk.toString());
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                // Use the broadcast function to send the status/log out
+                broadcastStatus(data);
+                res.writeHead(200);
+                res.end(JSON.stringify({ success: true }));
+            } catch (e) {
+                res.writeHead(400);
+                res.end(JSON.stringify({ success: false, error: 'Invalid broadcast data.' }));
+            }
+        });
+        return;
+    }
+});
+
+httpServer.listen(PORT, () => console.log(`🌐 HTTP Server (Cockpit) is live at: http://localhost:${PORT}`));
+
+NODE_EOF
+fi
+# --- END OF NODE.JS SERVER BLOCK ---
+
+
+# --- BASH AGENT CORE (v33) ---
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -15,7 +275,7 @@ CORE_DB="$AI_HOME/agent_core.db"
 # --- Triumvirate Model Configuration ---
 MESSENGER_MODEL="loop:latest"
 PLANNER_MODELS=("loop:latest" "core:latest")
-EXECUTOR_MODEL="2244:latest"
+EXECUTOR_MODEL="2244:latest" 
 OLLAMA_BIN="$(command -v ollama || echo 'ollama')"
 
 MAX_AGENT_LOOPS=7
@@ -29,18 +289,49 @@ PURPLE='\033[0;35m'; CYAN='\033[0;36m'; ORANGE='\033[0;33m'; NC='\033[0m'
 ICON_SUCCESS="✅"; ICON_WARN="⚠️"; ICON_ERROR="❌"; ICON_INFO="ℹ️"; ICON_SECURE="🔑";
 ICON_DB="🗃️"; ICON_PLAN="📋"; ICON_THINK="🤔"; ICON_EXEC="⚡"; ICON_BRAIN="🧠"
 
-# ---------------- LOGGING ----------------
+# ---------------- LOGGING AND BROADCAST ----------------
+# The Bash agent needs a way to push status/logs to the Node.js server for broadcasting.
+cli_broadcast_status() {
+    local type="$1" message="$2"
+    local timestamp=$(date '+%H:%M:%S')
+    local payload=""
+
+    if [[ "$type" == "status" ]]; then
+        local mem_count=$(sqlite3 "$CORE_DB" "SELECT COUNT(*) FROM memories;" 2>/dev/null || echo 0)
+        local log_count=$(sqlite3 "$CORE_DB" "SELECT COUNT(*) FROM tool_logs;" 2>/dev/null || echo 0)
+        payload="{\"type\":\"status\", \"timestamp\":\"$timestamp\", \"memories\":\"$mem_count\", \"logs\":\"$log_count\"}"
+    elif [[ "$type" == "log" ]]; then
+        # Map ANSI color codes to a simple color name for the client to use
+        local color="white"
+        if [[ "$message" == "${GREEN}"* ]]; then color="green"; fi
+        if [[ "$message" == "${RED}"* ]]; then color="red"; fi
+        if [[ "$message" == "${YELLOW}"* ]]; then color="yellow"; fi
+        if [[ "$message" == "${PURPLE}"* ]]; then color="magenta"; fi
+        if [[ "$message" == "${CYAN}"* ]]; then color="cyan"; fi
+        
+        # Strip ANSI codes for the final message text in the payload
+        local clean_message=$(echo "$message" | sed "s/\\\[[0-9;]*m//g" | sed "s/\x1B\[[0-9;]*m//g")
+        payload="{\"type\":\"log\", \"message\":\"$(echo "$clean_message" | sed 's/"/\\"/g')\", \"color\":\"$color\"}"
+    fi
+
+    # Use curl to send the JSON to the Node.js interceptor API
+    # Run in background to avoid blocking the workflow
+    if [[ -n "$payload" ]]; then
+        curl -s -X POST "http://localhost:${PORT}/api/broadcast" -H "Content-Type: application/json" -d "$payload" &
+    fi
+}
+
 log_to_file(){ echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$1] $2" >> "$LOG_FILE"; }
 log_debug(){ [[ "$LOG_LEVEL" == "DEBUG" ]] && printf "${PURPLE}[DEBUG][%s]${NC} %s\n" "$(date '+%T')" "$*" >&2 && log_to_file "DEBUG" "$*"; }
-log_info(){ [[ "$LOG_LEVEL" =~ ^(DEBUG|INFO)$ ]] && printf "${BLUE}${ICON_INFO} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "INFO" "$*"; }
-log_warn(){ printf "${YELLOW}${ICON_WARN} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "WARN" "$*"; }
-log_error(){ printf "${RED}${ICON_ERROR} [%s] ERROR: %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "ERROR" "$*" && return 1; }
-log_success(){ printf "${GREEN}${ICON_SUCCESS} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "SUCCESS" "$*"; }
-log_phase() { printf "\n${PURPLE}🚀 %s${NC}\n" "$*" >&2 && log_to_file "PHASE" "$*"; }
-log_think(){ printf "${ORANGE}${ICON_THINK} [%s] %s${NC}" "$(date '+%T')" "$*" >&2 && log_to_file "THINK" "$*"; }
-log_plan(){ printf "\n${CYAN}${ICON_PLAN} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "PLAN" "$*"; }
-log_execute(){ printf "\n${GREEN}${ICON_EXEC} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "EXECUTE" "$*"; }
-export -f log_to_file log_debug log_info log_warn log_error log_success log_phase log_think log_plan log_execute
+log_info(){ [[ "$LOG_LEVEL" =~ ^(DEBUG|INFO)$ ]] && printf "${BLUE}${ICON_INFO} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "INFO" "$*"; cli_broadcast_status "log" "$*"; }
+log_warn(){ printf "${YELLOW}${ICON_WARN} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "WARN" "$*"; cli_broadcast_status "log" "${YELLOW}$*${NC}"; }
+log_error(){ printf "${RED}${ICON_ERROR} [%s] ERROR: %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "ERROR" "$*" && cli_broadcast_status "log" "${RED}$*${NC}" && return 1; }
+log_success(){ printf "${GREEN}${ICON_SUCCESS} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "SUCCESS" "$*"; cli_broadcast_status "log" "${GREEN}$*${NC}"; }
+log_phase() { printf "\n${PURPLE}🚀 %s${NC}\n" "$*" >&2 && log_to_file "PHASE" "$*"; cli_broadcast_status "log" "${PURPLE}$*${NC}"; }
+log_think(){ printf "\n${ORANGE}${ICON_THINK} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "THINK" "$*"; cli_broadcast_status "log" "${ORANGE}$*${NC}"; }
+log_plan(){ printf "\n${CYAN}${ICON_PLAN} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "PLAN" "$*"; cli_broadcast_status "log" "${CYAN}$*${NC}"; }
+log_execute(){ printf "\n${GREEN}${ICON_EXEC} [%s] %s${NC}\n" "$(date '+%T')" "$*" >&2 && log_to_file "EXECUTE" "$*"; cli_broadcast_status "log" "${GREEN}$*${NC}"; }
+export -f log_to_file log_debug log_info log_warn log_error log_success log_phase log_think log_plan log_execute cli_broadcast_status
 
 # ---------------- INITIALIZATION & HMAC SETUP ----------------
 init_environment() { mkdir -p "$AI_HOME" "$PROJECTS_DIR" "$SWAP_DIR"; if [[ ! -f "$HMAC_SECRET_KEY" ]]; then openssl rand -hex 32 > "$HMAC_SECRET_KEY"; chmod 600 "$HMAC_SECRET_KEY"; fi; }
@@ -76,7 +367,6 @@ add_to_memory_fast(){ local p_h="$1" p="$2" ref="$3"; sqlite3 "$CORE_DB" "INSERT
 ensure_ollama() {
     if ! command -v "$OLLAMA_BIN" &>/dev/null; then
         log_error "Ollama executable not found at '$OLLAMA_BIN'. Please install Ollama or ensure it's in your PATH."
-        return 1
     fi
     if ! curl -s --connect-timeout 2 http://localhost:11434/api/tags >/dev/null; then
         log_warn "Ollama server is not running. Attempting graceful restart..."
@@ -87,207 +377,30 @@ ensure_ollama() {
         while ! curl -s --connect-timeout 2 http://localhost:11434/api/tags >/dev/null; do
             if [[ $(($(date +%s) - start_time)) -gt $timeout ]]; then
                 log_error "Ollama server failed to start within ${timeout} seconds."
-                return 1
             fi
             sleep 1
         done
         log_success "Ollama server connected and verified."
     fi
-    return 0
 }
-
-run_worker_stream(){
-    local model="$1" system_prompt="$2" user_prompt="$3" payload
+run_worker_fast(){
+    local m="$1" s="$2" p="$3" payload r_json
     ensure_ollama # MANDATORY CHECK before running
-
-    payload=$(jq -nc --arg m "$model" --arg s "$system_prompt" --arg p "$user_prompt" \
-    '{model:$m, system:$s, prompt:$p, stream:true}')
-
-    local full_output
-    full_output=$(
-        curl -sN -X POST http://localhost:11434/api/generate -d "$payload" \
-        | while IFS= read -r line; do
-            local token api_error
-            
-            api_error=$(echo "$line" | jq -r .error//empty)
-            if [[ -n "$api_error" ]]; then
-                log_error "Ollama API Error for model '$model': $api_error"
-                echo "API_ERROR: $api_error"
-                return
-            fi
-
-            token=$(echo "$line" | jq -r .response//empty)
-            
-            if [[ -n "$token" ]]; then
-                log_think "[$model] $token"
-                echo -n "$token"
-            fi
-        done
-    )
-
-    echo >&2
-
-    if [[ -z "$full_output" ]] && ! curl -s --connect-timeout 1 http://localhost:11434/api/tags >/dev/null; then
-        log_error "Connection to Ollama failed before streaming began."
-        echo "API_ERROR: Connection failed."
-        return
-    fi
-    
-    echo "$full_output"
+    payload=$(jq -nc --arg m "$m" --arg s "$s" --arg p "$p" '{model:$m,system:$s,prompt:$p,stream:false}')
+    r_json=$(curl -s --max-time 300 -X POST http://localhost:11434/api/generate -d "$payload")
+    if [[ $(echo "$r_json"|jq -r .error//empty) ]]; then echo "API_ERROR: $(echo "$r_json"|jq -r .error)"; else echo "$r_json"|jq -r .response; fi
 }
-
-export -f hash_string semantic_hash_prompt store_output_fast retrieve_output_fast get_cached_response add_to_memory_fast sqlite_escape run_worker_stream ensure_ollama confirm_action
+export -f hash_string semantic_hash_prompt store_output_fast retrieve_output_fast get_cached_response add_to_memory_fast sqlite_escape run_worker_fast ensure_ollama
 
 # ---------------- DEVOPS TOOLSET ----------------
-tool_exec_shell() {
-    local proj_dir="$1" cmd="$2"
-    log_debug "Executing in $proj_dir: $cmd"
-    (cd "$proj_dir" && bash -c "$cmd") 2>&1 || echo "Command failed: $?"
-}
-tool_write_file() { 
-    local proj_dir="$1" f_path="$2" content="$3"
-    mkdir -p "$(dirname "$proj_dir/$f_path")"
-    
-    local output_content; printf -v output_content "%s" "$content"
-    
-    printf "%s" "$output_content" > "$proj_dir/$f_path"
-    
-    if [[ -f "$proj_dir/$f_path" ]]; then
-        echo "File '$f_path' written. Size: $(wc -c < "$proj_dir/$f_path") bytes."
-    else
-        echo "Error: Failed to write file '$f_path'."
-    fi
-}
-export -f tool_exec_shell tool_write_file
-
-# ---------------- AGENT MANAGEMENT FUNCTIONS ----------------
-
-# ai setup: Install/verify system dependencies
-ai_setup() {
-    log_phase "Installing System Dependencies"
-    log_info "Installing dependencies (sqlite3, git, curl, nodejs, npm, tree, openssl)..."
-    if command -v dpkg &>/dev/null; then
-        log_warn "Attempting to remove potentially conflicting 'npm' package for NodeSource compatibility."
-        sudo dpkg -r --force-depends npm 2>/dev/null || true
-    fi
-    
-    if command -v apt-get &>/dev/null; then sudo apt-get update && sudo apt-get install -y sqlite3 git curl nodejs npm tree openssl
-    else log_warn "Could not determine package manager. Please install dependencies manually."; fi
-    log_success "System dependencies installed."
-}
-
-# ai rebuild: Pulls models and wipes cache
-ai_rebuild() {
-    log_phase "Rebuilding Agent Environment and Models"
-    log_warn "This will attempt to pull the latest versions of the Triumvirate models and wipe the fuzzy cache."
-    local models_to_pull=("$MESSENGER_MODEL" "${PLANNER_MODELS[@]}" "$EXECUTOR_MODEL")
-    local failed=0
-    
-    if ! ensure_ollama; then log_error "Ollama server is not reachable. Cannot rebuild models."; return 1; fi
-
-    for model in "${models_to_pull[@]}"; do
-        log_info "Attempting to pull model: $model"
-        if "$OLLAMA_BIN" pull "$model"; then
-            log_success "Successfully pulled $model."
-        else
-            log_error "Failed to pull $model."
-            failed=1
-        fi
-    done
-    
-    log_info "Wiping fuzzy cache (memories table) to ensure fresh reasoning."
-    sqlite3 "$CORE_DB" "DELETE FROM memories;"
-    
-    if [[ $failed -eq 0 ]]; then
-        log_success "Rebuild complete. All Triumvirate models updated."
-    else
-        log_warn "Rebuild finished, but some models failed to update."
-    fi
-}
-
-# ai script: Execute a script file containing multiple AGI commands
-ai_script() {
-    local script_file="$1"
-    if [[ -z "$script_file" ]]; then
-        log_error "Usage: ai script <path/to/script.txt>"
-        return 1
-    fi
-    if [[ ! -f "$script_file" ]]; then
-        log_error "Script file not found: '$script_file'"
-        return 1
-    fi
-    log_phase "Running Autonomous Script: $script_file"
-    
-    local line_num=0
-    while IFS= read -r line; do
-        line_num=$((line_num + 1))
-        local cmd=$(echo "$line" | sed 's/#.*//' | xargs)
-        if [[ -n "$cmd" ]]; then
-            log_info "Executing script command (Line $line_num): '$cmd'"
-            run_agi_workflow "$cmd"
-            if [[ $? -ne 0 ]]; then
-                log_error "AGI workflow failed for command on line $line_num. Aborting script."
-                return 1
-            fi
-        fi
-    done < "$script_file"
-    log_success "Script execution complete."
-}
-
-# ai repair: Fix environment issues and check database integrity
-ai_repair() {
-    log_phase "Repairing Agent Core"
-    log_info "Checking Ollama server connection..."
-    if ensure_ollama; then
-        log_success "Ollama server is verified and running."
-    else
-        log_warn "Ollama server issue detected. Attempted restart failed. Manual intervention may be required."
-    fi
-
-    log_info "Running SQLite database integrity check on $CORE_DB..."
-    if sqlite3 "$CORE_DB" "PRAGMA integrity_check;" | grep -q "ok"; then
-        log_success "Database integrity check passed."
-    else
-        log_error "Database integrity check FAILED. Attempting recovery (running VACUUM and REINDEX)..."
-        sqlite3 "$CORE_DB" "VACUUM; REINDEX;" && log_success "Database recovery attempted and completed." || log_error "Database recovery failed."
-    fi
-    
-    log_info "Verifying core directories..."
-    init_environment # Ensures dirs are present and HMAC is set
-    log_success "Directories and HMAC key verified."
-}
-
-# ai status: Displays system health and key metrics
-ai_status() {
-    log_phase "Agent Status Report"
-    
-    printf "${BLUE}Agent Home:${NC} %s\n" "$AI_HOME"
-    printf "${BLUE}Projects Dir:${NC} %s\n" "$PROJECTS_DIR"
-    
-    log_info "Checking Ollama server..."
-    if curl -s --connect-timeout 2 http://localhost:11434/api/tags >/dev/null; then
-        printf "${GREEN}Ollama Status:${NC} Running on port 11434\n"
-    else
-        printf "${RED}Ollama Status:${NC} Not running or unreachable\n"
-    fi
-
-    log_info "Core Database Status..."
-    local mem_count=$(sqlite3 "$CORE_DB" "SELECT COUNT(*) FROM memories;" 2>/dev/null || echo "Error")
-    local log_count=$(sqlite3 "$CORE_DB" "SELECT COUNT(*) FROM tool_logs;" 2>/dev/null || echo "Error")
-    printf "${CYAN}DB Size:${NC} $(du -h "$CORE_DB" 2>/dev/null || echo 'N/A')\n"
-    printf "${CYAN}Cached Memories:${NC} %s records\n" "$mem_count"
-    printf "${CYAN}Tool Logs:${NC} %s records\n" "$log_count"
-    
-    log_info "Triumvirate Model List:"
-    printf "  ${PURPLE}Messenger:${NC} %s\n" "$MESSENGER_MODEL"
-    printf "  ${PURPLE}Planners:${NC} %s\n" "${PLANNER_MODELS[*]}"
-    printf "  ${PURPLE}Executor:${NC} %s\n" "$EXECUTOR_MODEL"
-}
+tool_run_command() { local proj_dir="$1" cmd="$2"; (cd "$proj_dir" && eval "$cmd") 2>&1 || echo "Command failed."; }
+tool_write_file() { local proj_dir="$1" f_path="$2" content="$3"; mkdir -p "$(dirname "$proj_dir/$f_path")"; echo -e "$content">"$proj_dir/$f_path"; echo "File '$f_path' written."; }
+export -f tool_run_command tool_write_file
 
 # ---------------- AUTONOMOUS WORKFLOW (Triumvirate Logic) ----------------
 run_agi_workflow() {
     local user_prompt="$*"
-    local task_id; task_id=$(hash_string "$user_prompt$(date +%s%N)" | cut -c1-16)
+    local task_id=$(hash_string "$user_prompt$(date +%s%N)" | cut -c1-16)
     local project_dir="$PROJECTS_DIR/task-$task_id"; mkdir -p "$project_dir"
     log_success "Project workspace: $project_dir (Task ID: $task_id)"
 
@@ -303,35 +416,33 @@ run_agi_workflow() {
     for ((i=1; i<=MAX_AGENT_LOOPS; i++)); do
         log_phase "AGI Loop $i/$MAX_AGENT_LOOPS"
         
-        # --- Phase 1: Messenger (Streaming) ---
-        local messenger_prompt="You are the Messenger. Analyze the current conversation context and provide a clear, structured summary of the goal and current state. The task ID is $task_id."
-        log_think "Starting Messenger (${MESSENGER_MODEL}) Analysis..."
-        local messenger_output; messenger_output=$(run_worker_stream "$MESSENGER_MODEL" "$messenger_prompt" "$conversation_history")
-        log_think "Messenger (${MESSENGER_MODEL}) Final Output: ${messenger_output}"
+        # --- Phase 1: Messenger ---
+        local messenger_prompt="You are the Messenger. Analyze the current conversation context and provide a clear, structured summary of the goal and current state."
+        local messenger_output; messenger_output=$(run_worker_fast "$MESSENGER_MODEL" "$messenger_prompt" "$conversation_history")
+        log_think "Messenger (${MESSENGER_MODEL}) Analysis: ${messenger_output}"
 
-        # --- Phase 2: Parallel Planners (Streaming) ---
+        # --- Phase 2: Parallel Planners ---
         local pids=() temp_files=() planner_outputs=()
         for model in "${PLANNER_MODELS[@]}"; do
             local temp_file; temp_file=$(mktemp)
             temp_files+=("$temp_file")
             (
                 log_debug "Starting planner: $model"
-                local planner_prompt="You are a strategic Planner. Based on the Messenger's analysis, create a concise, step-by-step plan. Propose a single, specific tool to use for the very next step. Only use the tools: tool_exec_shell (runs a shell command), tool_write_file (writes content to a file)."
-                
-                local planner_output; planner_output=$(run_worker_stream "$model" "$planner_prompt" "$messenger_output")
-                echo "$planner_output" > "$temp_file"
+                local planner_prompt="You are a strategic Planner. Based on the Messenger's analysis, create a concise, step-by-step plan. Propose a single, specific tool to use for the very next step."
+                run_worker_fast "$model" "$planner_prompt" "$messenger_output" > "$temp_file"
             ) &
             pids+=($!)
         done
+        
+        # FIX: Wait for all parallel workers to finish before proceeding
         for pid in "${pids[@]}"; do wait "$pid" || log_warn "A planner model exited with a non-zero status."; done
 
-        # --- Triage: Collect Planner Outputs ---
+        # --- Triage: Log Planner Outputs and Build Context ---
         local executor_context="You are the Executor. Synthesize the plans from the planners, resolve conflicts, and decide on the single best tool to use. Your output MUST be in the format:
 [REASONING] Your synthesis and final decision.
 [TOOL] tool_name <arguments>
 If the entire task is solved, respond ONLY with: [FINAL_ANSWER] Your final summary.
 
-Available tools: tool_exec_shell (runs a shell command), tool_write_file (writes content to a file).
 --- MESSENGER'S ANALYSIS ---
 $messenger_output"
 
@@ -345,10 +456,9 @@ $messenger_output"
         done
         rm -f "${temp_files[@]}"
 
-        # --- Phase 3: Executor (Streaming) ---
-        log_execute "Starting Executor (${EXECUTOR_MODEL}) Decision Synthesis..."
-        local final_plan; final_plan=$(run_worker_stream "$EXECUTOR_MODEL" "Executor" "$executor_context")
-        log_execute "Executor (${EXECUTOR_MODEL}) Final Decision: ${final_plan}"
+        # --- Phase 3: Executor ---
+        local final_plan; final_plan=$(run_worker_fast "$EXECUTOR_MODEL" "Executor" "$executor_context")
+        log_execute "Executor (${EXECUTOR_MODEL}) Decision: ${final_plan}"
 
         if [[ "$final_plan" == *"[FINAL_ANSWER]"* ]]; then status="SUCCESS"; conversation_history="$final_plan"; break; fi
         
@@ -363,15 +473,12 @@ $messenger_output"
 
         local tool_name; tool_name=$(echo "$clean_tool_cmd" | awk '{print $1}')
         local args_str; args_str=$(echo "$clean_tool_cmd" | cut -d' ' -f2-)
-        
-        local tool_result="Tool aborted."
+        local tool_args=(); eval "tool_args=(\"${args_str}\")"
+
+        local tool_result="User aborted action."
         if confirm_action "$clean_tool_cmd"; then
-            if [[ "$tool_name" == "tool_exec_shell" ]]; then
-                tool_result=$(tool_exec_shell "$project_dir" "$args_str")
-            elif [[ "$tool_name" == "tool_write_file" ]]; then
-                local f_path; f_path=$(echo "$args_str" | awk '{print $1}')
-                local content; content=$(echo "$args_str" | sed "s/^$f_path *//")
-                tool_result=$(tool_write_file "$project_dir" "$f_path" "$content")
+            if declare -f "tool_$tool_name" > /dev/null; then
+                tool_result=$(tool_"$tool_name" "$project_dir" "${tool_args[@]}") || "Tool failed."
             else
                 log_error "AI tried to call an unknown tool: '$tool_name'"; tool_result="Error: Tool '$tool_name' does not exist."
             fi
@@ -407,33 +514,35 @@ run_default_init() { log_phase "No prompt given. Scanning context..."; if [[ -d 
 # ---------------- HELP & MAIN DISPATCHER ----------------
 show_help() {
     cat << EOF
-${GREEN}AI Autonomic Synthesis Platform v32.1 (Maintenance Features)${NC}
-An agent that uses a fixed, multi-layer reasoning pipeline and streams token output in real-time.
+${GREEN}AI Autonomic Synthesis Platform v31.5 (Autoremediation Edition)${NC}
+An agent that uses a fixed, multi-layer reasoning pipeline and ensures Ollama connectivity.
 
 ${CYAN}USAGE:${NC}
+  ai serve                             # Start the interactive web UI
   ai "your high-level goal"            # Run the autonomous AGI workflow
-  ai rebuild                           # Pull latest LLM models & wipe fuzzy cache
-  ai script <file>                     # Execute a script file of sequential AGI goals
-  ai repair                            # Check database integrity, fix environment issues, and verify Ollama
-  ai status                            # Show system health, model list, and cache metrics
-  ai setup                             # Install/verify core system dependencies (sqlite3, git, curl, etc.)
-  ai serve                             # Start the interactive web UI (Placeholder)
   ai                                   # (No prompt) Scan current directory context
-  ai --help|-h                         # Show this help
+  ai --setup                           # Install/verify dependencies
+  ai --help                            # Show this help
 EOF
 }
 
 main() {
-    if [[ "${1:-}" == "serve" ]]; then log_info "Web UI serving is a feature of a future version. For now, use the command line."; exit 0; fi
+    if [[ "${1:-}" == "serve" ]]; then exit 0; fi
     init_environment; init_db
 
     if [[ $# -eq 0 ]]; then run_default_init; exit 0; fi
     case "${1:-}" in
-        setup|--setup|-s) ai_setup ;;
-        rebuild) ai_rebuild ;;
-        script) shift; ai_script "$@" ;;
-        repair) ai_repair ;;
-        status) ai_status ;;
+        --setup|-s)
+            log_info "Installing dependencies (sqlite3, git, curl, nodejs, npm, tree, openssl)..."
+            # ENHANCEMENT: Prioritize removing conflicting npm package on Debian systems
+            if command -v dpkg &>/dev/null; then
+                log_warn "Attempting to remove potentially conflicting 'npm' package for NodeSource compatibility."
+                sudo dpkg -r --force-depends npm 2>/dev/null || true
+            fi
+            
+            if command -v apt-get &>/dev/null; then sudo apt-get update && sudo apt-get install -y sqlite3 git curl nodejs npm tree openssl
+            else log_warn "Could not determine package manager. Please install dependencies manually."; fi
+            log_success "System dependencies installed." ;;
         --help|-h) show_help ;;
         *) run_agi_workflow "$@" ;;
     esac

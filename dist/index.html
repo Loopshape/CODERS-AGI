@@ -1,773 +1,512 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paradox Cohesion Engine: V53.0</title>
-    <!-- Load required libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        html, body {
-            margin: 0;
-            overflow: hidden;
-            height: 100%;
-            background-color: #00000a; /* Ultra Deep Space */
-        }
-        #container {
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-        }
-        .info-overlay {
-            position: absolute;
-            top: 0;
-            right: 0; 
-            padding: 1.5rem;
-            color: #b3ccff; 
-            font-family: 'Orbitron', sans-serif;
-            text-shadow: 0 0 8px #00ffff; /* Cyan glow */
-            pointer-events: none; 
-            z-index: 10;
-            max-width: 400px;
-            background: rgba(0, 0, 20, 0.85);
-            border-bottom-left-radius: 15px;
-            border-bottom: 3px solid #00ffff;
-            border-left: 1px solid #00ffff;
-            box-shadow: -5px 5px 20px rgba(0, 255, 255, 0.3);
-        }
-        .data-log {
-            height: 120px;
-            overflow-y: scroll;
-            margin-top: 10px;
-            padding: 5px;
-            border: 1px solid #00ffff;
-            font-size: 0.75rem;
-            line-height: 1.3;
-            background: rgba(0, 40, 40, 0.2);
-            border-radius: 5px;
-            pointer-events: all;
-        }
-        .qbit-log {
-            height: 100px;
-            overflow-y: scroll;
-            margin-top: 10px;
-            padding: 5px;
-            border: 1px solid #ff00ff;
-            font-size: 0.75rem;
-            line-height: 1.3;
-            background: rgba(40, 0, 40, 0.2);
-            border-radius: 5px;
-            pointer-events: all;
-        }
-        #gsap-button {
-            pointer-events: all;
-            box-shadow: 0 0 18px rgba(0, 200, 255, 0.8);
-            transition: all 0.2s;
-            cursor: pointer;
-        }
-        #gsap-button:hover {
-            box-shadow: 0 0 28px rgba(0, 200, 255, 1.0);
-            transform: scale(1.05);
-        }
-        .log-entry {
-            color: #a7f3d0;
-        }
-        .qbit-entry {
-            color: #ff99ff; /* Fuchsia */
-        }
-        .flux-indicator {
-            color: #ff00ff;
-            text-shadow: 0 0 5px #ff00ff;
-        }
-        .energy-bar-bg {
-            background-color: #0f172a;
-        }
-        .drift-fill-bg {
-            background-color: #f0f;
-        }
-        .log-title {
-            text-shadow: 0 0 5px #ff00ff;
-        }
-        /* Custom styles for the TMR glow in stable/flux states */
-        .tmr-stable {
-            text-shadow: 0 0 8px #00ffaa;
-        }
-        .tmr-flux {
-            text-shadow: 0 0 8px #ffff00;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2244-1 AI Cockpit</title>
+<!-- Load Three.js for 3D rendering -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+<!-- Load jQuery for DOM manipulation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!-- Load GSAP for advanced animation smoothing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.14.0/gsap.min.js"></script>
+<style>
+/* * Dark Monokai Theme Setup 
+ * Background: #272822
+ * Primary Text: #F8F8F2
+ * Cyan Accent: #66D9EF
+ * Purple Accent: #AE81FF
+ * Success Green: #A6E22E
+ * Error Red: #F92672
+ * Orange Accent: #FD971F
+ */
+body { 
+    margin: 0; 
+    overflow: hidden; 
+    /* Monokai Dark Background */
+    background: #272822; 
+    /* Monokai Light Text */
+    color: #F8F8F2; 
+    font-family: 'Inter', monospace;
+    /* Cyan Glow */
+    text-shadow: 0 0 5px rgba(102, 217, 239, 0.4);
+}
+/* Overlay for sensor data */
+#ai-overlay { 
+    position: absolute; 
+    top: 10px; 
+    left: 10px; 
+    padding: 15px;
+    z-index: 10; 
+    background: rgba(39, 40, 34, 0.7); /* Slightly transparent background */
+    /* Cyan Border */
+    border: 1px solid #66D9EF; 
+    border-radius: 8px;
+    /* Strong Cyan Shadow */
+    box-shadow: 0 0 10px rgba(102, 217, 239, 0.8);
+    min-width: 250px;
+}
+#ai-status { 
+    font-weight: bold; 
+    margin-bottom: 8px; 
+    font-size: 1.1em;
+    color: #fff;
+    /* White/Cyan Strong Shadow */
+    text-shadow: 0 0 7px #fff, 0 0 10px #66D9EF;
+}
+#ai-overlay div {
+    padding: 2px 0;
+}
+/* Input Panel Styling */
+#input-panel {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 350px;
+    max-width: 90vw;
+    z-index: 10;
+    background: rgba(39, 40, 34, 0.9);
+    /* Purple Border */
+    border: 1px solid #AE81FF;
+    border-radius: 8px;
+    padding: 15px;
+    /* Purple Shadow */
+    box-shadow: 0 0 15px rgba(174, 129, 255, 0.5);
+    display: flex;
+    flex-direction: column;
+}
+#ai-prompt {
+    padding: 8px;
+    /* Yellow Text/Caret */
+    border: 1px solid #E6DB74;
+    background: #000;
+    color: #F8F8F2;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+#ai-prompt::placeholder {
+    color: #3e4038; /* Darker placeholder text */
+}
+#send-prompt {
+    padding: 10px;
+    /* Cyan Button Background */
+    background: #66D9EF;
+    color: #272822;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+#send-prompt:hover {
+    background: #fff;
+    /* Cyan Shadow on Hover */
+    box-shadow: 0 0 10px #66D9EF;
+}
+#log-output {
+    max-height: 150px;
+    overflow-y: scroll;
+    padding: 5px;
+    border: 1px solid #3e4038;
+    border-radius: 4px;
+    margin-top: 10px;
+    font-size: 0.8em;
+    color: #F8F8F2;
+    background: rgba(0, 0, 0, 0.8);
+}
+#log-output p {
+    margin: 0;
+    white-space: pre-wrap;
+}
+canvas { display: block; }
+</style>
 </head>
 <body>
-    <div id="container">
-        <!-- Overlay for UI and Status (GSAP/jQuery Managed) -->
-        <div class="info-overlay">
-            <h1 id="main-title" class="text-3xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500">
-                PARADOX COHESION V53.0
-            </h1>
-            <p class="text-sm text-gray-400">Constraint: $2\pi = 0$ | $1 = \pi$. **10 Causal Threads Active.**</p>
-            
-            <!-- Target Input Section -->
-            <div class="mt-4 text-xs">
-                <label for="target-prompt" class="text-cyan-300">NEURO AGENT PROMPT (TDV Input):</label>
-                <input type="text" id="target-prompt" value="Initiate Causal Correction against Geometric Collapse."
-                       class="w-full mt-1 p-2 bg-gray-900 border border-fuchsia-500 text-white rounded-md font-mono pointer-events-all focus:ring-2 focus:ring-fuchsia-500" disabled>
-                <p class="mt-1 text-fuchsia-300">Qbit Cost/Reward: Each Qbit logged generates <strong id="qbit-reward">+20,000 mJ</strong> (Cohesion Energy).</p>
-            </div>
-            
-            <!-- Button Section -->
-            <div class="mt-4 flex items-center justify-center">
-                <button id="gsap-button" 
-                    class="p-3 bg-cyan-600 text-white rounded-full font-bold transition duration-300 transform hover:bg-cyan-500">
-                    🧠 Generate Qbits & Resist Paradox
-                </button>
-            </div>
+<div id="ai-overlay">
+    <div id="ai-status">AI: System Check (OK)</div>
+    <div id="ai-loop-info">Loop: Idle</div>
+    <div id="ai-gps">GPS: Awaiting Data...</div>
+    <div id="ai-compass">Compass: N/A</div>
+    <div id="ai-temp">Temp: N/A</div>
+    <div id="ai-time">Time: N/A</div>
+</div>
 
-            <!-- CORE STATUS -->
-            <hr class="border-gray-700 my-3">
-
-            <div class="mt-4 text-sm font-bold text-teal-400">Temporal Matrix Status</div>
-             <p class="status-container text-xs mt-1 mb-4">
-                State: 
-                <strong id="tmr-state" class="text-green-400 tmr-stable">STABLE</strong> 
-            </p>
-
-            <div class="mt-4 text-sm font-bold text-teal-400">Quantum Charge Budget (Drained by TMR State)</div>
-            <div class="status-container text-xs mt-1 mb-4">
-                <p>
-                    Charge Remaining: 
-                    <strong id="charge-remaining" class="text-yellow-300">480,000 mJ</strong> 
-                    <span id="charge-status" class="text-green-400 ml-2">NOMINAL</span>
-                </p>
-                <div id="charge-bar" class="w-full energy-bar-bg h-3 mt-1 rounded-full overflow-hidden">
-                    <div id="charge-fill" class="h-3 bg-green-500 transition-all duration-500" style="width: 100%"></div>
-                </div>
-            </div>
-
-            <!-- METAPHYSICAL DRIFT -->
-            <div class="mt-4 text-sm font-bold text-teal-400">Metaphysical Drift (TMR Instability Trigger)</div>
-            <div class="status-container text-xs mt-1">
-                <p>
-                    Drift: 
-                    <strong id="drift-value" class="text-yellow-300">0.000 Units</strong> 
-                    <span id="drift-status" class="text-green-400 ml-2">COHESIVE</span>
-                </p>
-                <div id="drift-bar" class="w-full energy-bar-bg h-3 mt-1 rounded-full overflow-hidden">
-                    <div id="drift-fill" class="h-3 drift-fill-bg transition-all duration-500" style="width: 0%"></div>
-                </div>
-            </div>
-            
-            <div class="mt-4 text-sm">
-                <p class="mt-3 text-sm font-bold log-title text-fuchsia-400">Neuro Agent (Shell) Log:</p>
-                <div class="qbit-log" id="qbit-log">
-                </div>
-            </div>
-        </div>
+<div id="input-panel">
+    <div id="ai-model-map" style="font-size:0.9em; margin-bottom: 10px; color:#AE81FF;">
+        Neuro-Core: Bound ($\pi/2$) | e0 (Translator) | e1/e2/e3 (Planners) | e4/e5/e6 (Q-Tools)
     </div>
+    <input type="text" id="ai-prompt" placeholder="Enter AGI Goal (e.g., 'Optimize the build system')...">
+    <button id="send-prompt">Engage AGI Workflow</button>
+    <div id="log-output"></div>
+</div>
 
-    <script>
-        // --- Core Setup Variables ---
-        let scene, camera, renderer;
-        let cosmicGroup; 
-        let predictiveParticles;
-        let planetGroups = [];
-        let manualRotation = new THREE.Vector2(0, 0);
-        let isDragging = false;
-        let previousMousePosition = { x: 0, y: 0 };
-        let orbitTime = 0;
-        let orbitalSpeed = 1.0;
-        let fluxLevel = 0; // 0 to 100 for visual feedback
+<script>
+// Global state and settings
+// Refactored AGENT_COUNT for 1 Messenger, 3 Planners, 3 Q-Tools (7 total)
+const AGENT_COUNT = 7; 
+const loopInterval = 100; // Time in MS for visual update loop
+let isWorkflowActive = false;
+let aiState = {
+    loop: 0,
+    phase: 'IDLE', // IDLE, CACHE_CHECK, MESSENGER, PLANNERS, EXECUTOR, Q-TOOL_EXEC, SUCCESS, FAIL
+    maxLoops: 7
+};
+
+// --- LOGGING ---
+// Monokai color palette helpers
+const C_WHITE = '#F8F8F2';
+const C_PURPLE = '#AE81FF';
+const C_CYAN = '#66D9EF';
+const C_GREEN = '#A6E22E';
+const C_YELLOW = '#E6DB74';
+const C_PINK = '#F92672';
+const C_ORANGE = '#FD971F';
+const C_GRAY = '#888888';
+
+function logToOutput(message, color = C_WHITE) {
+    const log = $('#log-output');
+    log.append(`<p style="color:${color};">${message}</p>`);
+    log.scrollTop(log[0].scrollHeight);
+}
+function updateStatus(status, loopInfo = '') {
+    $('#ai-status').text(`AI: ${status}`);
+    $('#ai-loop-info').text(loopInfo);
+}
+
+// --- SENSOR SIMULATION ---
+let gps = { lat: 34.0522, lon: -118.2437 }; 
+let gyro = { alpha: 0, beta: 0, gamma: 0 };
+let temp = 25.0;
+let compass = 0;
+
+if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(p => {
+        gps = { lat: p.coords.latitude, lon: p.coords.longitude };
+        $('#ai-gps').text(`GPS: ${gps.lat.toFixed(4)},${gps.lon.toFixed(4)}`);
+    }, (error) => { $('#ai-gps').text(`GPS: Disabled`); });
+}
+if (window.DeviceOrientationEvent) {
+    window.addEventListener('deviceorientation', e => {
+        gyro = e; 
+        compass = gyro.alpha;
+        $('#ai-compass').text(`Compass: ${compass.toFixed(0)}° (Working)`); // Added visual confirmation
+    });
+}
+function speak(msg) { 
+    if ('speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance(msg); 
+        speechSynthesis.speak(u); 
+    }
+}
+// --- THREE.JS SETUP ---
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.z = 5;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setClearColor(0x000000, 0); 
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+window.addEventListener('resize', onWindowResize, false);
+
+// Lights
+scene.add(new THREE.AmbientLight(0x444444));
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+directionalLight.position.set(5, 5, 5).normalize();
+scene.add(directionalLight);
+
+// ====== Core Atom Group (Executor/Controller - Now Bound) ======
+const coreGroup = new THREE.Group();
+scene.add(coreGroup);
+
+// 1. The main executor sphere (the 'brain') - Purple Monokai color
+const coreGeo = new THREE.SphereGeometry(0.4, 32, 32); 
+const coreMat = new THREE.MeshPhongMaterial({
+    color: 0xAE81FF, 
+    emissive: 0xAE81FF, 
+    emissiveIntensity: 1.0, 
+    shininess: 150
+});
+const coreSphere = new THREE.Mesh(coreGeo, coreMat);
+coreGroup.add(coreSphere);
+
+// 2. The binding/stabilization element (the 'cage' or 'binding') - Cyan Monokai color
+const bindingGeo = new THREE.IcosahedronGeometry(0.7, 1);
+const bindingMat = new THREE.MeshBasicMaterial({
+    color: 0x66D9EF,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.3
+});
+const coreBinding = new THREE.Mesh(bindingGeo, bindingMat);
+// Apply mathematical binding rotation (2π/4 = π/2)
+coreBinding.rotation.x = Math.PI / 2; 
+coreGroup.add(coreBinding);
+
+// 3. Data Conduit Ring (sqlite3 integration)
+const ringGeo = new THREE.TorusGeometry(0.55, 0.02, 8, 50);
+const ringMat = new THREE.MeshBasicMaterial({
+    color: 0x66D9EF, 
+    emissive: 0x66D9EF, 
+    emissiveIntensity: 0.5,
+    wireframe: false 
+});
+const dataConduitRing = new THREE.Mesh(ringGeo, ringMat);
+dataConduitRing.rotation.x = Math.PI / 2; // Lay it flat
+coreGroup.add(dataConduitRing);
+
+// 4. Solar Unit Plane (Red Square on XY axis)
+const planeGeo = new THREE.BoxGeometry(2, 2, 0.05); // 2x2 on XY, thin in Z (height)
+const planeMat = new THREE.MeshPhongMaterial({
+    color: 0xF92672, // Error Red Monokai color
+    emissive: 0xF92672,
+    emissiveIntensity: 0.4,
+    side: THREE.DoubleSide
+});
+const solarUnitPlane = new THREE.Mesh(planeGeo, planeMat);
+// Position it slightly below the core for visibility
+solarUnitPlane.position.z = -0.5; 
+scene.add(solarUnitPlane);
+
+
+// Reference the group for overall logic and positioning
+const core = coreGroup; 
+
+// ====== Multi-Agent Electrons (Messenger/Planners/Q-Tools) ======
+const electronsMulti = [];
+const AGENT_ROLES = ["Translator", "Planner 1", "Planner 2", "Planner 3", "Q-Tool 1", "Q-Tool 2", "Q-Tool 3"];
+// Updated colors for Monokai 
+const AGENT_COLORS = [0xF92672, 0xA6E22E, 0xE6DB74, 0xFD971F, 0x888888, 0x888888, 0x888888]; // Pink, Green, Yellow, Orange, Gray(x3)
+
+for (let i = 0; i < AGENT_COUNT; i++) {
+    const geo = new THREE.SphereGeometry(0.1, 16, 16);
+    const mat = new THREE.MeshStandardMaterial({
+        color: AGENT_COLORS[i], 
+        emissive: AGENT_COLORS[i], 
+        emissiveIntensity: 0.8
+    });
+    const e = new THREE.Mesh(geo, mat);
+    e.userData.radius = 1 + i * 0.15; // Closer orbits for more agents
+    e.userData.angle = Math.random() * Math.PI * 2;
+    e.userData.speed = 0.015 + Math.random() * 0.01;
+    // Vary yOffset more to separate orbits visually
+    e.userData.yOffset = (i % 3 === 0 ? 0.2 : (i % 3 === 1 ? -0.2 : 0)) * (1 + Math.random() * 0.5);
+    e.userData.role = AGENT_ROLES[i];
+    electronsMulti.push(e);
+    scene.add(e);
+}
+
+// --- AGI WORKFLOW SIMULATION ---
+
+async function simulateAgiWorkflow(prompt) {
+    if (isWorkflowActive) return logToOutput("Workflow is already active.", C_YELLOW);
+    
+    isWorkflowActive = true;
+    aiState.loop = 0;
+    logToOutput(`--- Starting AGI Workflow: NEURO(model_pool) translator(${prompt}) ---`, C_CYAN);
+    speak("Quantum workflow initiated.");
+    $('#send-prompt').prop('disabled', true);
+    
+    // --- CACHE CHECK PHASE (Now includes SQLite3 check) ---
+    aiState.phase = 'CACHE_CHECK';
+    updateStatus('Accessing SQLite3 Cache...', `Loop 0/${aiState.maxLoops}`);
+    logToOutput("PHASE: CACHE_CHECK - Checking SQL index and fuzzy model_pool...", C_WHITE);
+    
+    // Core (coreGroup) and Data Conduit pulses while checking cache
+    gsap.to(coreGroup.scale, { duration: 0.5, repeat: 1, yoyo: true, x: 1.5, y: 1.5, z: 1.5, ease: "sine.inOut" });
+    gsap.to(dataConduitRing.material, { duration: 0.2, repeat: 2, yoyo: true, emissiveIntensity: 3.0, ease: "power1.inOut" });
+
+    await new Promise(r => setTimeout(r, 700));
+    
+    if (Math.random() < 0.2) { // 20% chance of cache hit
+        aiState.phase = 'SUCCESS';
+        updateStatus('SQLite3 Cache Hit!', `Loop 0/${aiState.maxLoops}`);
+        logToOutput("SUCCESS: Found high-quality match via SQL index.", C_GREEN);
+        speak("Cache hit. Task complete.");
+        gsap.to(coreGroup.scale, { duration: 1, x: 2, y: 2, z: 2, ease: "elastic.out" });
+        isWorkflowActive = false;
+        $('#send-prompt').prop('disabled', false);
+        return;
+    }
+    
+    // --- MAIN AGI LOOPS ---
+    for (let i = 1; i <= aiState.maxLoops; i++) {
+        aiState.loop = i;
+        updateStatus('Quantum Loop Active', `Loop ${i}/${aiState.maxLoops}`);
+        logToOutput(`\n--- Starting Neuro-Core Loop ${i} ---`, C_WHITE);
+
+        // Phase 1: Translator Analysis (e0)
+        aiState.phase = 'MESSENGER';
+        logToOutput(`PHASE: TRANSLATOR (e0) - Decoding and contextualizing humanprompt...`, C_PINK);
+        await new Promise(r => setTimeout(r, 700));
+
+        // Phase 2: Hyper-Parallel Planners (e1, e2, e3)
+        aiState.phase = 'PLANNERS';
+        logToOutput(`PHASE: 3X PLANNERS (e1-e3) - Generating parallel strategies...`, C_CYAN);
+        await new Promise(r => setTimeout(r, 1200));
+
+        // Phase 3: Executor Synthesis (Core)
+        aiState.phase = 'EXECUTOR';
+        logToOutput(`PHASE: NEURO-CORE - Synthesizing $Q_P$ plans...`, C_PURPLE);
+        await new Promise(r => setTimeout(r, 800));
         
-        // --- Quantum Budget Variables ---
-        const MAX_CHARGE = 480000;
-        let quantumCharge = MAX_CHARGE; 
-        const BASE_CHARGE_DRAIN_RATE = 5000; // mJ drained per second (Stable TMR)
-        const COLLAPSE_CHARGE_MULTIPLIER = 5; // TMR Collapse multiplies drain rate by 5
-        const QBIT_REWARD = 20000; // mJ gained per Qbit logged
-        const CAUSAL_REDUCTION = 5; // How much Earth distance is reduced per TDV
-        let isNeuroRunning = false;
-        let qbitCounter = 0;
+        // Phase 4: Q-Tool Execution (e4, e5, e6)
+        if (Math.random() < 0.8) { 
+            aiState.phase = 'Q-TOOL_EXEC';
+            logToOutput(`PHASE: Q-TOOL EXEC (e4-e6) - Executing quantum-state operations...`, C_YELLOW);
+            speak("Quantum Tool execution requested.");
+            await new Promise(r => setTimeout(r, 1000));
+            logToOutput(`Q-TOOL RESULT: State collapse successful. Proceeding to next loop.`, C_GREEN);
+        } else {
+            // Success condition
+            aiState.phase = 'SUCCESS';
+            updateStatus('Task Complete', `Loop ${i}/${aiState.maxLoops}`);
+            logToOutput(`\nSUCCESS: Final stable state achieved on Loop ${i}!`, C_GREEN);
+            speak("Task complete. Final answer achieved.");
+            break;
+        }
 
-        // --- Metaphysical Variables ---
-        const EARTH_ORIGIN_DISTANCE = 10; // The "Root of True"
-        const ORIGIN_PULL_FACTOR = 0.0002; 
-        const TMR_COLLAPSE_THRESHOLD = 2.0; // Drift threshold to collapse TMR
-        let metaphysicalDrift = 0; // Current deviation from Origin
-        let tmrState = 0; // 0: Stable, 1: Flux, 2: Collapsed
+        if (i === aiState.maxLoops) {
+             aiState.phase = 'FAIL';
+             updateStatus('Max Loops Reached', `Loop ${i}/${aiState.maxLoops}`);
+             logToOutput("\nERROR: Max loops reached. Unstable state collapse.", C_PINK);
+             speak("Max loops reached. Exiting workflow.");
+        }
+    }
+    
+    gsap.to(coreGroup.scale, { duration: 0.5, x: 1, y: 1, z: 1 });
+    isWorkflowActive = false;
+    $('#send-prompt').prop('disabled', false);
+}
 
-        // --- Temporal Matrix Regulator (TMR) ---
-        let tmrGroup; // Group to hold the TMR lines
-        let tmrLines = [];
-        const TMR_ROTATION_RATE = (4 * Math.PI) / 480; 
-        const TMR_SIZE = 60;
+// --- VISUAL ANIMATION LOOP (Animate function) ---
+function animate(timestamp) { 
+    requestAnimationFrame(animate); 
+    
+    // 1. Update UI Time
+    $('#ai-time').text("Time: " + new Date().toLocaleTimeString());
+
+    // 2. Animate Core Group (Executor) based on Phase
+    const time = Date.now() * 0.001;
+    let targetIntensity = 1.0;
+    // Core color is Monokai Purple
+    let coreColor = 0xAE81FF;
+
+    // Core Binding (Fixed rotation from 2π/4, but still rotating around Y axis)
+    coreBinding.rotation.y += 0.01;
+
+    // Data Conduit Ring Rotation
+    dataConduitRing.rotation.z += 0.02;
+
+    if (aiState.phase === 'CACHE_CHECK' || aiState.phase === 'EXECUTOR') {
+        targetIntensity = 1.8;
+    } else if (aiState.phase === 'SUCCESS') {
+        targetIntensity = 2.5;
+        // Pulse the binding element faster on success
+        coreBinding.scale.setScalar(1.0 + 0.1 * Math.sin(time * 10)); 
+    } else if (aiState.phase === 'FAIL') {
+        // Red core on failure
+        coreColor = 0xF92672;
+        targetIntensity = 2.0;
+    } else {
+        // Default pulse for the binding when idle
+        coreBinding.scale.setScalar(1.0 + 0.05 * Math.sin(time * 5));
+    }
+    
+    // Apply Core Colors
+    gsap.to(coreSphere.material, { duration: loopInterval / 1000, emissiveIntensity: targetIntensity, ease: "power1.inOut" });
+    gsap.to(coreSphere.material.color, { duration: 1, r: (coreColor >> 16 & 0xFF) / 255, g: (coreColor >> 8 & 0xFF) / 255, b: (coreColor & 0xFF) / 255 });
+    gsap.to(coreSphere.material.emissive, { duration: 1, r: (coreColor >> 16 & 0xFF) / 255, g: (coreColor >> 8 & 0xFF) / 255, b: (coreColor & 0xFF) / 255 });
+
+    coreGroup.rotation.x += 0.005;
+    coreGroup.rotation.y += 0.01;
+
+    // 3. Animate Electrons (Agents) based on Phase
+    electronsMulti.forEach((e, i) => {
+        let radiusFactor = 1.0;
+        let flickerIntensity = 0.8;
+        let speedFactor = 1.0;
         
-        // --- Configuration ---
-        const FIELD_SIZE = 1000;
-        const RECUR_DEPTH = 5; 
-        const TEMP_FACTOR = 0.5; 
-
-        // Planet Data (10 Objects: 8 Planets + Ceres + Pluto)
-        const PLANET_DATA = [
-            { name: "Mercury", distance: 3.9, radius: 0.13, color: 0xaa9a8b, period: 0.24, mesh: null },
-            { name: "Venus", distance: 7.2, radius: 0.33, color: 0xe68c4a, period: 0.62, mesh: null },
-            { name: "Earth", distance: 10.0, radius: 0.35, color: 0x4a86e6, period: 1.0, mesh: null, isTarget: true },
-            { name: "Mars", distance: 15.2, radius: 0.18, color: 0xcc6633, period: 1.88, mesh: null },
-            { name: "Ceres", distance: 20.0, radius: 0.03, color: 0xffa500, period: 4.60, mesh: null }, // Dwarf Planet (Asteroid Belt)
-            { name: "Jupiter", distance: 35.0, radius: 1.5, color: 0xe6e6a3, period: 11.86, mesh: null },
-            { name: "Saturn", distance: 55.0, radius: 1.3, color: 0xe6e6a3, period: 29.46, mesh: null },
-            { name: "Uranus", distance: 75.0, radius: 0.7, color: 0x99ccff, period: 84.01, mesh: null },
-            { name: "Neptune", distance: 95.0, radius: 0.65, color: 0x0066cc, period: 164.8, mesh: null },
-            { name: "Pluto", distance: 105.0, radius: 0.05, color: 0x9370db, period: 248.0, mesh: null } // Dwarf Planet (Kuiper Belt)
-        ];
-
-        // UI elements (jQuery cache)
-        const $qbitLogEl = $('#qbit-log');
-        const $gsapButtonEl = $('#gsap-button');
-        const $chargeRemainingEl = $('#charge-remaining');
-        const $chargeFillEl = $('#charge-fill');
-        const $chargeStatusEl = $('#charge-status');
-        const $driftValueEl = $('#drift-value');
-        const $driftFillEl = $('#drift-fill');
-        const $driftStatusEl = $('#drift-status');
-        const $tmrStateEl = $('#tmr-state');
-
-
-        // --- Initialization and Setup ---
-
-        function init() {
-            // 1. Scene Setup
-            scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x00000a, 50, 150);
-
-            // 2. Camera Setup
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.z = 150; // Pull camera back slightly for new orbits
-            camera.position.y = 15;
-            camera.rotation.x = -0.1;
-            
-            // 3. Renderer Setup
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            $('#container').append(renderer.domElement);
-            
-            // Group for user rotation
-            cosmicGroup = new THREE.Group();
-            scene.add(cosmicGroup);
-
-            // 4. Lighting and Architecture Creation
-            setupLighting();
-            createCosmicArchitecture();
-            
-            // 5. Event Listeners and GSAP/jQuery Init
-            $(window).on('resize', onWindowResize);
-            setupInteractionHandlers(renderer.domElement);
-            setupGsapHandler();
-            
-            gsap.fromTo('#main-title', { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 1.5, ease: 'power2.out' });
-            
-            animate();
-            logQbitEvent(`Engine V53.0 Online. Geometric Paradox (2π=0|1=π) active. Octal Equalizer engaged.`, "text-cyan-400");
+        // Translator (e0)
+        if (i === 0 && aiState.phase === 'MESSENGER') {
+            flickerIntensity = 2.0; 
+            speedFactor = 2.0;
+        } 
+        // Planners (e1, e2, e3)
+        else if ((i >= 1 && i <= 3) && aiState.phase === 'PLANNERS') {
+            radiusFactor = 1.5 + 0.3 * Math.sin(time * 5); 
+            flickerIntensity = 1.5;
+        }
+        // Q-Tool Agents (e4, e5, e6)
+        else if ((i >= 4 && i <= 6) && aiState.phase === 'Q-TOOL_EXEC') {
+            // Quantum effect: move erratically and flash
+            e.userData.angle += e.userData.speed * 4;
+            e.userData.yOffset += 0.02 * Math.sin(time * 20 + i); 
+            flickerIntensity = 5.0;
+            // Flash a quick color change to red/pink
+            gsap.to(e.material.color, { duration: 0.05, r: 1, g: 0, b: 0 }); 
+            gsap.to(e.material.emissive, { duration: 0.05, r: 1, g: 0, b: 0 });
+        } else {
+            // Return to default Monokai agent color
+            e.userData.yOffset = (i % 3 === 0 ? 0.2 : (i % 3 === 1 ? -0.2 : 0)) * (1 + Math.random() * 0.5); // reset Y variation
+            gsap.to(e.material.color, { duration: 1, r: (AGENT_COLORS[i] >> 16 & 0xFF) / 255, g: (AGENT_COLORS[i] >> 8 & 0xFF) / 255, b: (AGENT_COLORS[i] & 0xFF) / 255 });
+            gsap.to(e.material.emissive, { duration: 1, r: (AGENT_COLORS[i] >> 16 & 0xFF) / 255, g: (AGENT_COLORS[i] >> 8 & 0xFF) / 255, b: (AGENT_COLORS[i] & 0xFF) / 255 });
         }
 
-        function logQbitEvent(message, colorClass = "text-fuchsia-300") {
-             const logEntry = $(`<div class="qbit-entry ${colorClass}"></div>`).html(`[${new Date().toLocaleTimeString()}] ${message}`);
-            $qbitLogEl.prepend(logEntry);
-            $qbitLogEl.children().slice(10).remove();
-        }
+        // Apply movement
+        e.userData.angle += e.userData.speed * speedFactor;
+        const r = e.userData.radius * radiusFactor;
+        e.position.set(
+            Math.cos(e.userData.angle) * r,
+            e.userData.yOffset,
+            Math.sin(e.userData.angle) * r
+        );
 
-        function setupLighting() {
-            const sunLight = new THREE.PointLight(0xffa500, 50, 200, 2); 
-            sunLight.position.set(0, 0, 0);
-            cosmicGroup.add(sunLight);
-            
-            const ambientLight = new THREE.AmbientLight(0x101018, 0.5); 
-            scene.add(ambientLight);
-        }
+        e.material.emissiveIntensity = flickerIntensity;
+        e.rotation.y += 0.05;
+    });
 
-        function createCosmicArchitecture() {
-            // --- 1. Predictive Field (Quantum Lattice) ---
-            const particleCount = 20000;
-            const predictiveGeometry = new THREE.BufferGeometry();
-            const predictiveVertices = [];
-            
-            for (let i = 0; i < particleCount; i++) {
-                predictiveVertices.push(
-                    (Math.random() - 0.5) * FIELD_SIZE, 
-                    (Math.random() - 0.5) * FIELD_SIZE, 
-                    (Math.random() - 0.5) * FIELD_SIZE
-                );
-            }
+    renderer.render(scene, camera);
+}
 
-            predictiveGeometry.setAttribute('position', new THREE.Float32BufferAttribute(predictiveVertices, 3));
-            
-            predictiveParticles = new THREE.Points(
-                predictiveGeometry,
-                new THREE.PointsMaterial({
-                    color: 0x00ffff, 
-                    size: 0.1,
-                    blending: THREE.AdditiveBlending,
-                    transparent: true,
-                    opacity: 0.6
-                })
-            );
-            scene.add(predictiveParticles);
-            
-            // --- 2. Temporal Matrix Regulator (TMR) - Closed Toroidal Loop ---
-            // Implements the "connect ends" and sets up for the sin(z) perturbation.
-            tmrGroup = new THREE.Group();
-            
-            const ringRadius = TMR_SIZE / 2.5; 
-            const numSegments = 64; 
-            // Initial material is red, will be overridden by Modulo 7 logic
-            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 });
-            
-            for (let i = 0; i < numSegments; i++) {
-                const t = (i / numSegments) * Math.PI * 2;
-                const t_next = ((i + 1) / numSegments) * Math.PI * 2;
-                
-                // Points define the ring in the XZ plane
-                const x1 = ringRadius * Math.cos(t);
-                const z1 = ringRadius * Math.sin(t);
-                const x2 = ringRadius * Math.cos(t_next);
-                const z2 = ringRadius * Math.sin(t_next);
+// --- EVENT LISTENERS ---
+$('#send-prompt').on('click', () => {
+    const prompt = $('#ai-prompt').val().trim();
+    if (prompt) {
+        simulateAgiWorkflow(prompt);
+        $('#ai-prompt').val('');
+    } else {
+        logToOutput("Please enter a goal for the AGI.", C_YELLOW);
+    }
+});
 
-                const vertices = [
-                    x1, 0, z1,
-                    x2, 0, z2
-                ];
+$('#ai-prompt').on('keypress', (e) => {
+    if (e.which === 13) { // Enter key
+        $('#send-prompt').click();
+    }
+});
 
-                const geometry = new THREE.BufferGeometry().setFromPoints([
-                    new THREE.Vector3(x1, 0, z1), 
-                    new THREE.Vector3(x2, 0, z2)
-                ]);
-                
-                // Store initial positions for dynamic perturbation
-                geometry.setAttribute('initialPosition', new THREE.Float32BufferAttribute(vertices, 3));
+// --- SCRIPT ENTRY POINT ---
+window.onload = function () {
+    // Start Solar Unit Plane rotation (360 degrees in 3.2 seconds, linear)
+    const rotationDuration = 3.2; 
+    gsap.to(solarUnitPlane.rotation, {
+        duration: rotationDuration,
+        z: Math.PI * 2,
+        ease: "linear",
+        repeat: -1
+    });
 
-                // Clone material for individual color control based on Modulo 7
-                const line = new THREE.Line(geometry, lineMaterial.clone()); 
-                tmrGroup.add(line);
-                tmrLines.push(line);
-            }
-            
-            cosmicGroup.add(tmrGroup);
-
-            // --- 3. Solar System (Central Object) ---
-            const sunMesh = new THREE.Mesh(
-                new THREE.SphereGeometry(2, 32, 32),
-                new THREE.MeshBasicMaterial({ color: 0xffa500 })
-            );
-            cosmicGroup.add(sunMesh);
-
-            // Create Planets and Orbits
-            PLANET_DATA.forEach(data => {
-                const orbitGeometry = new THREE.RingGeometry(data.distance - 0.05, data.distance + 0.05, 128);
-                const orbitMaterial = new THREE.MeshBasicMaterial({ 
-                    color: data.isTarget ? 0x00ffff : 0x008888, 
-                    side: THREE.DoubleSide, 
-                    transparent: true, 
-                    opacity: 0.1 
-                });
-                const orbitMesh = new THREE.Mesh(orbitGeometry, orbitMaterial);
-                orbitMesh.rotation.x = Math.PI / 2; 
-                cosmicGroup.add(orbitMesh);
-                
-                const planetGeometry = new THREE.SphereGeometry(data.radius, 16, 16);
-                const planetMaterial = new THREE.MeshPhongMaterial({ color: data.color });
-                data.mesh = new THREE.Mesh(planetGeometry, planetMaterial);
-
-                const planetGroup = new THREE.Group();
-                planetGroup.add(data.mesh);
-                cosmicGroup.add(planetGroup);
-                
-                planetGroups.push({
-                    group: planetGroup, 
-                    period: data.period, 
-                    distance: data.distance,
-                    mesh: data.mesh,
-                    name: data.name,
-                    isTarget: data.isTarget || false
-                });
-            });
-        }
-
-        // --- Core Logic ---
-
-        function runNeuroAgent(prompt) {
-            if (isNeuroRunning) return;
-
-            const hash = Math.random().toString(16).substring(2, 8);
-            isNeuroRunning = true;
-            qbitCounter = 0;
-            logQbitEvent(`[NEURO] 🚀 Starting cognitive stream (HASH: ${hash})...`);
-
-            const neuroLoop = (i) => {
-                if (i >= RECUR_DEPTH) {
-                    isNeuroRunning = false;
-                    logQbitEvent("[NEURO] ✅ Cognitive stream complete.");
-                    executeCausalCorrection(); 
-                    return;
-                }
-
-                const entropy = Math.random() * TEMP_FACTOR;
-                const line = `[NEURO][${i}] 🤔 Processing entropic sub-thought (entropy=${entropy.toFixed(4)})`;
-                
-                logQbitEvent(line);
-                
-                // --- QBIT LOGGING & CHARGE GENERATION ---
-                quantumCharge = Math.min(MAX_CHARGE, quantumCharge + QBIT_REWARD);
-                logQbitEvent(`<span style="color:#00ffaa;">[QBIT INSERTED] +${QBIT_REWARD} mJ (Cohesion Energy)</span>`);
-                qbitCounter++;
-                // --- END LOGGING/CHARGE ---
-                
-                const nextDelay = (0.2 + (entropy * 0.5)) * 1000;
-                
-                setTimeout(() => neuroLoop(i + 1), nextDelay);
-            };
-
-            neuroLoop(0);
-        }
-
-        function executeCausalCorrection() {
-            $gsapButtonEl.prop('disabled', true);
-            const targetPlanet = planetGroups.find(p => p.isTarget);
-            const currentDistance = targetPlanet.distance;
-            const newDistance = currentDistance - CAUSAL_REDUCTION; 
-            
-            logQbitEvent(`TDV Calculation: Executing Metaphysical Correction (Orbit Shift).`, "text-red-400");
-            
-            fluxLevel = 100; 
-            
-            const rewindDuration = 1.0;
-            
-            gsap.to(window, {
-                orbitTime: orbitTime - 200, 
-                duration: rewindDuration,
-                ease: "power2.in",
-                onComplete: () => {
-                    gsap.to(targetPlanet, {
-                        distance: newDistance,
-                        duration: 2.0,
-                        ease: "elastic.out(1, 0.5)",
-                        onStart: () => {
-                            logQbitEvent(`Truth Divergence: Orbit Forced to ${newDistance.toFixed(2)} units.`, "text-yellow-300");
-                        },
-                        onComplete: () => {
-                            $gsapButtonEl.prop('disabled', false).text('🧠 Generate Qbits & Resist Paradox').removeClass('bg-red-600').addClass('bg-cyan-600 hover:bg-cyan-500');
-                            fluxLevel = 0;
-                            logQbitEvent(`New Causal Reality Stabilized. Qbits generated: ${qbitCounter}.`, "text-lime-400");
-                        }
-                    });
-                    
-                    gsap.fromTo(sunMesh.scale, { x: 1.5, y: 1.5, z: 1.5 }, { x: 1, y: 1, z: 1, duration: 0.5, ease: "power4.out" });
-                }
-            });
-            
-            $gsapButtonEl.text('FLUX INVERSION...').removeClass('bg-cyan-600 hover:bg-cyan-500').addClass('bg-red-600');
-        }
-
-
-        function updatePlanets(deltaTime) {
-            orbitTime += deltaTime * orbitalSpeed;
-            
-            const earthItem = planetGroups.find(p => p.isTarget);
-
-            if (earthItem) {
-                // 1. Pull of Origin (Root of True)
-                const drift = EARTH_ORIGIN_DISTANCE - earthItem.distance;
-                metaphysicalDrift = Math.abs(drift);
-
-                if (metaphysicalDrift > 0.01) {
-                    earthItem.distance += Math.sign(drift) * ORIGIN_PULL_FACTOR * deltaTime * 100;
-                }
-            }
-
-            // 2. Standard Orbital Mechanics
-            planetGroups.forEach(item => {
-                const angle = (orbitTime / item.period) * Math.PI * 2; 
-                const x = Math.cos(angle) * item.distance;
-                const z = Math.sin(angle) * item.distance;
-                
-                item.group.position.x = x;
-                item.group.position.z = z;
-
-                item.mesh.rotation.y += deltaTime * orbitalSpeed * 1.5;
-            });
-        }
-
-        function updateTMR(deltaTime) {
-            const tmrPullFactor = Math.min(1.0, metaphysicalDrift / TMR_COLLAPSE_THRESHOLD);
-            
-            // TMR STATE MANAGEMENT
-            let isTransitioning = false;
-            if (tmrPullFactor >= 1.0 && tmrState !== 2) {
-                 isTransitioning = true;
-                 tmrState = 2;
-                 $tmrStateEl.text('!!! COLLAPSED !!!').removeClass('text-green-400 tmr-stable text-yellow-500 tmr-flux').addClass('flux-indicator');
-                 logQbitEvent(`[TMR FAILURE] Geometric Paradox Triggered (Drift > ${TMR_COLLAPSE_THRESHOLD} units). Charge Drain x${COLLAPSE_CHARGE_MULTIPLIER}!`, "text-red-700");
-                 gsap.to(tmrGroup.rotation, { x: 0, y: 0, z: 0, duration: 1.0 }); // Halt rotation
-            } else if (tmrPullFactor < 1.0 && tmrState === 2) {
-                 isTransitioning = true;
-                 tmrState = 0;
-                 $tmrStateEl.text('STABLE').removeClass('text-yellow-500 tmr-flux flux-indicator').addClass('text-green-400 tmr-stable');
-                 logQbitEvent(`[TMR RE-STABILIZED] Cohesion restored. Normal Drain.`, "text-lime-400");
-                 gsap.to(tmrGroup.rotation, { x: 0, y: 0, z: 0, duration: 2.0 }); // Rotation handled dynamically below
-            } else if (tmrPullFactor > 0.5 && tmrState === 0) {
-                 tmrState = 1;
-                 $tmrStateEl.text('FLUX').removeClass('text-green-400 tmr-stable flux-indicator').addClass('text-yellow-500 tmr-flux');
-            } else if (tmrPullFactor <= 0.5 && tmrState === 1) {
-                 tmrState = 0;
-                 $tmrStateEl.text('STABLE').removeClass('text-yellow-500 tmr-flux flux-indicator').addClass('text-green-400 tmr-stable');
-            }
-            
-            // --- Modulo 7 Color Shift: Base 8 constraint applied to the visual flux ---
-            const colorList = [
-                0xff0000, // Red (0)
-                0xffa500, // Orange (1)
-                0xffff00, // Yellow (2)
-                0x00ff00, // Green (3)
-                0x00ffff, // Cyan (4)
-                0x0000ff, // Blue (5)
-                0xff00ff  // Magenta (6)
-            ];
-            const octalTime = Math.floor(time * 0.5); // Slower cycle
-            const colorModulus = octalTime % 7;
-            const targetColor = new THREE.Color(colorList[colorModulus]);
-
-            // VISUAL UPDATES
-            tmrLines.forEach(line => {
-                const positions = line.geometry.attributes.position.array;
-                const initialPosition = line.geometry.attributes.initialPosition.array;
-
-                // Color transition based on TMR state and Modulo 7
-                line.material.color.lerp(targetColor, 0.02); // Smoothly blend to the modulo 7 color
-                
-                if (tmrState === 2) {
-                    // COLLAPSED: Violently displace fragments
-                    for (let i = 0; i < positions.length; i += 3) {
-                        positions[i] = initialPosition[i] + (Math.random() - 0.5) * 2.0; 
-                        positions[i + 1] += (Math.random() - 0.5) * 2.0;
-                        positions[i + 2] = initialPosition[i + 2] + (Math.random() - 0.5) * 2.0;
-                    }
-                    line.material.opacity = 0.9;
-                } else {
-                    // Dynamic Perturbation: Octal Cosine + sin(z)
-                    // Octal Cosine Component (Low frequency, large scale amplitude fluctuation)
-                    const octalCosComponent = Math.cos(time / 5) * 0.5; 
-                    // Sin(z) Component (High frequency wave along the ring's circumference/Z axis)
-                    const sinZAmplitude = 3.0 * (1 - tmrPullFactor) + octalCosComponent;
-                    
-                    for (let i = 0; i < positions.length; i += 3) {
-                        // Restore initial X and Z (0 and 2 index) for structure integrity
-                        positions[i] = initialPosition[i]; 
-                        positions[i + 2] = initialPosition[i + 2];
-
-                        // Apply Y displacement based on the sin(z) formula
-                        // Initial Z value (initialPosition[i+2]) combined with current time for wave effect
-                        positions[i + 1] = Math.sin(initialPosition[i + 2] * 0.5 + time * 5) * sinZAmplitude; 
-                    }
-                    line.material.opacity = 0.15 + (tmrPullFactor * 0.6); // Fade up to 0.75 opacity in flux
-                }
-                line.geometry.attributes.position.needsUpdate = true;
-            });
-
-            // Rotation around Y axis
-            if (tmrState < 2 && fluxLevel < 90) { 
-                tmrGroup.rotation.y += TMR_ROTATION_RATE * deltaTime;
-            }
-        }
-
-        function updatePredictiveField() {
-            if (fluxLevel > 0) {
-                const positions = predictiveParticles.geometry.attributes.position.array;
-                const fluxFactor = fluxLevel / 100;
-                const displacementSpeed = 5 * fluxFactor;
-
-                for(let i=0; i < positions.length; i++) {
-                    positions[i] += (Math.random() - 0.5) * displacementSpeed;
-                }
-                predictiveParticles.geometry.attributes.position.needsUpdate = true;
-                predictiveParticles.material.color.setHex(0xccffff); 
-                predictiveParticles.material.size = 0.1 + fluxFactor * 0.5;
-            } else {
-                predictiveParticles.material.color.setHex(0x00ffff);
-                predictiveParticles.material.size = 0.1;
-            }
-            predictiveParticles.rotation.y += 0.00005;
-        }
-        
-        function updateUI(deltaTime) {
-            
-            // --- Quantum Charge Budget Drain (TMR State Dependent) ---
-            let currentDrainRate = BASE_CHARGE_DRAIN_RATE;
-            if (tmrState === 2) {
-                currentDrainRate *= COLLAPSE_CHARGE_MULTIPLIER;
-            }
-
-            quantumCharge = Math.max(0, quantumCharge - (currentDrainRate * deltaTime));
-
-            // --- Quantum Charge UI Update ---
-            const chargePercent = (quantumCharge / MAX_CHARGE) * 100;
-            $chargeRemainingEl.text(`${Math.round(quantumCharge)} mJ (Drain: ${Math.round(currentDrainRate)}/s)`);
-            $chargeFillEl.css('width', `${chargePercent}%`);
-
-            if (quantumCharge <= 0) {
-                $chargeStatusEl.text('BLACKOUT').removeClass('text-green-400 text-yellow-500').addClass('flux-indicator');
-                $chargeFillEl.removeClass('bg-green-500 bg-yellow-500').addClass('bg-red-500');
-            }
-            else if (quantumCharge < MAX_CHARGE * 0.25) {
-                $chargeStatusEl.text('CRITICAL').removeClass('text-green-400 text-yellow-500').addClass('flux-indicator');
-                $chargeFillEl.removeClass('bg-green-500 bg-yellow-500').addClass('bg-red-500');
-            } else if (quantumCharge < MAX_CHARGE * 0.5) {
-                $chargeStatusEl.text('LOW').removeClass('text-green-400 flux-indicator').addClass('text-yellow-500');
-                $chargeFillEl.removeClass('bg-green-500 bg-red-500').addClass('bg-yellow-500');
-            } else {
-                $chargeStatusEl.text('NOMINAL').removeClass('text-yellow-500 flux-indicator').addClass('text-green-400');
-                $chargeFillEl.removeClass('bg-yellow-500 bg-red-500').addClass('bg-green-500');
-            }
-
-            // --- Metaphysical Drift UI Update ---
-            const maxDriftVisual = 10; 
-            const driftPercent = Math.min(100, (metaphysicalDrift / maxDriftVisual) * 100);
-            $driftValueEl.text(`${metaphysicalDrift.toFixed(3)} Units`);
-            $driftFillEl.css('width', `${driftPercent}%`);
-            
-            if (metaphysicalDrift > TMR_COLLAPSE_THRESHOLD) {
-                $driftStatusEl.text('PARADOX').removeClass('text-green-400 text-yellow-500').addClass('flux-indicator');
-                $driftFillEl.css('background-color', '#ff0000');
-            } else if (metaphysicalDrift > 1.0) {
-                $driftStatusEl.text('HIGH').removeClass('text-green-400 flux-indicator').addClass('text-yellow-500');
-                $driftFillEl.css('background-color', '#ffaa00');
-            } else {
-                $driftStatusEl.text('COHESIVE').removeClass('text-yellow-500 flux-indicator').addClass('text-green-400');
-                $driftFillEl.css('background-color', '#f0f');
-            }
-
-            // Apply interaction damping
-            if (!isDragging) {
-                manualRotation.multiplyScalar(0.95);
-            }
-            cosmicGroup.rotation.y += manualRotation.x;
-            cosmicGroup.rotation.x += manualRotation.y;
-
-            // Check for System Collapse (Blackout)
-            if (quantumCharge <= 0 && metaphysicalDrift > 0.01) {
-                const earthItem = planetGroups.find(p => p.isTarget);
-                if (earthItem && earthItem.distance !== EARTH_ORIGIN_DISTANCE) {
-                    gsap.to(earthItem, {
-                        distance: EARTH_ORIGIN_DISTANCE,
-                        duration: 3.0,
-                        ease: "power4.inOut",
-                        onStart: () => {
-                            logQbitEvent(`!!! CATASTROPHIC COHESION FAILURE: SNAPBACK TO ORIGIN (10 UNITS) !!!`, "text-red-700");
-                            fluxLevel = 100;
-                        },
-                        onComplete: () => {
-                            fluxLevel = 0;
-                            logQbitEvent(`Origin Re-established. Qbit generation required to re-fund.`, "text-red-500");
-                            $gsapButtonEl.prop('disabled', false).text('🧠 Generate Qbits & Resist Paradox').removeClass('bg-red-600').addClass('bg-cyan-600 hover:bg-cyan-500');
-                        }
-                    });
-                    
-                    $gsapButtonEl.prop('disabled', true);
-                }
-            }
-        }
-        
-        // --- GSAP TDV Injector (Simulated LLM) ---
-        function setupGsapHandler() {
-            $gsapButtonEl.on('click', function() {
-                if ($(this).prop('disabled') || isNeuroRunning) return;
-
-                $(this).prop('disabled', true);
-                
-                logQbitEvent(`NEURO Agent Process Initiated. Generating ${RECUR_DEPTH} Qbits...`, "text-cyan-300");
-                
-                runNeuroAgent($("#target-prompt").val());
-                
-                $(this).text('GENERATING QBITS...').removeClass('bg-cyan-600 hover:bg-cyan-500').addClass('bg-red-600');
-            });
-        }
-
-
-        // --- Interaction Handlers (Rotation) ---
-
-        function setupInteractionHandlers(element) {
-            $(element).on('mousedown touchstart', onPointerDown);
-            $(window).on('mouseup touchend', onPointerUp);
-            $(window).on('mousemove touchmove', onPointerMove);
-        }
-
-        function getClientPosition(event) {
-            if (event.originalEvent.touches && event.originalEvent.touches.length > 0) {
-                return { x: event.originalEvent.touches[0].clientX, y: event.originalEvent.touches[0].clientY };
-            }
-            return { x: event.clientX, y: event.clientY };
-        }
-
-        function onPointerDown(event) {
-            isDragging = true;
-            previousMousePosition = getClientPosition(event);
-            event.preventDefault();
-        }
-
-        function onPointerUp() {
-            isDragging = false;
-        }
-
-        function onPointerMove(event) {
-            if (!isDragging) return;
-
-            const currentPosition = getClientPosition(event);
-            const deltaX = currentPosition.x - previousMousePosition.x;
-            const deltaY = currentPosition.y - previousMousePosition.y;
-            
-            const rotationFactor = 0.005;
-            
-            manualRotation.x = deltaX * rotationFactor;
-            manualRotation.y = deltaY * rotationFactor;
-
-            cosmicGroup.rotation.y += manualRotation.x;
-            cosmicGroup.rotation.x += manualRotation.y;
-
-            previousMousePosition = currentPosition;
-            event.preventDefault();
-        }
-
-
-        // --- Animation Loop ---
-        let lastTime = 0;
-        let time = 0;
-        
-        function animate(currentTime) {
-            requestAnimationFrame(animate);
-
-            const deltaTime = (currentTime - lastTime) / 1000;
-            time = currentTime / 1000;
-            lastTime = currentTime;
-            
-            updatePlanets(deltaTime);
-            updateTMR(deltaTime);
-            updatePredictiveField();
-            updateUI(deltaTime);
-
-            renderer.render(scene, camera);
-        }
-        
-        // --- Utility Functions ---
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        $(document).ready(init);
-    </script>
+    animate(performance.now());
+    speak("System activated. Awaiting Neuro-Core goal.");
+}
+</script>
 </body>
 </html>
 

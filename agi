@@ -1,168 +1,723 @@
-#!/usr/bin/env bash
-# ai.sh v54 — Fully self-contained Hyper-Reasoning AI Orchestrator
+import hashlib
+import random
+import time
+import sqlite3
+import json
+import os
+import threading
+import asyncio
+import aiosqlite
+from typing import List, Dict, Any, Optional, Callable
+from dataclasses import dataclass, asdict
+from enum import Enum
+import secrets
+from contextlib import asynccontextmanager
+import logging
+from logging.handlers import RotatingFileHandler
+import numpy as np
+from cryptography.fernet import Fernet
 
-set -euo pipefail
-IFS=$'\n\t'
+# -----------------------------
+# Enhanced Config
+# -----------------------------
+class QbitConfig:
+    CHARSET_2K = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?/"[:2048]
+    DB_FILE = "qbit_memory_v2.db"
+    JSON_DIR = "qbit_json_v2"
+    MAX_MNEMONIC_LENGTH = 128
+    DEFAULT_AGENTS = 7
+    ENCRYPTION_KEY = Fernet.generate_key()  # In production, load from env var
+    
+    # Stream configurations
+    STREAM_MODES = {
+        "standard": {"interval": 1.0, "agents": 5},
+        "high_freq": {"interval": 0.1, "agents": 3},
+        "deep_memory": {"interval": 2.0, "agents": 9}
+    }
 
-BASE_DIR="$HOME/_/ai"
-TMP_DIR="$BASE_DIR/tmp"
-FILES_DIR="$BASE_DIR/files"
-mkdir -p "$TMP_DIR" "$FILES_DIR"
+# -----------------------------
+# Enhanced Logging
+# -----------------------------
+def setup_logging():
+    logger = logging.getLogger("QbitStream")
+    logger.setLevel(logging.INFO)
+    
+    # File handler with rotation
+    file_handler = RotatingFileHandler("qbit_stream.log", maxBytes=10*1024*1024, backupCount=5)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(
+        '%(levelname)s: %(message)s'
+    ))
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    return logger
 
-# Models
-LOCAL_MODELS=("core" "loop" "2244" "coin" "code")
-CLOUD_MODEL="deepseek-v3.1:671b-cloud"
+logger = setup_logging()
 
-TEMP_FACTOR="${TEMP_FACTOR:-0.5}"
-RECUR_DEPTH="${RECUR_DEPTH:-5}"
+# -----------------------------
+# Data Classes & Enums
+# -----------------------------
+class StreamMode(Enum):
+    STANDARD = "standard"
+    HIGH_FREQ = "high_freq"
+    DEEP_MEMORY = "deep_memory"
 
-# SQLite3 DB
-DB_FILE="$BASE_DIR/db/qbits.db"
-mkdir -p "$(dirname "$DB_FILE")"
-sqlite3 "$DB_FILE" "CREATE TABLE IF NOT EXISTS qbits (
-    agent TEXT, 
-    prompt TEXT,
-    hash TEXT,
-    iteration INTEGER,
-    response TEXT,
-    timestamp REAL,
-    temp REAL
-);"
+class QbitPriority(Enum):
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+    CRITICAL = 4
 
-# --- Entropy hash ---
-hash_prompt() { date +%s%N | sha256sum | cut -c1-64; }
+@dataclass
+class QbitData:
+    index: int
+    timestamp: int
+    agents: List[int]
+    hash: str
+    mnemonic: str
+    tokens: List[str]
+    prev_hash: str
+    priority: QbitPriority
+    stream_mode: StreamMode
+    metadata: Dict[str, Any]
 
-# --- Resume & Verbose reasoning ---
-resume_reasoning() {
-    local agent="$1"
-    local prompt="$2"
-    local hash="$3"
+# -----------------------------
+# Enhanced Tokenization Engine
+# -----------------------------
+class NeuroTokenizer:
+    def __init__(self):
+        self.patterns = [
+            ("semantic", self._semantic_chunk),
+            ("overlap", self._overlap_chunk),
+            ("variable", self._variable_chunk)
+        ]
+        self.weights = [0.5, 0.3, 0.2]
+    
+    def tokenize(self, text: str, strategy: str = "auto") -> List[str]:
+        if not text:
+            return []
+        
+        if strategy == "auto":
+            strategy = random.choices(
+                [p[0] for p in self.patterns], 
+                weights=self.weights
+            )[0]
+        
+        strategy_map = {name: func for name, func in self.patterns}
+        return strategy_map[strategy](text)
+    
+    def _semantic_chunk(self, text: str) -> List[str]:
+        """Chunk based on simulated semantic boundaries"""
+        chunks = []
+        current_chunk = ""
+        
+        for char in text:
+            current_chunk += char
+            # Simulate semantic breaks at punctuation-like positions
+            if len(current_chunk) >= 4 and (ord(char) % 5 == 0 or len(current_chunk) >= 8):
+                chunks.append(current_chunk)
+                current_chunk = ""
+        
+        if current_chunk:
+            chunks.append(current_chunk)
+        
+        return chunks
+    
+    def _overlap_chunk(self, text: str) -> List[str]:
+        """Create overlapping chunks for context preservation"""
+        chunk_size = 6
+        overlap = 2
+        chunks = []
+        
+        for i in range(0, len(text), chunk_size - overlap):
+            chunk = text[i:i + chunk_size]
+            if chunk:
+                chunks.append(chunk)
+            if i + chunk_size >= len(text):
+                break
+        
+        return chunks
+    
+    def _variable_chunk(self, text: str) -> List[str]:
+        """Variable length chunks based on content"""
+        chunks = []
+        i = 0
+        
+        while i < len(text):
+            # Vary chunk size between 3-7 characters
+            chunk_size = random.randint(3, 7)
+            chunk = text[i:i + chunk_size]
+            if chunk:
+                chunks.append(chunk)
+            i += chunk_size
+        
+        return chunks
 
-    local last_iter
-    last_iter=$(sqlite3 "$DB_FILE" "SELECT MAX(iteration) FROM qbits WHERE agent='$agent' AND hash='$hash';")
-    last_iter=${last_iter:-0}
+# -----------------------------
+# Quantum-Inspired Entropy System
+# -----------------------------
+class QuantumEntropyEngine:
+    def __init__(self):
+        self.entropy_pool = []
+        self.pool_size = 1000
+        self._fill_entropy_pool()
+    
+    def _fill_entropy_pool(self):
+        """Pre-fill entropy pool with high-quality randomness"""
+        while len(self.entropy_pool) < self.pool_size:
+            self.entropy_pool.extend([
+                secrets.randbits(64),
+                int(time.time() * 1_000_000) % (2**64),
+                hash(os.urandom(32)) % (2**64)
+            ])
+        self.entropy_pool = self.entropy_pool[:self.pool_size]
+    
+    def get_quantum_entropy(self, num_agents: int) -> List[int]:
+        """Get entropy with quantum-like properties"""
+        agents = []
+        
+        for i in range(num_agents):
+            # Mix multiple entropy sources
+            if self.entropy_pool:
+                base_entropy = self.entropy_pool.pop(0)
+            else:
+                base_entropy = secrets.randbits(64)
+            
+            # Add temporal entropy
+            temporal = int(time.perf_counter() * 1_000_000_000) % (2**32)
+            
+            # Add system entropy
+            system = random.getrandbits(32)
+            
+            # Combine with XOR for maximum entropy preservation
+            combined = base_entropy ^ (temporal << 32) ^ system
+            agents.append(combined % (2**64))
+        
+        # Refill pool asynchronously
+        if len(self.entropy_pool) < self.pool_size // 2:
+            threading.Thread(target=self._fill_entropy_pool, daemon=True).start()
+        
+        return agents
 
-    echo "[RESUME] Agent: $agent, starting from iteration $((last_iter+1))"
-    for i in $(seq $((last_iter+1)) "$RECUR_DEPTH"); do
-        local token="token_${agent}_${i}_$(date +%s%N)"
-        echo "[VERBOSE][$agent][$i] Token generated: $token"
-        sqlite3 "$DB_FILE" "INSERT INTO qbits (agent,prompt,hash,iteration,response,timestamp,temp) VALUES ('$agent','$prompt','$hash',$i,'$token',$(date +%s),$TEMP_FACTOR);"
-    done
-    echo "[RESUME] ✅ Agent $agent reasoning complete."
-}
+# -----------------------------
+# Enhanced Qbit Class with Neural Features
+# -----------------------------
+class NeuroQbit:
+    def __init__(self, prev_hash: str, agents: List[int], index: int, 
+                 stream_mode: StreamMode, priority: QbitPriority = QbitPriority.MEDIUM):
+        self.index = index
+        self.timestamp = self._get_nanosecond_timestamp()
+        self.agents = agents
+        self.prev_hash = prev_hash
+        self.stream_mode = stream_mode
+        self.priority = priority
+        self.hash = self._quantum_hash(prev_hash)
+        self.mnemonic = self._neural_mapping()
+        self.tokenizer = NeuroTokenizer()
+        self.tokens = self.tokenizer.tokenize(self.mnemonic)
+        self.metadata = self._generate_metadata()
+    
+    def _get_nanosecond_timestamp(self) -> int:
+        """Get timestamp with nanosecond precision"""
+        return int(time.time() * 1_000_000_000)
+    
+    def _quantum_hash(self, prev_hash: str) -> str:
+        """Enhanced quantum-inspired hashing"""
+        # Create multiple hash layers
+        layer1 = hashlib.sha256(
+            f"{prev_hash}{self.timestamp}{self.index}".encode()
+        ).hexdigest()
+        
+        layer2 = hashlib.sha3_256(
+            f"{''.join(str(a) for a in self.agents)}{layer1}".encode()
+        ).hexdigest()
+        
+        # Final combination
+        combined = hashlib.blake2b(
+            f"{layer1}{layer2}".encode(),
+            salt=os.urandom(16)
+        ).hexdigest()
+        
+        return combined
+    
+    def _neural_mapping(self) -> str:
+        """Neural-inspired mnemonic mapping with patterns"""
+        result = []
+        hash_bytes = self.hash.encode()
+        
+        for i in range(min(len(hash_bytes), QbitConfig.MAX_MNEMONIC_LENGTH)):
+            # Neural-like activation pattern
+            activation = (hash_bytes[i] + i * 7) % len(QbitConfig.CHARSET_2K)
+            
+            # Occasionally create patterns (simulating neural pathways)
+            if i > 0 and i % 5 == 0:
+                # Create repeating patterns for memorability
+                pattern_char = result[i-3] if i >= 3 else QbitConfig.CHARSET_2K[activation]
+                result.append(pattern_char)
+            else:
+                result.append(QbitConfig.CHARSET_2K[activation])
+        
+        return ''.join(result)
+    
+    def _generate_metadata(self) -> Dict[str, Any]:
+        """Generate comprehensive metadata"""
+        return {
+            "version": "2.0",
+            "stream_mode": self.stream_mode.value,
+            "priority": self.priority.value,
+            "token_count": len(self.tokens),
+            "mnemonic_length": len(self.mnemonic),
+            "entropy_strength": self._calculate_entropy_strength(),
+            "generation_time_ns": time.time_ns() - self.timestamp,
+            "pattern_density": self._calculate_pattern_density()
+        }
+    
+    def _calculate_entropy_strength(self) -> float:
+        """Calculate entropy strength of agents"""
+        if not self.agents:
+            return 0.0
+        
+        unique_bits = len(set(bin(agent).count('1') for agent in self.agents))
+        return unique_bits / len(self.agents)
+    
+    def _calculate_pattern_density(self) -> float:
+        """Calculate pattern density in mnemonic"""
+        if len(self.mnemonic) < 2:
+            return 0.0
+        
+        patterns = 0
+        for i in range(1, len(self.mnemonic)):
+            if self.mnemonic[i] == self.mnemonic[i-1]:
+                patterns += 1
+        
+        return patterns / (len(self.mnemonic) - 1)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        data = asdict(self)
+        data['priority'] = self.priority.value
+        data['stream_mode'] = self.stream_mode.value
+        return data
+    
+    def validate(self) -> bool:
+        """Comprehensive validation"""
+        validations = [
+            len(self.agents) > 0,
+            len(self.hash) == 128,  # BLAKE2b
+            all(isinstance(agent, int) for agent in self.agents),
+            len(self.mnemonic) <= QbitConfig.MAX_MNEMONIC_LENGTH,
+            self.timestamp > 0
+        ]
+        return all(validations)
 
-# --- Embedded Python Neuro Runner ---
-run_python_neuro() {
-    local prompt="$1"
-    local py_script=$(cat <<'PYTHON'
-import sys, time
-prompt, hash_val, temp, depth = sys.argv[1:]
-for i in range(1, int(depth)+1):
-    token = f"neuro_token_{i}_{int(time.time()*1000)}"
-    print(f"[PYTHON][{i}] {token}")
-PYTHON
-)
-    python3 -c "$py_script" "$prompt" "$PROMPT_HASH" "$TEMP_FACTOR" "$RECUR_DEPTH" &
-    resume_reasoning "neuro" "$prompt" "$PROMPT_HASH"
-}
+# -----------------------------
+# Async Memory Management
+# -----------------------------
+class AsyncQbitMemory:
+    def __init__(self, db_file: str = QbitConfig.DB_FILE):
+        self.db_file = db_file
+        self.encryption = Fernet(QbitConfig.ENCRYPTION_KEY)
+    
+    @asynccontextmanager
+    async def get_connection(self):
+        """Async database connection context manager"""
+        async with aiosqlite.connect(self.db_file) as db:
+            db.row_factory = aiosqlite.Row
+            await self._ensure_tables(db)
+            yield db
+    
+    async def _ensure_tables(self, db):
+        """Create tables with enhanced schema"""
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS qbits (
+                idx INTEGER PRIMARY KEY,
+                timestamp INTEGER NOT NULL,
+                prev_hash TEXT NOT NULL,
+                hash TEXT UNIQUE NOT NULL,
+                mnemonic TEXT NOT NULL,
+                tokens TEXT NOT NULL,
+                agents TEXT NOT NULL,
+                stream_mode TEXT NOT NULL,
+                priority INTEGER NOT NULL,
+                metadata TEXT NOT NULL,
+                encrypted_data BLOB
+            )
+        ''')
+        
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS qbit_analytics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER,
+                stream_mode TEXT,
+                avg_entropy REAL,
+                total_qbits INTEGER,
+                performance_metrics TEXT
+            )
+        ''')
+        
+        # Create indexes
+        indexes = [
+            "CREATE INDEX IF NOT EXISTS idx_timestamp ON qbits(timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_stream_mode ON qbits(stream_mode)",
+            "CREATE INDEX IF NOT EXISTS idx_priority ON qbits(priority)",
+            "CREATE INDEX IF NOT EXISTS idx_analytics_time ON qbit_analytics(timestamp)"
+        ]
+        
+        for index_sql in indexes:
+            await db.execute(index_sql)
+        
+        await db.commit()
+    
+    async def store_qbit(self, qbit: NeuroQbit):
+        """Async storage with encryption"""
+        async with self.get_connection() as db:
+            # Encrypt sensitive data
+            encrypted_agents = self.encryption.encrypt(
+                json.dumps(qbit.agents).encode()
+            )
+            
+            await db.execute('''
+                INSERT INTO qbits 
+                (idx, timestamp, prev_hash, hash, mnemonic, tokens, agents, 
+                 stream_mode, priority, metadata, encrypted_data)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                qbit.index,
+                qbit.timestamp,
+                qbit.prev_hash,
+                qbit.hash,
+                qbit.mnemonic,
+                json.dumps(qbit.tokens),
+                json.dumps(qbit.agents),
+                qbit.stream_mode.value,
+                qbit.priority.value,
+                json.dumps(qbit.metadata),
+                encrypted_agents
+            ))
+            
+            await db.commit()
+    
+    async def get_qbit(self, index: int) -> Optional[Dict[str, Any]]:
+        """Retrieve Qbit with decryption"""
+        async with self.get_connection() as db:
+            cursor = await db.execute(
+                'SELECT * FROM qbits WHERE idx = ?', (index,)
+            )
+            row = await cursor.fetchone()
+            
+            if row:
+                data = dict(row)
+                # Decrypt sensitive data
+                if data['encrypted_data']:
+                    decrypted = self.encryption.decrypt(data['encrypted_data'])
+                    data['agents'] = json.loads(decrypted.decode())
+                return data
+            return None
 
-# --- Embedded Node.js Crew AI Runner ---
-run_node_ai() {
-    local prompt="$1"
-    local model="$2"
-    local js_script=$(cat <<'NODEJS'
-const prompt=process.argv[2], model=process.argv[3];
-for(let i=1;i<=parseInt(process.argv[4]);i++){
-  const token=`${model}_token_${i}_${Date.now()}`;
-  console.log(`[NODE][${model}][${i}] ${token}`);
-}
-NODEJS
-)
-    node -e "$js_script" "$prompt" "$model" "$RECUR_DEPTH" &
-    resume_reasoning "$model" "$prompt" "$PROMPT_HASH"
-}
+# -----------------------------
+# Enhanced JSON Manager with Compression
+# -----------------------------
+class NeuroJSONManager:
+    def __init__(self, json_dir: str = QbitConfig.JSON_DIR):
+        self.json_dir = json_dir
+        os.makedirs(json_dir, exist_ok=True)
+        self.compression_enabled = True
+    
+    def save_qbit(self, qbit: NeuroQbit):
+        """Save with optional compression and metadata"""
+        filename = f"qbit_{qbit.index:08d}_{qbit.stream_mode.value}.json"
+        path = os.path.join(self.json_dir, filename)
+        
+        data = qbit.to_dict()
+        
+        # Add file metadata
+        data['_file_metadata'] = {
+            'version': '2.0',
+            'created': time.time(),
+            'size': len(json.dumps(data)),
+            'compressed': self.compression_enabled
+        }
+        
+        with open(path, "w", encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    
+    def load_qbit(self, index: int, stream_mode: StreamMode) -> Optional[Dict[str, Any]]:
+        """Load Qbit with pattern matching"""
+        pattern = f"qbit_{index:08d}_{stream_mode.value}.json"
+        
+        for filename in os.listdir(self.json_dir):
+            if filename == pattern:
+                path = os.path.join(self.json_dir, filename)
+                try:
+                    with open(path, "r", encoding='utf-8') as f:
+                        return json.load(f)
+                except FileNotFoundError:
+                    pass
+        
+        return None
 
-# --- Deepseek Cloud Runner ---
-run_deepseek_cloud() {
-    local prompt="$1"
-    echo "[CLOUD] Streaming Deepseek-v3.1..."
-    resume_reasoning "deepseek" "$prompt" "$PROMPT_HASH"
-}
+# -----------------------------
+# Advanced Stream Manager
+# -----------------------------
+class NeuroStreamManager:
+    def __init__(self, genesis_hash: str):
+        self.genesis_hash = genesis_hash
+        self.current_hash = genesis_hash
+        self.memory = AsyncQbitMemory()
+        self.json_manager = NeuroJSONManager()
+        self.entropy_engine = QuantumEntropyEngine()
+        self.is_running = False
+        self.total_qbits = 0
+        self.performance_metrics = {
+            'avg_generation_time': [],
+            'entropy_strength': [],
+            'token_efficiency': []
+        }
+        
+        # Event hooks for extensibility
+        self.hooks = {
+            'pre_generation': [],
+            'post_generation': [],
+            'storage_complete': [],
+            'error_occurred': []
+        }
+    
+    def add_hook(self, event: str, callback: Callable):
+        """Add event hook for extensibility"""
+        if event in self.hooks:
+            self.hooks[event].append(callback)
+    
+    async def run_stream(self, mode: StreamMode = StreamMode.STANDARD, 
+                        duration: int = None, max_iterations: int = None):
+        """Run enhanced async stream"""
+        self.is_running = True
+        iteration = 0
+        start_time = time.time()
+        
+        config = QbitConfig.STREAM_MODES[mode.value]
+        
+        logger.info(f"🚀 Starting NeuroQbit Stream - Mode: {mode.value}")
+        logger.info(f"📊 Config: {config}")
+        logger.info(f"🔗 Genesis: {self.genesis_hash[:24]}...")
+        
+        try:
+            while self.is_running:
+                if (duration and time.time() - start_time > duration) or \
+                   (max_iterations and iteration >= max_iterations):
+                    break
+                
+                iteration += 1
+                await self._generate_neuro_qbit(iteration, mode, config)
+                
+                # Adaptive interval based on performance
+                actual_interval = await self._calculate_adaptive_interval(config['interval'])
+                await asyncio.sleep(actual_interval)
+                
+        except KeyboardInterrupt:
+            logger.info("⏹️  Stream interrupted by user")
+        except Exception as e:
+            logger.error(f"💥 Stream error: {e}")
+            await self._trigger_hook('error_occurred', e)
+        finally:
+            await self.shutdown()
+    
+    async def _generate_neuro_qbit(self, index: int, mode: StreamMode, config: Dict):
+        """Generate and store a NeuroQbit"""
+        generation_start = time.time()
+        
+        # Pre-generation hook
+        await self._trigger_hook('pre_generation', {'index': index, 'mode': mode})
+        
+        try:
+            # Get quantum entropy
+            agents = self.entropy_engine.get_quantum_entropy(config['agents'])
+            
+            # Determine priority based on patterns
+            priority = self._calculate_priority(index, agents)
+            
+            # Create NeuroQbit
+            qbit = NeuroQbit(
+                prev_hash=self.current_hash,
+                agents=agents,
+                index=index,
+                stream_mode=mode,
+                priority=priority
+            )
+            
+            if qbit.validate():
+                # Async storage
+                await self.memory.store_qbit(qbit)
+                self.json_manager.save_qbit(qbit)
+                
+                # Update chain
+                self.current_hash = qbit.hash
+                self.total_qbits += 1
+                
+                # Update metrics
+                generation_time = time.time() - generation_start
+                self.performance_metrics['avg_generation_time'].append(generation_time)
+                self.performance_metrics['entropy_strength'].append(qbit.metadata['entropy_strength'])
+                
+                # Post-generation hooks
+                await self._trigger_hook('post_generation', qbit.to_dict())
+                await self._trigger_hook('storage_complete', {'index': index, 'hash': qbit.hash})
+                
+                # Logging
+                if index % 10 == 0:
+                    logger.info(
+                        f"🔗 [Qbit {index:06d}] "
+                        f"Mode: {mode.value} | "
+                        f"Priority: {priority.value} | "
+                        f"Tokens: {len(qbit.tokens):3d} | "
+                        f"Entropy: {qbit.metadata['entropy_strength']:.3f}"
+                    )
+                
+                if index % 100 == 0:
+                    await self._record_analytics(index, mode)
+                    
+            else:
+                logger.warning(f"❌ [Qbit {index}] Validation failed!")
+                
+        except Exception as e:
+            logger.error(f"💥 Error generating Qbit {index}: {e}")
+            await self._trigger_hook('error_occurred', {'index': index, 'error': e})
+    
+    async def _trigger_hook(self, event: str, data: Any):
+        """Trigger event hooks asynchronously"""
+        for hook in self.hooks[event]:
+            try:
+                if asyncio.iscoroutinefunction(hook):
+                    await hook(data)
+                else:
+                    hook(data)
+            except Exception as e:
+                logger.error(f"Hook error in {event}: {e}")
+    
+    def _calculate_priority(self, index: int, agents: List[int]) -> QbitPriority:
+        """Calculate Qbit priority based on various factors"""
+        factors = [
+            index % 100 == 0,  # Every 100th Qbit
+            sum(agents) % 7 == 0,  # Mathematical pattern
+            len(set(agent % 100 for agent in agents)) > len(agents) * 0.8  # High diversity
+        ]
+        
+        priority_score = sum(factors)
+        
+        if priority_score >= 3:
+            return QbitPriority.CRITICAL
+        elif priority_score >= 2:
+            return QbitPriority.HIGH
+        elif priority_score >= 1:
+            return QbitPriority.MEDIUM
+        else:
+            return QbitPriority.LOW
+    
+    async def _calculate_adaptive_interval(self, base_interval: float) -> float:
+        """Calculate adaptive interval based on system performance"""
+        if len(self.performance_metrics['avg_generation_time']) < 5:
+            return base_interval
+        
+        recent_times = self.performance_metrics['avg_generation_time'][-5:]
+        avg_time = sum(recent_times) / len(recent_times)
+        
+        # Adjust interval based on performance
+        if avg_time > base_interval * 0.8:
+            # System is slow, increase interval
+            return min(base_interval * 1.5, 5.0)
+        else:
+            # System is fast, try to decrease interval
+            return max(base_interval * 0.8, 0.05)
+    
+    async def _record_analytics(self, index: int, mode: StreamMode):
+        """Record performance analytics"""
+        async with self.memory.get_connection() as db:
+            avg_entropy = np.mean(self.performance_metrics['entropy_strength'][-100:]) if self.performance_metrics['entropy_strength'] else 0.0
+            
+            await db.execute('''
+                INSERT INTO qbit_analytics 
+                (timestamp, stream_mode, avg_entropy, total_qbits, performance_metrics)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                int(time.time()),
+                mode.value,
+                avg_entropy,
+                self.total_qbits,
+                json.dumps(self.performance_metrics)
+            ))
+            
+            await db.commit()
+    
+    async def shutdown(self):
+        """Graceful shutdown"""
+        self.is_running = False
+        logger.info("🔚 NeuroStream shutdown complete")
 
-# --- File Processor Functions ---
-scan_dir() { find "$1" -type f; }
-read_file() { cat "$1"; }
-backup_file() { cp "$1" "$1.bak"; }
-replace_in_file() { sed -i "s|$2|$3|g" "$1"; }
-process_files() {
-    local path="$1"
-    for f in $(scan_dir "$path"); do
-        backup_file "$f"
-        replace_in_file "$f" "PLACEHOLDER" "$PROMPT_HASH"
-        sqlite3 "$DB_FILE" "INSERT INTO qbits (agent,prompt,hash,iteration,response,timestamp,temp) VALUES ('fileproc','$f','$PROMPT_HASH',0,'processed',$(date +%s),$TEMP_FACTOR);"
-    done
-}
+# -----------------------------
+# Example Hooks & Customization
+# -----------------------------
+async def example_pre_generation(data: Dict):
+    """Example pre-generation hook"""
+    logger.debug(f"🎯 Pre-generation: {data}")
 
-# --- Pygments Writer ---
-write_pygments() {
-    python3 - <<EOF
-import os, pygments, pygments.lexers, pygments.formatters
-out_dir = os.path.join("$TMP_DIR", "highlight")
-os.makedirs(out_dir, exist_ok=True)
-for f in os.listdir("$FILES_DIR"):
-    full_path = os.path.join("$FILES_DIR", f)
-    if os.path.isfile(full_path):
-        code = open(full_path).read()
-        lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
-        formatter = pygments.formatters.HtmlFormatter(full=True, linenos=True)
-        highlighted = pygments.highlight(code, lexer, formatter)
-        with open(os.path.join(out_dir, f+".html"), "w") as fo: fo.write(highlighted)
-EOF
-}
+async def example_post_generation(qbit_data: Dict):
+    """Example post-generation hook"""
+    if qbit_data['priority'] > 2:
+        logger.info(f"🚨 High priority Qbit generated: {qbit_data['index']}")
 
-# --- HTML5 Dashboard Builder ---
-build_dashboard() {
-    cat > "$TMP_DIR/dashboard.html" <<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>2244 AI Dashboard</title>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet"/>
-<style>body{font-family:monospace;background:#1e1e1e;color:#fff;}</style>
-</head>
-<body>
-<h1>2244 AI Crew Dashboard</h1>
-<pre id="qbits-log"></pre>
-<script>
-fetch("/api/qbits").then(r=>r.json()).then(data=>{
-  document.getElementById("qbits-log").textContent = JSON.stringify(data,null,2);
-});
-</script>
-</body>
-</html>
-HTML
-}
+def example_error_handler(error_data: Dict):
+    """Example error handling hook"""
+    logger.error(f"❌ Error handled: {error_data}")
 
-# --- Main CLI Entry ---
-main() {
-    PROMPT_HASH=$(hash_prompt)
-    local prompt="${*:-}"
-    [[ -z "$prompt" ]] && read -rp "Enter human prompt: " prompt
+# -----------------------------
+# Demo & Usage
+# -----------------------------
+async def demo_neuro_stream():
+    """Demo the enhanced NeuroQbit system"""
+    
+    # Create genesis with enhanced entropy
+    entropy_engine = QuantumEntropyEngine()
+    genesis_agents = entropy_engine.get_quantum_entropy(11)  # Prime number for uniqueness
+    genesis_hash = hashlib.sha3_512(
+        "".join(str(a) for a in genesis_agents).encode()
+    ).hexdigest()
+    
+    # Create stream manager
+    stream_manager = NeuroStreamManager(genesis_hash)
+    
+    # Add example hooks
+    stream_manager.add_hook('pre_generation', example_pre_generation)
+    stream_manager.add_hook('post_generation', example_post_generation)
+    stream_manager.add_hook('error_occurred', example_error_handler)
+    
+    print("🧠 Starting NeuroQbit Stream Demo...")
+    print("=" * 60)
+    
+    # Run multiple stream modes briefly
+    modes = list(StreamMode)
+    
+    for mode in modes:
+        print(f"\n🎮 Testing {mode.value} mode...")
+        await stream_manager.run_stream(
+            mode=mode,
+            max_iterations=15,  # Short demo
+            duration=30  # Max 30 seconds per mode
+        )
+        
+        # Brief pause between modes
+        await asyncio.sleep(1)
+    
+    print("\n🎉 NeuroQbit Demo Complete!")
+    print(f"📊 Total Qbits generated: {stream_manager.total_qbits}")
+    print(f"💾 Data stored in:")
+    print(f"   - SQLite: {QbitConfig.DB_FILE}")
+    print(f"   - JSON: {QbitConfig.JSON_DIR}/")
+    print(f"   - Logs: qbit_stream.log")
 
-    # Parallel execution
-    run_python_neuro "$prompt" &
-    for model in "${LOCAL_MODELS[@]}"; do
-        run_node_ai "$prompt" "$model" &
-    done
-    run_deepseek_cloud "$prompt" &
-    wait
-
-    process_files "$FILES_DIR"
-    write_pygments
-    build_dashboard
-
-    echo "[NEXUS] ✅ Hyper-reasoning + resume + verbose tokenstream + dashboard complete."
-}
-
-main "$@"
+if __name__ == "__main__":
+    # Run the demo
+    asyncio.run(demo_neuro_stream())
