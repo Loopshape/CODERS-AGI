@@ -43,5 +43,410 @@
     "response": "[Neuro] Iteration 5 response to ''",
     "timestamp": 1761033223.1979825,
     "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "hello",
+    "hash": "cc286b64bc64c4ff6525776abbd74725625051def7754f0703b8233be7116525",
+    "iteration": 1,
+    "response": "[Neuro] Iteration 1 response to 'hello'",
+    "timestamp": 1761033334.4961753,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "hello",
+    "hash": "588b2daa5646e9a56bd9d1b3a44abc6b2b70fa97c9b0e51a68bdcce95d7f4ea8",
+    "iteration": 2,
+    "response": "[Neuro] Iteration 2 response to 'hello'",
+    "timestamp": 1761033334.503504,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "hello",
+    "hash": "7ec66b6a4951098a0c81553c534581f3ae3c9d6942ab82d380c1fafd58579eb5",
+    "iteration": 3,
+    "response": "[Neuro] Iteration 3 response to 'hello'",
+    "timestamp": 1761033334.5080128,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "hello",
+    "hash": "a8448a8537e6aed10907d478fe8a0f75354263a6faa42072adbf9d8b0e383d93",
+    "iteration": 4,
+    "response": "[Neuro] Iteration 4 response to 'hello'",
+    "timestamp": 1761033334.5139492,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "hello",
+    "hash": "cee3f6c4e1f6e780c000dfc2dd1246dbe95cb64d98059eb8201aa5f9afd88d76",
+    "iteration": 5,
+    "response": "[Neuro] Iteration 5 response to 'hello'",
+    "timestamp": 1761033334.523627,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "766df5e59b48e3ab6b73314ee17b5c191940ec70dd9d5add2bd484e26c1f2e16",
+    "iteration": 1,
+    "response": "[Neuro] Iteration 1 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034277.9957936,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "4bb0f93e1a4c74589154247f14acd9bd779a7676dbdc5b9a873748c99f205e1e",
+    "iteration": 2,
+    "response": "[Neuro] Iteration 2 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034278.011886,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "e8eb95b038b4333863cb5aeffc2554663d187ce054920d40501aa82645251a02",
+    "iteration": 3,
+    "response": "[Neuro] Iteration 3 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034278.0171702,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "6ac7bab881b4fc336b6f23b98a59ac6c08e656381b83f7588565c1c2282ca7df",
+    "iteration": 4,
+    "response": "[Neuro] Iteration 4 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034278.0217562,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "3807510e75ba7d9fd733d534b76fe2cb63fa2e38bd2b7b7b6c6481f10178b96f",
+    "iteration": 5,
+    "response": "[Neuro] Iteration 5 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034278.0274749,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "bee1de927de98197dc5daa44991a5c7981180e1c4dd4fa71216bfe482262e5ab",
+    "iteration": 1,
+    "response": "[Neuro] Iteration 1 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034288.348518,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "488de17d21095be2db213748a0f3a0c07dc9e2aa408c593ea6622a275f8c2d8b",
+    "iteration": 2,
+    "response": "[Neuro] Iteration 2 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034288.3532143,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "86868eed49c89d8166da146efd7c555e5bd75cc685409a2e37378ab03d33bf2c",
+    "iteration": 3,
+    "response": "[Neuro] Iteration 3 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034288.359322,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "90f5372c9412c09452c10a8cfb1e5e331842aef375137b2c2213c675213cba61",
+    "iteration": 4,
+    "response": "[Neuro] Iteration 4 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034288.3655844,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "ad06a00ca5910d88e6a91fb8fac6a86b871c385d7ce36e6dc4de11644e7fc20c",
+    "iteration": 5,
+    "response": "[Neuro] Iteration 5 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034288.3732533,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "f5e2aeb9a027e9f03af985e2dbd4f5b67c420da8080be21517b335befd60a255",
+    "iteration": 1,
+    "response": "[Neuro] Iteration 1 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034290.349503,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "a83b82321a87fb9d60dd4fd81ed4991a822bdce3d9d158840d22a9dd985e26d2",
+    "iteration": 2,
+    "response": "[Neuro] Iteration 2 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034290.356676,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "f902c7372075a08e55630a93b5ebffafe3d0359e33b97503a10bcbf3eceff162",
+    "iteration": 3,
+    "response": "[Neuro] Iteration 3 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034290.3642678,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "1168cc9813fd019cc64d4e8b442ab6e9a00bea740c30a95f9905829f195ad978",
+    "iteration": 4,
+    "response": "[Neuro] Iteration 4 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034290.369357,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "c40450ee096a2be7699f7cbb9cce44ccad5807757209ae4ef295688aa848a379",
+    "iteration": 5,
+    "response": "[Neuro] Iteration 5 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034290.3754218,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "2b57f26acf5ead0e545ec4aedfcd0160e61ab9c4bd912a75971304cb4e2d34a0",
+    "iteration": 1,
+    "response": "[Neuro] Iteration 1 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034303.1540263,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "7692f6d182adf88b1fd7f5e29a0d22b0cc2e02cea2f02b1cd3916198b7c4513c",
+    "iteration": 2,
+    "response": "[Neuro] Iteration 2 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034303.1690931,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "98732c453ea602209c37416b04cf932f3c58223f6eed6d4924abbda375b04fa2",
+    "iteration": 3,
+    "response": "[Neuro] Iteration 3 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034303.1750839,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "4442cb604ffde80fc866e07a41be774e26d7221a1b836336b3a5ced385f69963",
+    "iteration": 4,
+    "response": "[Neuro] Iteration 4 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034303.1806965,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "da0815c4326fd974bd716fea13a153ea1733da30ddbc01d625d9226fc23d0876",
+    "iteration": 5,
+    "response": "[Neuro] Iteration 5 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034303.1869752,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "eba77de5b38d8c07a7647b252d9f3999e17625c825226b1d172f6d69ed6581ac",
+    "iteration": 1,
+    "response": "[Neuro] Iteration 1 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034346.1075847,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "42b90e4183519c2e298f89c8c3f4765c7cb7a6007f0d9d7a5a9ec77ba839d571",
+    "iteration": 2,
+    "response": "[Neuro] Iteration 2 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034346.1184433,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "a807d524f7532322981d288320d94e9d6179b4e5974c1879519afe4a81d21be3",
+    "iteration": 3,
+    "response": "[Neuro] Iteration 3 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034346.1241663,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "2939c9b3b79e6f43ce296fa6913f533a874a7814714f0e9a1f9d93f3cc3b486a",
+    "iteration": 4,
+    "response": "[Neuro] Iteration 4 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034346.129768,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "aa7a6c312d5cb214b74363f533a7242292dd8b96891ae5d5a8519f53fb593bf9",
+    "iteration": 5,
+    "response": "[Neuro] Iteration 5 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761034346.1351597,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "3009c9d49ccc2640f72a124d18bb74fdb0db859b4072be1184def7f279e1f4c9",
+    "iteration": 1,
+    "response": "[Neuro] Iteration 1 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070049.6724327,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "dbbe740c8c90df073f519e8394aa011395b84e28a462c8e8594e4c8857c86c4f",
+    "iteration": 2,
+    "response": "[Neuro] Iteration 2 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070049.681967,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "c308194e3c32720e849c6f81dc726c0e730782d331d6dc19fbe062f822865c1f",
+    "iteration": 3,
+    "response": "[Neuro] Iteration 3 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070049.6887612,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "8bedc77f3751b2e78537853263a8553d713c3b519eebb318b24bf7cce706a2ac",
+    "iteration": 4,
+    "response": "[Neuro] Iteration 4 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070049.699014,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "e586d6e75a87a9c9c168a29b681c7abb74b722fd8aac4409de8bb15908bde1bf",
+    "iteration": 5,
+    "response": "[Neuro] Iteration 5 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070049.7112632,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "5c4805a98f1046db3d19dcce9bf548df8e912b71179c0c069bac92fe006fdf4c",
+    "iteration": 1,
+    "response": "[Neuro] Iteration 1 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070143.7779467,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "b881ed54fa4975cf092587b09f24e2542704e21f97955307edcde018618b8cee",
+    "iteration": 2,
+    "response": "[Neuro] Iteration 2 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070143.7893794,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "5c3860c216e79275fd4fefef292aa5242264f357b753fa668e8ba3ba3d660688",
+    "iteration": 3,
+    "response": "[Neuro] Iteration 3 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070143.7961767,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "29a71b49abb2f55705f0946c7d10ac28bb0713aeb038bc13fb0b8a667e2fec63",
+    "iteration": 4,
+    "response": "[Neuro] Iteration 4 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070143.803418,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "02be09d5d6b2a33bde092b576153bd0c97845ef5343ab160882bba1e4f0a7e3b",
+    "iteration": 5,
+    "response": "[Neuro] Iteration 5 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070143.8120992,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "a64015f9831e36972224e83b7fb91d237218a75278914542481d119ebe1d37cf",
+    "iteration": 1,
+    "response": "[Neuro] Iteration 1 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070227.4913406,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "cabfa2081f56aaa43d8cc468c771b8e9ca200a5e92aeb95493a47169ad340f0a",
+    "iteration": 2,
+    "response": "[Neuro] Iteration 2 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070227.501567,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "515d718a772ec4487ba8bf45f7c51b3e280bcf3007e4ecd050942aa72c83725f",
+    "iteration": 3,
+    "response": "[Neuro] Iteration 3 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070227.505908,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "6a1d5c2be4151e3b12d1cac0cfce19392082d0b835a7f86434fbe20527891259",
+    "iteration": 4,
+    "response": "[Neuro] Iteration 4 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070227.5102582,
+    "temp": 0.5
+  },
+  {
+    "agent": "neuro",
+    "prompt": "project-2244/system/runner.sh",
+    "hash": "7de851d12307902e7b05040c2694515991f8e87257f1a2f9c7e0c20736632462",
+    "iteration": 5,
+    "response": "[Neuro] Iteration 5 response to 'project-2244/system/runner.sh'",
+    "timestamp": 1761070227.5177336,
+    "temp": 0.5
   }
 ]

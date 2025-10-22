@@ -1,0 +1,2 @@
+#!/bin/bash
+cat $(echo ~/_/cosmos.html) > /var/www/html/2244/index.html

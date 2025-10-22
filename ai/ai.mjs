@@ -1,81 +1,76 @@
 #!/usr/bin/env node
-/**
- * ai.js - Node.js ES module stub for Crew-AI
- * Streams AI responses and logs to console with colors
- */
+// ai.js v38 — Crew AI Node Agent
+// Spawns Ollama local model inference for each AI personality (core, loop, 2244, coin, code)
+// Streams JSON response for orchestrator.mjs and ai.sh pipelines.
 
-import fs from 'fs';
-import path from 'path';
-import chalk from 'chalk';
-import fetch from 'node-fetch'; // or global fetch in Node 18+
-import { fileURLToPath } from 'url';
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { spawn } from "child_process";
+import sqlite3 from "sqlite3";
+import { open } from "sqlite";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const BASE = `${os.homedir()}/_/ai`;
+const TMP_DIR = `${BASE}/tmp`;
+const DB_FILE = `${BASE}/db/qbits.db`;
 
-const tmpDir = path.join(__dirname, 'tmp');
-if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+const prompt = process.argv[2] || "no prompt";
+const agent = process.argv[3] || "core";
+const timestamp = new Date().toISOString();
 
-const crewAgents = ['core', 'loop', 'code', 'coin', '2244', 'neuro'];
-const modelMap = {
-  core: 'core:latest',
-  loop: 'loop:latest',
-  code: 'code:latest',
-  coin: 'coin:latest',
-  '2244': '2244:latest',
-  neuro: 'gemma3:1b'
-};
+// Ensure dirs
+fs.mkdirSync(TMP_DIR, { recursive: true });
+fs.mkdirSync(`${BASE}/db`, { recursive: true });
 
-async function streamAgent(agent, prompt) {
-  const model = modelMap[agent];
-  console.log(chalk.cyan(`[${agent.toUpperCase()}] 🚀 Starting stream...`));
+// SQLite connect
+const db = await open({
+  filename: DB_FILE,
+  driver: sqlite3.Database
+});
+await db.exec(`
+  CREATE TABLE IF NOT EXISTS qbits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent TEXT,
+    prompt TEXT,
+    response TEXT,
+    timestamp TEXT
+  );
+`);
 
-  try {
-    const response = await fetch('http://localhost:11434/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, prompt, stream: true })
+const outfile = path.join(TMP_DIR, `${agent}_${Date.now()}.json`);
+
+// --- Stream helper ---
+async function runOllama(agent, prompt) {
+  return new Promise((resolve) => {
+    const proc = spawn("ollama", ["run", agent], { stdio: ["pipe", "pipe", "pipe"] });
+    let buffer = "";
+
+    proc.stdout.on("data", (d) => {
+      buffer += d.toString();
+      process.stdout.write(`[${agent}] ${d}`);
+    });
+    proc.stderr.on("data", (d) => process.stderr.write(`[${agent}-err] ${d}`));
+
+    proc.on("close", () => {
+      resolve(buffer.trim());
     });
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter(l => l.trim());
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line);
-          if (data.response) console.log(chalk.green(`[${agent}] ${data.response}`));
-        } catch (e) {}
-      }
-    }
-    console.log(chalk.cyan(`[${agent}] ✅ Stream ended.`));
-  } catch (err) {
-    console.log(chalk.red(`[${agent}] ❌ Error: ${err.message}`));
-  }
+    proc.stdin.write(prompt + "\n");
+    proc.stdin.end();
+  });
 }
 
-async function main() {
-  const prompt = process.argv.slice(2).join(' ');
-  if (!prompt) {
-    console.log(chalk.yellow('⚠ Usage: ai.js "<prompt>"'));
-    process.exit(1);
-  }
+// --- Main logic ---
+(async () => {
+  console.log(`[${agent}] 🚀 Starting stream...`);
+  const response = await runOllama(agent, prompt);
 
-  console.log(chalk.magenta(`[NEXUS] ⚙️ Generated entropy hash: ${Date.now().toString(16)}`));
+  await fs.promises.writeFile(outfile, JSON.stringify({ agent, prompt, response, timestamp }, null, 2));
 
-  const streams = crewAgents.map(agent => streamAgent(agent, prompt));
-  await Promise.allSettled(streams);
+  await db.run(
+    `INSERT INTO qbits (agent, prompt, response, timestamp) VALUES (?,?,?,?);`,
+    [agent, prompt, response, timestamp]
+  );
 
-  console.log(chalk.magenta('[NEXUS] ✅ All streams completed.'));
-  // Optional: store JSON/qbit to tmp
-  const filename = path.join(tmpDir, `${Date.now().toString(16)}.json`);
-  fs.writeFileSync(filename, JSON.stringify({ prompt, timestamp: Date.now(), agents: crewAgents }));
-  console.log(chalk.green(`[JS] Crew-AI stub written to ${filename}`));
-}
-
-main();
+  console.log(`[${agent}] ✅ Stream ended. JSON stored -> ${outfile}`);
+})();

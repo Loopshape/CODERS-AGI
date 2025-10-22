@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# ai.sh v39 — Hyper-Reasoning AI Orchestrator + Live HTML5 Dashboard
+set -euo pipefail
+IFS=$'\n\t'
+
+BASE_DIR="$HOME/_/ai"
+TMP_DIR="$BASE_DIR/tmp"
+mkdir -p "$TMP_DIR"
+
+LOCAL_MODELS=("core" "loop" "2244" "coin" "code")
+CLOUD_MODEL="deepseek-v3.1:671b-cloud"
+TEMP_FACTOR="${TEMP_FACTOR:-0.5}"
+RECUR_DEPTH="${RECUR_DEPTH:-5}"
+
+DB_FILE="$BASE_DIR/db/qbits.db"
+mkdir -p "$(dirname "$DB_FILE")"
+sqlite3 "$DB_FILE" "CREATE TABLE IF NOT EXISTS qbits (
+    agent TEXT,
+    prompt TEXT,
+    hash TEXT,
+    iteration INTEGER,
+    response TEXT,
+    timestamp REAL,
+    temp REAL
+);"
+
+hash_prompt() { date +%s%N | sha256sum | cut -c1-64; }
+
+# Launch Python3 Neuro
+run_python_neuro() {
+    local prompt="$1"
+    local hash
+    hash=$(hash_prompt)
+    echo "[NEXUS] ⚙️  AI Vector initiated."
+    echo "[NEXUS] Generated entropy hash: $hash"
+    python3 "$BASE_DIR/ai.py" "$prompt" "$hash" "$TEMP_FACTOR" "$RECUR_DEPTH"
+}
+
+# Launch Node.js Crew AI
+run_node_ai() {
+    local prompt="$1" model="$2"
+    node "$BASE_DIR/ai.js" "$prompt" "$model"
+}
+
+# Launch Deepseek cloud
+run_deepseek_cloud() {
+    local prompt="$1"
+    node -e "
+        import fetch from 'node-fetch';
+        const res = await fetch('http://localhost:11434/api/generate',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({model:'$CLOUD_MODEL',prompt:'$prompt',stream:true})
+        });
+        if(!res.ok){console.error('Cloud fetch failed',res.status);}
+        else {console.log('[CLOUD] Stream complete.');}
+    "
+}
+
+# Launch HTML5 dashboard if not running
+launch_dashboard() {
+    local dashboard_pid_file="$TMP_DIR/dashboard.pid"
+    if [[ -f "$dashboard_pid_file" ]]; then
+        if kill -0 "$(cat "$dashboard_pid_file")" 2>/dev/null; then
+            echo "[DASH] Dashboard already running."
+            return
+        fi
+    fi
+    echo "[DASH] Launching live HTML5 dashboard..."
+    node "$BASE_DIR/dashboard.mjs" &
+    echo $! > "$dashboard_pid_file"
+}
+
+main() {
+    local prompt="${*:-}"
+    if [[ -z "$prompt" ]]; then
+        read -rp "Enter human prompt: " prompt
+    fi
+
+    launch_dashboard
+
+    run_python_neuro "$prompt" &
+    PID_PY=$!
+
+    for model in "${LOCAL_MODELS[@]}"; do
+        run_node_ai "$prompt" "$model" &
+    done
+
+    run_deepseek_cloud "$prompt" &
+    PID_CLOUD=$!
+
+    wait "$PID_PY"
+    wait "$PID_CLOUD"
+
+    echo "[NEXUS] ✅ Hyper-reasoning complete. JSON/qbits updated in $TMP_DIR and SQLite3 DB."
+    echo "[NEXUS] 🖥 Dashboard API available: http://localhost:8082"
+}
+
+main "$@"

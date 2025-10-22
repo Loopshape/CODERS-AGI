@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# ai.sh v50 — Hyper-Reasoning AI Orchestrator
+# Local + Deepseek cloud, CLI + file-processing + dashboard
+set -euo pipefail
+IFS=$'\n\t'
+
+BASE_DIR="$HOME/_/ai"
+TMP_DIR="$BASE_DIR/tmp"
+DB_FILE="$BASE_DIR/db/qbits.db"
+mkdir -p "$TMP_DIR" "$(dirname "$DB_FILE")"
+
+# Models
+LOCAL_MODELS=("core" "loop" "2244" "coin" "code")
+CLOUD_MODEL="deepseek-v3.1:671b-cloud"
+
+# Defaults
+TEMP_FACTOR="${TEMP_FACTOR:-0.5}"
+RECUR_DEPTH="${RECUR_DEPTH:-5}"
+MAX_LOOP="${MAX_LOOP:-10}"
+
+# --- SQLite3 Setup ---
+sqlite3 "$DB_FILE" "CREATE TABLE IF NOT EXISTS qbits (
+    agent TEXT,
+    prompt TEXT,
+    hash TEXT,
+    iteration INTEGER,
+    response TEXT,
+    timestamp REAL,
+    temp REAL
+);"
+
+# --- Utility Functions ---
+hash_prompt(){ date +%s%N | sha256sum | cut -c1-64; }
+
+log_qbit(){
+    local agent="$1" prompt="$2" hash="$3" iter="$4" resp="$5"
+    sqlite3 "$DB_FILE" \
+    "INSERT INTO qbits (agent,prompt,hash,iteration,response,timestamp,temp) VALUES ('$agent','$prompt','$hash',$iter,'$resp',$(date +%s),$TEMP_FACTOR);"
+}
+
+# --- File Processor Functions ---
+scan_dir() {
+    local path="$1"
+    find "$path" -type f
+}
+
+read_file() {
+    local file="$1"
+    cat "$file"
+}
+
+backup_file() {
+    local file="$1"
+    cp "$file" "$file.bak"
+}
+
+replace_in_file() {
+    local file="$1" search="$2" replace="$3"
+    sed -i "s|$search|$replace|g" "$file"
+}
+
+process_files() {
+    local path="$1"
+    for f in $(scan_dir "$path"); do
+        backup_file "$f"
+        # example: replace placeholder with prompt info
+        replace_in_file "$f" "PLACEHOLDER" "$PROMPT_HASH"
+        # log to SQLite3
+        sqlite3 "$DB_FILE" "INSERT INTO qbits (agent,prompt,hash,iteration,response,timestamp,temp) VALUES ('fileproc','$f','$PROMPT_HASH',0,'processed',$(date +%s),$TEMP_FACTOR);"
+    done
+}
+
+# --- Python Neuro ---
+run_python_neuro(){
+    local prompt="$1"
+    local hash=$(hash_prompt)
+    python3 "$BASE_DIR/ai.py" "$prompt" "$hash" "$TEMP_FACTOR" "$RECUR_DEPTH" &
+    PID_PY=$!
+}
+
+# --- Node.js Crew AI ---
+run_node_ai(){
+    local prompt="$1" model="$2"
+    node "$BASE_DIR/ai.js" "$prompt" "$model" &
+}
+
+# --- Deepseek Cloud ---
+run_deepseek_cloud(){
+    local prompt="$1"
+    node -e "
+        import fetch from 'node-fetch';
+        const res=await fetch('http://localhost:11434/api/generate',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({model:'$CLOUD_MODEL',prompt:'$prompt',stream:true})
+        });
+        if(!res.ok){console.error('[CLOUD] Stream failed',res.status);}
+        else{console.log('[CLOUD] Stream complete.');}
+    " &
+    PID_CLOUD=$!
+}
+
+# --- Main ---
+main(){
+    local prompt="${*:-}"
+    [[ -z "$prompt" ]] && read -rp "Enter human prompt: " prompt
+    PROMPT_HASH=$(hash_prompt)
+
+    # Parallel execution
+    run_python_neuro "$prompt"
+    for model in "${LOCAL_MODELS[@]}"; do run_node_ai "$prompt" "$model"; done
+    run_deepseek_cloud "$prompt"
+
+    # File-processing
+    process_files "$BASE_DIR"
+
+    # Wait
+    wait $PID_PY $PID_CLOUD
+    echo "[NEXUS] ✅ Hyper-reasoning complete. JSON/qbits updated in $TMP_DIR and SQLite3 DB."
+}
+
+main "$@"

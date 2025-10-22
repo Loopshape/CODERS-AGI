@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# ai.sh v50 — Full CLI AI Orchestrator with File-Processor, Neuro, Node.js Crew, SQLite3, JSON, Deepseek
+set -euo pipefail
+IFS=$'\n\t'
+
+BASE_DIR="$HOME/_/ai"
+TMP_DIR="$BASE_DIR/tmp"
+DB_FILE="$BASE_DIR/db/qbits.db"
+mkdir -p "$TMP_DIR" "$(dirname "$DB_FILE")"
+
+# Models
+LOCAL_MODELS=("core" "loop" "2244" "coin" "code")
+CLOUD_MODEL="deepseek-v3.1:671b-cloud"
+
+# Temp & recursion
+TEMP_FACTOR="${TEMP_FACTOR:-0.5}"
+RECUR_DEPTH="${RECUR_DEPTH:-5}"
+
+# --- SQLite3 DB schema ---
+sqlite3 "$DB_FILE" "CREATE TABLE IF NOT EXISTS qbits (
+    agent TEXT,
+    prompt TEXT,
+    hash TEXT,
+    iteration INTEGER,
+    response TEXT,
+    timestamp REAL,
+    temp REAL
+);"
+
+# --- Entropy hash ---
+hash_prompt() {
+    date +%s%N | sha256sum | cut -c1-64
+}
+
+# --- File Processor Functions ---
+scan_dir() { find "$1" -type f; }
+read_file() { cat "$1"; }
+backup_file() { cp "$1" "$1.bak"; }
+replace_in_file() { sed -i "s|$2|$3|g" "$1"; }
+
+process_files() {
+    local path="$1"
+    for f in $(scan_dir "$path"); do
+        backup_file "$f"
+        replace_in_file "$f" "PLACEHOLDER" "$PROMPT_HASH"
+        sqlite3 "$DB_FILE" "INSERT INTO qbits (agent,prompt,hash,iteration,response,timestamp,temp) VALUES ('fileproc','$f','$PROMPT_HASH',0,'processed',$(date +%s),$TEMP_FACTOR);"
+    done
+}
+
+# --- Run Python Neuro ---
+run_python_neuro() {
+    local prompt="$1"
+    local hash
+    hash=$(hash_prompt)
+    PROMPT_HASH=$hash
+    echo "[NEXUS] ⚙️  AI Vector initiated."
+    echo "[NEXUS] Generated entropy hash: $hash"
+    python3 "$BASE_DIR/ai.py" "$prompt" "$hash" "$TEMP_FACTOR" "$RECUR_DEPTH"
+}
+
+# --- Run Node.js Crew AI ---
+run_node_ai() {
+    local prompt="$1"
+    local model="$2"
+    node "$BASE_DIR/ai.js" "$prompt" "$model"
+}
+
+# --- Deepseek Cloud ---
+run_deepseek_cloud() {
+    local prompt="$1"
+    echo "[CLOUD] 🚀 Streaming Deepseek-v3.1..."
+    node -e "
+        import fetch from 'node-fetch';
+        const res = await fetch('http://localhost:11434/api/generate',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({model:'$CLOUD_MODEL',prompt:'$prompt',stream:true})
+        });
+        if(!res.ok){console.error('Cloud fetch failed',res.status);}
+        else {console.log('[CLOUD] Stream complete.');}
+    "
+}
+
+# --- Main CLI entry ---
+main() {
+    local prompt="${*:-}"
+    if [[ -z "$prompt" ]]; then
+        read -rp "Enter human prompt: " prompt
+    fi
+
+    PROMPT_HASH=$(hash_prompt)
+
+    # File-processing optional (detect command keyword)
+    if [[ "$prompt" == process* || "$prompt" == "files"* ]]; then
+        process_files "$BASE_DIR"
+    fi
+
+    # Run Neuro, Node.js agents, Deepseek cloud in parallel
+    run_python_neuro "$prompt" &
+    PID_PY=$!
+
+    for model in "${LOCAL_MODELS[@]}"; do
+        run_node_ai "$prompt" "$model" &
+    done
+
+    run_deepseek_cloud "$prompt" &
+    PID_CLOUD=$!
+
+    wait "$PID_PY"
+    wait "$PID_CLOUD"
+
+    echo "[NEXUS] ✅ Hyper-reasoning complete. JSON/qbits updated in $TMP_DIR and SQLite3 DB."
+}
+
+main "$@"

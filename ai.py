@@ -1,35 +1,25 @@
 #!/usr/bin/env python3
-import sys, os, sqlite3, hashlib, time
-PROMPT = " ".join(sys.argv[1:]) or input("Enter human prompt: ")
+# ai.py — Python3 Neuro logic
 
-DB_FILE = os.path.expanduser("./memory.db")
-conn = sqlite3.connect(DB_FILE)
-c = conn.cursor()
+import sys, time, json
+from pygments import highlight
+from pygments.lexers import PythonLexer
+from pygments.formatters import TerminalFormatter
 
-# Create table if not exists
-c.execute("""
-CREATE TABLE IF NOT EXISTS qbits (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    agent TEXT,
-    prompt TEXT,
-    hash TEXT,
-    iteration INTEGER,
-    response TEXT,
-    timestamp REAL,
-    temp REAL
-)
-""")
-conn.commit()
+prompt = sys.argv[1]
+hash_id = sys.argv[2]
 
-FRACTAL_HASH = hashlib.sha256(PROMPT.encode()).hexdigest()
-TEMP_FACTOR = 0.5
-ITERATIONS = 5
+# Simulated AI response
+response = f"Neuro response for prompt '{prompt}' with hash {hash_id}"
 
-for i in range(1, ITERATIONS+1):
-    response = f"Neuro reasoning cycle {i} for prompt '{PROMPT}'"
-    c.execute(
-        "INSERT INTO qbits (agent,prompt,hash,iteration,response,timestamp,temp) VALUES (?,?,?,?,?,?,?)",
-        ("neuro", PROMPT, FRACTAL_HASH, i, response, time.time(), TEMP_FACTOR)
-    )
-    conn.commit()
-    print(f"[PY] Qbit stored -> {FRACTAL_HASH[:8]} : {response}")
+# Highlight CLI output
+print(highlight(response, PythonLexer(), TerminalFormatter()))
+
+# Save JSON for dashboard
+import os
+TMP_DIR = os.path.join(os.path.dirname(__file__), "tmp")
+os.makedirs(TMP_DIR, exist_ok=True)
+filename = os.path.join(TMP_DIR, f"neuro_{int(time.time())}.json")
+with open(filename, "w") as f:
+    json.dump({"agent": "neuro", "prompt": prompt, "hash": hash_id, "response": response}, f)
+print(f"[PY] Qbit stored -> {hash_id[:8]}")

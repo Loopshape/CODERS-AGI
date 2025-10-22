@@ -1,0 +1,342 @@
+#!/usr/bin/env bash
+# ai.sh v60 — Hyper-Reasoning AI Orchestrator (Enhanced)
+# Local + Cloud AI with robust error handling and validation
+set -euo pipefail
+IFS=$'\n\t'
+
+# --- Configuration ---
+BASE_DIR="${BASE_DIR:-$HOME/_/ai}"
+TMP_DIR="$BASE_DIR/tmp"
+DB_FILE="$BASE_DIR/db/qbits.db"
+LOG_FILE="$BASE_DIR/ai.log"
+mkdir -p "$TMP_DIR" "$(dirname "$DB_FILE")" "$BASE_DIR/logs"
+
+# Models with fallbacks
+LOCAL_MODELS=("core" "loop" "2244" "coin" "code")
+CLOUD_MODEL="${CLOUD_MODEL:-deepseek-reasoner}"
+CLOUD_ENDPOINT="${CLOUD_ENDPOINT:-https://api.deepseek.com/v1/chat/completions}"
+
+# Runtime parameters
+TEMP_FACTOR="${TEMP_FACTOR:-0.5}"
+RECUR_DEPTH="${RECUR_DEPTH:-5}"
+MAX_LOOP="${MAX_LOOP:-10}"
+TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-30}"
+
+# --- Logging System ---
+log_message() {
+    local level="$1" message="$2" timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] [$level] $message" | tee -a "$LOG_FILE"
+}
+
+log_info() { log_message "INFO" "$1"; }
+log_warn() { log_message "WARN" "$1"; }
+log_error() { log_message "ERROR" "$1"; }
+log_success() { log_message "SUCCESS" "$1"; }
+
+# --- Dependency Validation ---
+validate_dependencies() {
+    local deps=("sqlite3" "python3" "node" "curl")
+    local missing=()
+    
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &> /dev/null; then
+            missing+=("$dep")
+        fi
+    done
+    
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log_error "Missing dependencies: ${missing[*]}"
+        echo "Please install:"
+        for dep in "${missing[@]}"; do
+            case "$dep" in
+                "sqlite3") echo "  pkg install sqlite" ;;
+                "python3") echo "  pkg install python" ;;
+                "node") echo "  pkg install nodejs" ;;
+                "curl") echo "  pkg install curl" ;;
+            esac
+        done
+        return 1
+    fi
+    return 0
+}
+
+validate_models() {
+    log_info "Validating local models..."
+    local available_models
+    available_models=$($OLLAMA_BIN list 2>/dev/null | awk 'NR>1 {print $1}' || echo "")
+    
+    for model in "${LOCAL_MODELS[@]}"; do
+        if ! echo "$available_models" | grep -q "$model"; then
+            log_warn "Local model '$model' not found. Run: ollama pull $model"
+        fi
+    done
+}
+
+# --- Enhanced SQLite Setup ---
+init_database() {
+    sqlite3 "$DB_FILE" "
+        CREATE TABLE IF NOT EXISTS qbits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent TEXT NOT NULL,
+            prompt TEXT NOT NULL,
+            hash TEXT UNIQUE NOT NULL,
+            iteration INTEGER DEFAULT 0,
+            response TEXT,
+            timestamp REAL DEFAULT (julianday('now')),
+            temp REAL DEFAULT 0.5,
+            status TEXT DEFAULT 'pending',
+            model_used TEXT
+        );
+        
+        CREATE TABLE IF NOT EXISTS file_operations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_path TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            backup_path TEXT,
+            hash TEXT,
+            timestamp REAL DEFAULT (julianday('now'))
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_qbits_hash ON qbits(hash);
+        CREATE INDEX IF NOT EXISTS idx_qbits_timestamp ON qbits(timestamp);
+    " || {
+        log_error "Failed to initialize database"
+        return 1
+    }
+}
+
+# --- Utility Functions ---
+hash_prompt() { 
+    local input="$*"
+    echo -n "$input$(date +%s%N)" | sha256sum | cut -c1-64 
+}
+
+sanitize_input() {
+    local input="$1"
+    # Remove potentially dangerous characters
+    echo "$input" | sed 's/[;\`$\\]//g' | head -c 1000
+}
+
+log_qbit() {
+    local agent="$1" prompt="$2" hash="$3" iter="$4" resp="$5" model="${6:-}"
+    local sanitized_resp=$(echo "$resp" | sed "s/'/''/g")
+    local sanitized_prompt=$(echo "$prompt" | sed "s/'/''/g")
+    
+    sqlite3 "$DB_FILE" \
+    "INSERT INTO qbits (agent, prompt, hash, iteration, response, temp, model_used) 
+     VALUES ('$agent', '$sanitized_prompt', '$hash', $iter, '$sanitized_resp', $TEMP_FACTOR, '$model');"
+}
+
+# --- Enhanced File Processing ---
+scan_dir() { 
+    local path="$1"
+    find "$path" -type f \( -name "*.txt" -o -name "*.md" -o -name "*.json" -o -name "*.py" -o -name "*.js" \) 2>/dev/null || echo ""
+}
+
+backup_file() { 
+    local file="$1"
+    local backup="${file}.bak.$(date +%s)"
+    if cp "$file" "$backup"; then
+        sqlite3 "$DB_FILE" \
+        "INSERT INTO file_operations (file_path, operation, backup_path) VALUES ('$file', 'backup', '$backup');"
+        echo "$backup"
+    else
+        log_error "Failed to backup: $file"
+        return 1
+    fi
+}
+
+safe_replace_in_file() {
+    local file="$1" search="$2" replace="$3"
+    if [[ ! -f "$file" ]]; then
+        log_warn "File not found: $file"
+        return 1
+    fi
+    
+    local temp_file="${file}.tmp"
+    if sed "s|$search|$replace|g" "$file" > "$temp_file" 2>/dev/null; then
+        mv "$temp_file" "$file"
+        log_info "Processed file: $file"
+        return 0
+    else
+        log_error "Failed to process: $file"
+        rm -f "$temp_file"
+        return 1
+    fi
+}
+
+process_files() {
+    local path="$1" prompt_hash="$2"
+    local processed=0 failed=0
+    
+    log_info "Processing files in: $path"
+    
+    for f in $(scan_dir "$path"); do
+        if backup_file "$f" > /dev/null; then
+            if safe_replace_in_file "$f" "PLACEHOLDER" "$prompt_hash"; then
+                ((processed++))
+                log_qbit "fileproc" "$f" "$prompt_hash" 0 "processed" "file_processor"
+            else
+                ((failed++))
+            fi
+        else
+            ((failed++))
+        fi
+    done
+    
+    log_success "File processing complete: $processed succeeded, $failed failed"
+}
+
+# --- Enhanced AI Runners ---
+run_python_neuro() {
+    local prompt="$1" hash="$2"
+    log_info "Starting Python neuro processor..."
+    
+    if [[ ! -f "$BASE_DIR/ai.py" ]]; then
+        log_warn "Python neuro script not found: $BASE_DIR/ai.py"
+        # Create a simple fallback
+        python3 -c "
+import sys
+prompt = sys.argv[1]
+hash_val = sys.argv[2]
+temp = float(sys.argv[3])
+depth = int(sys.argv[4])
+print(f'[PYTHON] Processing: {prompt[:50]}... (hash: {hash_val}, temp: {temp}, depth: {depth})')
+        " "$prompt" "$hash" "$TEMP_FACTOR" "$RECUR_DEPTH" &
+    else
+        python3 "$BASE_DIR/ai.py" "$prompt" "$hash" "$TEMP_FACTOR" "$RECUR_DEPTH" &
+    fi
+    echo $!
+}
+
+run_node_ai() {
+    local prompt="$1" model="$2"
+    log_info "Starting Node.js AI with model: $model"
+    
+    if [[ ! -f "$BASE_DIR/ai.js" ]]; then
+        log_warn "Node.js AI script not found: $BASE_DIR/ai.js"
+        # Fallback using Ollama
+        timeout "$TIMEOUT_SECONDS" ollama run "$model" "$prompt" 2>/dev/null &
+    else
+        node "$BASE_DIR/ai.js" "$prompt" "$model" &
+    fi
+    echo $!
+}
+
+run_deepseek_cloud() {
+    local prompt="$1"
+    local api_key="${DEEPSEEK_API_KEY:-}"
+    
+    if [[ -z "$api_key" ]]; then
+        log_warn "DeepSeek API key not set. Set DEEPSEEK_API_KEY environment variable."
+        return 1
+    fi
+    
+    log_info "Starting DeepSeek cloud processing..."
+    
+    # Enhanced cloud API call with proper error handling
+    curl -s -X POST "$CLOUD_ENDPOINT" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $api_key" \
+        -d "{
+            \"model\": \"$CLOUD_MODEL\",
+            \"messages\": [{\"role\": \"user\", \"content\": \"$prompt\"}],
+            \"temperature\": $TEMP_FACTOR,
+            \"max_tokens\": 4000
+        }" 2>/dev/null | jq -r '.choices[0].message.content' &
+    
+    echo $!
+}
+
+# --- Process Management ---
+wait_for_processes() {
+    local pids=("$@")
+    local completed=0
+    local total=${#pids[@]}
+    
+    log_info "Waiting for $total processes to complete..."
+    
+    for pid in "${pids[@]}"; do
+        if wait "$pid" 2>/dev/null; then
+            ((completed++))
+        else
+            log_warn "Process $pid exited with error"
+        fi
+    done
+    
+    log_success "$completed/$total processes completed successfully"
+}
+
+# --- Main Execution Flow ---
+main() {
+    local prompt="${*:-}"
+    
+    # Validate environment
+    if ! validate_dependencies; then
+        exit 1
+    fi
+    
+    init_database || exit 1
+    validate_models
+    
+    # Get prompt if not provided
+    if [[ -z "$prompt" ]]; then
+        echo -n "Enter human prompt: "
+        read -r prompt
+    fi
+    
+    local sanitized_prompt=$(sanitize_input "$prompt")
+    local PROMPT_HASH=$(hash_prompt "$sanitized_prompt")
+    
+    log_success "Starting hyper-reasoning with hash: $PROMPT_HASH"
+    
+    # Collect process IDs
+    local pids=()
+    
+    # Start parallel execution
+    pids+=($(run_python_neuro "$sanitized_prompt" "$PROMPT_HASH"))
+    
+    for model in "${LOCAL_MODELS[@]}"; do
+        pids+=($(run_node_ai "$sanitized_prompt" "$model"))
+    done
+    
+    local cloud_pid=$(run_deepseek_cloud "$sanitized_prompt")
+    if [[ -n "$cloud_pid" ]]; then
+        pids+=("$cloud_pid")
+    fi
+    
+    # Process files (synchronous)
+    process_files "$BASE_DIR" "$PROMPT_HASH"
+    
+    # Wait for all AI processes
+    wait_for_processes "${pids[@]}"
+    
+    # Generate summary
+    local total_qbits
+    total_qbits=$(sqlite3 "$DB_FILE" "SELECT COUNT(*) FROM qbits WHERE hash='$PROMPT_HASH';")
+    
+    log_success "✅ Hyper-reasoning complete!"
+    echo "==========================================="
+    echo "Prompt Hash: $PROMPT_HASH"
+    echo "Total Qbits Generated: $total_qbits"
+    echo "Database: $DB_FILE"
+    echo "Log File: $LOG_FILE"
+    echo "Temp Directory: $TMP_DIR"
+    echo "==========================================="
+}
+
+# --- Signal Handling ---
+cleanup() {
+    log_info "Received interrupt signal, cleaning up..."
+    # Kill all background processes
+    jobs -p | xargs -r kill
+    exit 1
+}
+
+trap cleanup INT TERM
+
+# --- Entry Point ---
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

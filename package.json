@@ -16,6 +16,7 @@
     "firebase": "^10.12.3",
     "fs": "^0.0.1-security",
     "lucide-react": "^0.395.0",
+    "node-fetch": "^3.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "zustand": "^4.5.4"

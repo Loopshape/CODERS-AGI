@@ -36,6 +36,6 @@ print(f"[ORCHESTRATOR] JSON snapshot written to {json_file}")
 EOF
 
 # 3️⃣ Run Node.js agent for DOM/DEX reflection
-node "$BASE_DIR/ai.js" "$TMP_DIR/memory_snapshot.json"
+node "$BASE_DIR/ai.mjs" "$TMP_DIR/memory_snapshot.json"
 
 echo "[ORCHESTRATOR] AI orchestration complete."

@@ -1,0 +1,3 @@
+#!/bin/bash
+cd ~/_/ai
+./ai.py "stabilize 2244 entropy fields" $(date +%s%N | sha256sum | cut -c1-64) 0.7 5
