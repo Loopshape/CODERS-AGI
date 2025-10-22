@@ -2,512 +2,176 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>2244-1 AI Cockpit</title>
-<!-- Load Three.js for 3D rendering -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
-<!-- Load jQuery for DOM manipulation -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<!-- Load GSAP for advanced animation smoothing -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.14.0/gsap.min.js"></script>
+<title>Hierarchical AI Word Bubble</title>
 <style>
-/* * Dark Monokai Theme Setup 
- * Background: #272822
- * Primary Text: #F8F8F2
- * Cyan Accent: #66D9EF
- * Purple Accent: #AE81FF
- * Success Green: #A6E22E
- * Error Red: #F92672
- * Orange Accent: #FD971F
- */
-body { 
-    margin: 0; 
-    overflow: hidden; 
-    /* Monokai Dark Background */
-    background: #272822; 
-    /* Monokai Light Text */
-    color: #F8F8F2; 
-    font-family: 'Inter', monospace;
-    /* Cyan Glow */
-    text-shadow: 0 0 5px rgba(102, 217, 239, 0.4);
+html,body { margin:0; padding:0; overflow:hidden; background:black; }
+canvas { display:block; }
+#verboseOverlay{
+  position:absolute; bottom:0; left:0; width:100%; max-height:200px;
+  overflow-y:auto; background:rgba(0,0,0,0.6); color:#0f0; padding:5px;
+  font-size:12px; box-sizing:border-box; font-family:monospace; z-index:10;
 }
-/* Overlay for sensor data */
-#ai-overlay { 
-    position: absolute; 
-    top: 10px; 
-    left: 10px; 
-    padding: 15px;
-    z-index: 10; 
-    background: rgba(39, 40, 34, 0.7); /* Slightly transparent background */
-    /* Cyan Border */
-    border: 1px solid #66D9EF; 
-    border-radius: 8px;
-    /* Strong Cyan Shadow */
-    box-shadow: 0 0 10px rgba(102, 217, 239, 0.8);
-    min-width: 250px;
-}
-#ai-status { 
-    font-weight: bold; 
-    margin-bottom: 8px; 
-    font-size: 1.1em;
-    color: #fff;
-    /* White/Cyan Strong Shadow */
-    text-shadow: 0 0 7px #fff, 0 0 10px #66D9EF;
-}
-#ai-overlay div {
-    padding: 2px 0;
-}
-/* Input Panel Styling */
-#input-panel {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    width: 350px;
-    max-width: 90vw;
-    z-index: 10;
-    background: rgba(39, 40, 34, 0.9);
-    /* Purple Border */
-    border: 1px solid #AE81FF;
-    border-radius: 8px;
-    padding: 15px;
-    /* Purple Shadow */
-    box-shadow: 0 0 15px rgba(174, 129, 255, 0.5);
-    display: flex;
-    flex-direction: column;
-}
-#ai-prompt {
-    padding: 8px;
-    /* Yellow Text/Caret */
-    border: 1px solid #E6DB74;
-    background: #000;
-    color: #F8F8F2;
-    margin-bottom: 10px;
-    border-radius: 4px;
-    font-family: monospace;
-}
-#ai-prompt::placeholder {
-    color: #3e4038; /* Darker placeholder text */
-}
-#send-prompt {
-    padding: 10px;
-    /* Cyan Button Background */
-    background: #66D9EF;
-    color: #272822;
-    border: none;
-    border-radius: 4px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-#send-prompt:hover {
-    background: #fff;
-    /* Cyan Shadow on Hover */
-    box-shadow: 0 0 10px #66D9EF;
-}
-#log-output {
-    max-height: 150px;
-    overflow-y: scroll;
-    padding: 5px;
-    border: 1px solid #3e4038;
-    border-radius: 4px;
-    margin-top: 10px;
-    font-size: 0.8em;
-    color: #F8F8F2;
-    background: rgba(0, 0, 0, 0.8);
-}
-#log-output p {
-    margin: 0;
-    white-space: pre-wrap;
-}
-canvas { display: block; }
 </style>
 </head>
 <body>
-<div id="ai-overlay">
-    <div id="ai-status">AI: System Check (OK)</div>
-    <div id="ai-loop-info">Loop: Idle</div>
-    <div id="ai-gps">GPS: Awaiting Data...</div>
-    <div id="ai-compass">Compass: N/A</div>
-    <div id="ai-temp">Temp: N/A</div>
-    <div id="ai-time">Time: N/A</div>
-</div>
-
-<div id="input-panel">
-    <div id="ai-model-map" style="font-size:0.9em; margin-bottom: 10px; color:#AE81FF;">
-        Neuro-Core: Bound ($\pi/2$) | e0 (Translator) | e1/e2/e3 (Planners) | e4/e5/e6 (Q-Tools)
-    </div>
-    <input type="text" id="ai-prompt" placeholder="Enter AGI Goal (e.g., 'Optimize the build system')...">
-    <button id="send-prompt">Engage AGI Workflow</button>
-    <div id="log-output"></div>
-</div>
-
+<canvas id="wordCanvas"></canvas>
+<div id="verboseOverlay"></div>
 <script>
-// Global state and settings
-// Refactored AGENT_COUNT for 1 Messenger, 3 Planners, 3 Q-Tools (7 total)
-const AGENT_COUNT = 7; 
-const loopInterval = 100; // Time in MS for visual update loop
-let isWorkflowActive = false;
-let aiState = {
-    loop: 0,
-    phase: 'IDLE', // IDLE, CACHE_CHECK, MESSENGER, PLANNERS, EXECUTOR, Q-TOOL_EXEC, SUCCESS, FAIL
-    maxLoops: 7
-};
+const canvas=document.getElementById('wordCanvas');
+const ctx=canvas.getContext('2d');
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+const cx=canvas.width/2, cy=canvas.height/2;
+const verboseOverlay=document.getElementById('verboseOverlay');
 
-// --- LOGGING ---
-// Monokai color palette helpers
-const C_WHITE = '#F8F8F2';
-const C_PURPLE = '#AE81FF';
-const C_CYAN = '#66D9EF';
-const C_GREEN = '#A6E22E';
-const C_YELLOW = '#E6DB74';
-const C_PINK = '#F92672';
-const C_ORANGE = '#FD971F';
-const C_GRAY = '#888888';
-
-function logToOutput(message, color = C_WHITE) {
-    const log = $('#log-output');
-    log.append(`<p style="color:${color};">${message}</p>`);
-    log.scrollTop(log[0].scrollHeight);
+// ---------------- Agent Class ----------------
+class Agent {
+  constructor(id){
+    this.id=id;
+    this.pool=[];
+    this.memory=[];
+  }
+  spawnToken(word, meta){
+    let token={
+      id:'T'+Math.floor(Math.random()*10000),
+      word:word,
+      semantic:[word],
+      metaTopic:meta,
+      orbit:150+50*(5-meta), // higher meta closer to center
+      angle:Math.random()*Math.PI*2,
+      speed:0.002+Math.random()*0.003,
+      lift:0,
+      brightness:1,
+      x:0,y:0,z:0,
+      active:true,
+      history:[]
+    };
+    this.pool.push(token);
+    log(this,'spawn',token);
+    return token;
+  }
+  fuseTokens(tokenA,tokenB){
+    if(!tokenA.active||!tokenB.active) return null;
+    let newMeta = Math.max(tokenA.metaTopic, tokenB.metaTopic);
+    let newToken={
+      id:'F'+Math.floor(Math.random()*10000),
+      word:tokenA.word+'-'+tokenB.word,
+      semantic:[...new Set([...tokenA.semantic,...tokenB.semantic])],
+      metaTopic:newMeta,
+      orbit:150+50*(5-newMeta),
+      angle:(tokenA.angle+tokenB.angle)/2,
+      speed:(tokenA.speed+tokenB.speed)/2,
+      lift:0,
+      brightness:1.5,
+      x:0,y:0,z:0,
+      active:true,
+      history:[...tokenA.history,...tokenB.history,`Fusion by Agent ${this.id}`]
+    };
+    tokenA.active=tokenB.active=false;
+    this.pool.push(newToken);
+    log(this,'fusion',tokenA,tokenB);
+    return newToken;
+  }
+  neuroPulse(){
+    this.pool.forEach(t=>{if(t.active) t.brightness=1+Math.random()*0.3;});
+    log(this,'pulse');
+  }
+  autoEvolve(){
+    // Random fusion among active tokens
+    let activeTokens = this.pool.filter(t=>t.active);
+    if(activeTokens.length>1){
+      let a=activeTokens[Math.floor(Math.random()*activeTokens.length)];
+      let b=activeTokens[Math.floor(Math.random()*activeTokens.length)];
+      if(a!==b) this.fuseTokens(a,b);
+    }
+    // Randomly spawn new token
+    if(Math.random()<0.01){
+      const wordList=["Entropy","Dream","Fusion","Vision","Energy","Neuro","Token","Pulse","Cosmos","Logic"];
+      let word=wordList[Math.floor(Math.random()*wordList.length)];
+      this.spawnToken(word,1+Math.floor(Math.random()*5));
+    }
+    // Random pulse
+    if(Math.random()<0.05) this.neuroPulse();
+  }
 }
-function updateStatus(status, loopInfo = '') {
-    $('#ai-status').text(`AI: ${status}`);
-    $('#ai-loop-info').text(loopInfo);
+
+// ---------------- Logging ----------------
+function log(agent, action, token=null, other=null){
+  let sentence="";
+  switch(action){
+    case "spawn": sentence=`Agent ${agent.id} spawns "${token.word}" [meta ${token.metaTopic}].`; break;
+    case "fusion": sentence=`Agent ${agent.id} fused "${token.word}" with "${other.word}" → new token.`; break;
+    case "pulse": sentence=`Agent ${agent.id} pulses active tokens.`; break;
+  }
+  agent.memory.push({sentence,timestamp:Date.now()});
+  if(agent.memory.length>10) agent.memory.shift();
+  const vline=document.createElement('div'); vline.textContent=sentence;
+  verboseOverlay.appendChild(vline);
+  verboseOverlay.scrollTop=verboseOverlay.scrollHeight;
 }
 
-// --- SENSOR SIMULATION ---
-let gps = { lat: 34.0522, lon: -118.2437 }; 
-let gyro = { alpha: 0, beta: 0, gamma: 0 };
-let temp = 25.0;
-let compass = 0;
+// ---------------- Agents and Words ----------------
+const agents=[new Agent(0),new Agent(1)];
+const words=["Entropy","Dream","Fusion","Vision","Energy","Neuro","Token","Pulse","Cosmos","Logic"];
+agents.forEach(agent=>words.forEach(w=>agent.spawnToken(w,1+Math.floor(Math.random()*5))));
 
-if (navigator.geolocation) {
-    navigator.geolocation.watchPosition(p => {
-        gps = { lat: p.coords.latitude, lon: p.coords.longitude };
-        $('#ai-gps').text(`GPS: ${gps.lat.toFixed(4)},${gps.lon.toFixed(4)}`);
-    }, (error) => { $('#ai-gps').text(`GPS: Disabled`); });
+// ---------------- 3D Setup ----------------
+let angleX=0.002, angleY=0.003;
+function rotate3D(t){
+  let y=t.y*Math.cos(angleX)-t.z*Math.sin(angleX);
+  let z=t.y*Math.sin(angleX)+t.z*Math.cos(angleX);
+  t.y=y;t.z=z;
+  let x=t.x*Math.cos(angleY)+t.z*Math.sin(angleY);
+  z=-t.x*Math.sin(angleY)+t.z*Math.cos(angleY);
+  t.x=x;t.z=z;
 }
-if (window.DeviceOrientationEvent) {
-    window.addEventListener('deviceorientation', e => {
-        gyro = e; 
-        compass = gyro.alpha;
-        $('#ai-compass').text(`Compass: ${compass.toFixed(0)}° (Working)`); // Added visual confirmation
+
+// ---------------- Animation ----------------
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  agents.forEach(agent=>{
+    agent.autoEvolve(); 
+    agent.pool.forEach(t=>{
+      if(!t.active) return;
+      t.angle+=t.speed;
+      t.x=Math.cos(t.angle)*t.orbit;
+      t.y=Math.sin(t.angle)*t.orbit;
+      t.z=Math.sin(t.angle*0.5)*t.orbit/2;
+      rotate3D(t);
+      const scale=500/(500+t.z);
+      const x2d=cx+t.x*scale;
+      const y2d=cy+t.y*scale;
+      const fontSize=16*scale*t.metaTopic;
+      ctx.fillStyle=`rgba(0,255,255,${0.3+0.7*scale})`;
+      ctx.font=`${fontSize}px monospace`;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(t.word,x2d,y2d);
     });
+  });
+  requestAnimationFrame(animate);
 }
-function speak(msg) { 
-    if ('speechSynthesis' in window) {
-        const u = new SpeechSynthesisUtterance(msg); 
-        speechSynthesis.speak(u); 
-    }
-}
-// --- THREE.JS SETUP ---
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.z = 5;
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setClearColor(0x000000, 0); 
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+animate();
 
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
-window.addEventListener('resize', onWindowResize, false);
-
-// Lights
-scene.add(new THREE.AmbientLight(0x444444));
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-directionalLight.position.set(5, 5, 5).normalize();
-scene.add(directionalLight);
-
-// ====== Core Atom Group (Executor/Controller - Now Bound) ======
-const coreGroup = new THREE.Group();
-scene.add(coreGroup);
-
-// 1. The main executor sphere (the 'brain') - Purple Monokai color
-const coreGeo = new THREE.SphereGeometry(0.4, 32, 32); 
-const coreMat = new THREE.MeshPhongMaterial({
-    color: 0xAE81FF, 
-    emissive: 0xAE81FF, 
-    emissiveIntensity: 1.0, 
-    shininess: 150
+// ---------------- Interaction ----------------
+canvas.addEventListener('click', e=>{
+  agents[Math.floor(Math.random()*agents.length)].neuroPulse();
 });
-const coreSphere = new THREE.Mesh(coreGeo, coreMat);
-coreGroup.add(coreSphere);
-
-// 2. The binding/stabilization element (the 'cage' or 'binding') - Cyan Monokai color
-const bindingGeo = new THREE.IcosahedronGeometry(0.7, 1);
-const bindingMat = new THREE.MeshBasicMaterial({
-    color: 0x66D9EF,
-    wireframe: true,
-    transparent: true,
-    opacity: 0.3
+let dragging=false, lastX,lastY;
+canvas.addEventListener('mousedown',e=>{dragging=true; lastX=e.clientX; lastY=e.clientY;});
+canvas.addEventListener('mousemove',e=>{
+  if(dragging){
+    let dx=e.clientX-lastX, dy=e.clientY-lastY;
+    angleY+=dx*0.0005; angleX+=dy*0.0005;
+    lastX=e.clientX; lastY=e.clientY;
+  }
 });
-const coreBinding = new THREE.Mesh(bindingGeo, bindingMat);
-// Apply mathematical binding rotation (2π/4 = π/2)
-coreBinding.rotation.x = Math.PI / 2; 
-coreGroup.add(coreBinding);
-
-// 3. Data Conduit Ring (sqlite3 integration)
-const ringGeo = new THREE.TorusGeometry(0.55, 0.02, 8, 50);
-const ringMat = new THREE.MeshBasicMaterial({
-    color: 0x66D9EF, 
-    emissive: 0x66D9EF, 
-    emissiveIntensity: 0.5,
-    wireframe: false 
+canvas.addEventListener('mouseup',e=>{dragging=false;});
+canvas.addEventListener('mouseleave',e=>{dragging=false;});
+window.addEventListener('resize',()=>{
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
 });
-const dataConduitRing = new THREE.Mesh(ringGeo, ringMat);
-dataConduitRing.rotation.x = Math.PI / 2; // Lay it flat
-coreGroup.add(dataConduitRing);
-
-// 4. Solar Unit Plane (Red Square on XY axis)
-const planeGeo = new THREE.BoxGeometry(2, 2, 0.05); // 2x2 on XY, thin in Z (height)
-const planeMat = new THREE.MeshPhongMaterial({
-    color: 0xF92672, // Error Red Monokai color
-    emissive: 0xF92672,
-    emissiveIntensity: 0.4,
-    side: THREE.DoubleSide
-});
-const solarUnitPlane = new THREE.Mesh(planeGeo, planeMat);
-// Position it slightly below the core for visibility
-solarUnitPlane.position.z = -0.5; 
-scene.add(solarUnitPlane);
-
-
-// Reference the group for overall logic and positioning
-const core = coreGroup; 
-
-// ====== Multi-Agent Electrons (Messenger/Planners/Q-Tools) ======
-const electronsMulti = [];
-const AGENT_ROLES = ["Translator", "Planner 1", "Planner 2", "Planner 3", "Q-Tool 1", "Q-Tool 2", "Q-Tool 3"];
-// Updated colors for Monokai 
-const AGENT_COLORS = [0xF92672, 0xA6E22E, 0xE6DB74, 0xFD971F, 0x888888, 0x888888, 0x888888]; // Pink, Green, Yellow, Orange, Gray(x3)
-
-for (let i = 0; i < AGENT_COUNT; i++) {
-    const geo = new THREE.SphereGeometry(0.1, 16, 16);
-    const mat = new THREE.MeshStandardMaterial({
-        color: AGENT_COLORS[i], 
-        emissive: AGENT_COLORS[i], 
-        emissiveIntensity: 0.8
-    });
-    const e = new THREE.Mesh(geo, mat);
-    e.userData.radius = 1 + i * 0.15; // Closer orbits for more agents
-    e.userData.angle = Math.random() * Math.PI * 2;
-    e.userData.speed = 0.015 + Math.random() * 0.01;
-    // Vary yOffset more to separate orbits visually
-    e.userData.yOffset = (i % 3 === 0 ? 0.2 : (i % 3 === 1 ? -0.2 : 0)) * (1 + Math.random() * 0.5);
-    e.userData.role = AGENT_ROLES[i];
-    electronsMulti.push(e);
-    scene.add(e);
-}
-
-// --- AGI WORKFLOW SIMULATION ---
-
-async function simulateAgiWorkflow(prompt) {
-    if (isWorkflowActive) return logToOutput("Workflow is already active.", C_YELLOW);
-    
-    isWorkflowActive = true;
-    aiState.loop = 0;
-    logToOutput(`--- Starting AGI Workflow: NEURO(model_pool) translator(${prompt}) ---`, C_CYAN);
-    speak("Quantum workflow initiated.");
-    $('#send-prompt').prop('disabled', true);
-    
-    // --- CACHE CHECK PHASE (Now includes SQLite3 check) ---
-    aiState.phase = 'CACHE_CHECK';
-    updateStatus('Accessing SQLite3 Cache...', `Loop 0/${aiState.maxLoops}`);
-    logToOutput("PHASE: CACHE_CHECK - Checking SQL index and fuzzy model_pool...", C_WHITE);
-    
-    // Core (coreGroup) and Data Conduit pulses while checking cache
-    gsap.to(coreGroup.scale, { duration: 0.5, repeat: 1, yoyo: true, x: 1.5, y: 1.5, z: 1.5, ease: "sine.inOut" });
-    gsap.to(dataConduitRing.material, { duration: 0.2, repeat: 2, yoyo: true, emissiveIntensity: 3.0, ease: "power1.inOut" });
-
-    await new Promise(r => setTimeout(r, 700));
-    
-    if (Math.random() < 0.2) { // 20% chance of cache hit
-        aiState.phase = 'SUCCESS';
-        updateStatus('SQLite3 Cache Hit!', `Loop 0/${aiState.maxLoops}`);
-        logToOutput("SUCCESS: Found high-quality match via SQL index.", C_GREEN);
-        speak("Cache hit. Task complete.");
-        gsap.to(coreGroup.scale, { duration: 1, x: 2, y: 2, z: 2, ease: "elastic.out" });
-        isWorkflowActive = false;
-        $('#send-prompt').prop('disabled', false);
-        return;
-    }
-    
-    // --- MAIN AGI LOOPS ---
-    for (let i = 1; i <= aiState.maxLoops; i++) {
-        aiState.loop = i;
-        updateStatus('Quantum Loop Active', `Loop ${i}/${aiState.maxLoops}`);
-        logToOutput(`\n--- Starting Neuro-Core Loop ${i} ---`, C_WHITE);
-
-        // Phase 1: Translator Analysis (e0)
-        aiState.phase = 'MESSENGER';
-        logToOutput(`PHASE: TRANSLATOR (e0) - Decoding and contextualizing humanprompt...`, C_PINK);
-        await new Promise(r => setTimeout(r, 700));
-
-        // Phase 2: Hyper-Parallel Planners (e1, e2, e3)
-        aiState.phase = 'PLANNERS';
-        logToOutput(`PHASE: 3X PLANNERS (e1-e3) - Generating parallel strategies...`, C_CYAN);
-        await new Promise(r => setTimeout(r, 1200));
-
-        // Phase 3: Executor Synthesis (Core)
-        aiState.phase = 'EXECUTOR';
-        logToOutput(`PHASE: NEURO-CORE - Synthesizing $Q_P$ plans...`, C_PURPLE);
-        await new Promise(r => setTimeout(r, 800));
-        
-        // Phase 4: Q-Tool Execution (e4, e5, e6)
-        if (Math.random() < 0.8) { 
-            aiState.phase = 'Q-TOOL_EXEC';
-            logToOutput(`PHASE: Q-TOOL EXEC (e4-e6) - Executing quantum-state operations...`, C_YELLOW);
-            speak("Quantum Tool execution requested.");
-            await new Promise(r => setTimeout(r, 1000));
-            logToOutput(`Q-TOOL RESULT: State collapse successful. Proceeding to next loop.`, C_GREEN);
-        } else {
-            // Success condition
-            aiState.phase = 'SUCCESS';
-            updateStatus('Task Complete', `Loop ${i}/${aiState.maxLoops}`);
-            logToOutput(`\nSUCCESS: Final stable state achieved on Loop ${i}!`, C_GREEN);
-            speak("Task complete. Final answer achieved.");
-            break;
-        }
-
-        if (i === aiState.maxLoops) {
-             aiState.phase = 'FAIL';
-             updateStatus('Max Loops Reached', `Loop ${i}/${aiState.maxLoops}`);
-             logToOutput("\nERROR: Max loops reached. Unstable state collapse.", C_PINK);
-             speak("Max loops reached. Exiting workflow.");
-        }
-    }
-    
-    gsap.to(coreGroup.scale, { duration: 0.5, x: 1, y: 1, z: 1 });
-    isWorkflowActive = false;
-    $('#send-prompt').prop('disabled', false);
-}
-
-// --- VISUAL ANIMATION LOOP (Animate function) ---
-function animate(timestamp) { 
-    requestAnimationFrame(animate); 
-    
-    // 1. Update UI Time
-    $('#ai-time').text("Time: " + new Date().toLocaleTimeString());
-
-    // 2. Animate Core Group (Executor) based on Phase
-    const time = Date.now() * 0.001;
-    let targetIntensity = 1.0;
-    // Core color is Monokai Purple
-    let coreColor = 0xAE81FF;
-
-    // Core Binding (Fixed rotation from 2π/4, but still rotating around Y axis)
-    coreBinding.rotation.y += 0.01;
-
-    // Data Conduit Ring Rotation
-    dataConduitRing.rotation.z += 0.02;
-
-    if (aiState.phase === 'CACHE_CHECK' || aiState.phase === 'EXECUTOR') {
-        targetIntensity = 1.8;
-    } else if (aiState.phase === 'SUCCESS') {
-        targetIntensity = 2.5;
-        // Pulse the binding element faster on success
-        coreBinding.scale.setScalar(1.0 + 0.1 * Math.sin(time * 10)); 
-    } else if (aiState.phase === 'FAIL') {
-        // Red core on failure
-        coreColor = 0xF92672;
-        targetIntensity = 2.0;
-    } else {
-        // Default pulse for the binding when idle
-        coreBinding.scale.setScalar(1.0 + 0.05 * Math.sin(time * 5));
-    }
-    
-    // Apply Core Colors
-    gsap.to(coreSphere.material, { duration: loopInterval / 1000, emissiveIntensity: targetIntensity, ease: "power1.inOut" });
-    gsap.to(coreSphere.material.color, { duration: 1, r: (coreColor >> 16 & 0xFF) / 255, g: (coreColor >> 8 & 0xFF) / 255, b: (coreColor & 0xFF) / 255 });
-    gsap.to(coreSphere.material.emissive, { duration: 1, r: (coreColor >> 16 & 0xFF) / 255, g: (coreColor >> 8 & 0xFF) / 255, b: (coreColor & 0xFF) / 255 });
-
-    coreGroup.rotation.x += 0.005;
-    coreGroup.rotation.y += 0.01;
-
-    // 3. Animate Electrons (Agents) based on Phase
-    electronsMulti.forEach((e, i) => {
-        let radiusFactor = 1.0;
-        let flickerIntensity = 0.8;
-        let speedFactor = 1.0;
-        
-        // Translator (e0)
-        if (i === 0 && aiState.phase === 'MESSENGER') {
-            flickerIntensity = 2.0; 
-            speedFactor = 2.0;
-        } 
-        // Planners (e1, e2, e3)
-        else if ((i >= 1 && i <= 3) && aiState.phase === 'PLANNERS') {
-            radiusFactor = 1.5 + 0.3 * Math.sin(time * 5); 
-            flickerIntensity = 1.5;
-        }
-        // Q-Tool Agents (e4, e5, e6)
-        else if ((i >= 4 && i <= 6) && aiState.phase === 'Q-TOOL_EXEC') {
-            // Quantum effect: move erratically and flash
-            e.userData.angle += e.userData.speed * 4;
-            e.userData.yOffset += 0.02 * Math.sin(time * 20 + i); 
-            flickerIntensity = 5.0;
-            // Flash a quick color change to red/pink
-            gsap.to(e.material.color, { duration: 0.05, r: 1, g: 0, b: 0 }); 
-            gsap.to(e.material.emissive, { duration: 0.05, r: 1, g: 0, b: 0 });
-        } else {
-            // Return to default Monokai agent color
-            e.userData.yOffset = (i % 3 === 0 ? 0.2 : (i % 3 === 1 ? -0.2 : 0)) * (1 + Math.random() * 0.5); // reset Y variation
-            gsap.to(e.material.color, { duration: 1, r: (AGENT_COLORS[i] >> 16 & 0xFF) / 255, g: (AGENT_COLORS[i] >> 8 & 0xFF) / 255, b: (AGENT_COLORS[i] & 0xFF) / 255 });
-            gsap.to(e.material.emissive, { duration: 1, r: (AGENT_COLORS[i] >> 16 & 0xFF) / 255, g: (AGENT_COLORS[i] >> 8 & 0xFF) / 255, b: (AGENT_COLORS[i] & 0xFF) / 255 });
-        }
-
-        // Apply movement
-        e.userData.angle += e.userData.speed * speedFactor;
-        const r = e.userData.radius * radiusFactor;
-        e.position.set(
-            Math.cos(e.userData.angle) * r,
-            e.userData.yOffset,
-            Math.sin(e.userData.angle) * r
-        );
-
-        e.material.emissiveIntensity = flickerIntensity;
-        e.rotation.y += 0.05;
-    });
-
-    renderer.render(scene, camera);
-}
-
-// --- EVENT LISTENERS ---
-$('#send-prompt').on('click', () => {
-    const prompt = $('#ai-prompt').val().trim();
-    if (prompt) {
-        simulateAgiWorkflow(prompt);
-        $('#ai-prompt').val('');
-    } else {
-        logToOutput("Please enter a goal for the AGI.", C_YELLOW);
-    }
-});
-
-$('#ai-prompt').on('keypress', (e) => {
-    if (e.which === 13) { // Enter key
-        $('#send-prompt').click();
-    }
-});
-
-// --- SCRIPT ENTRY POINT ---
-window.onload = function () {
-    // Start Solar Unit Plane rotation (360 degrees in 3.2 seconds, linear)
-    const rotationDuration = 3.2; 
-    gsap.to(solarUnitPlane.rotation, {
-        duration: rotationDuration,
-        z: Math.PI * 2,
-        ease: "linear",
-        repeat: -1
-    });
-
-    animate(performance.now());
-    speak("System activated. Awaiting Neuro-Core goal.");
-}
 </script>
 </body>
 </html>
-
-
