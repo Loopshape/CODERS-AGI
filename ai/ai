@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# ai.sh – Autonomic Synthesis Platform Shell Front-End
+# Version 1.2.0
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PY_CMD="python3 ${SCRIPT_DIR}/ai.py"
+JS_CMD="node ${SCRIPT_DIR}/ai.js"
+
+usage(){
+  echo "Usage: $0 <command> [args]"
+  echo "  refine <file>"
+  echo "  synthesize <topic>"
+  echo "  status"
+  echo "  logs [limit]"
+  exit 1
+}
+
+cmd="$1"; shift
+case "$cmd" in
+  refine)
+    if [[ -z "$1" ]]; then
+      echo "Specify file to refine"
+      usage
+    fi
+    file="$1"
+    $PY_CMD refine "$file"
+    ;;
+  synthesize)
+    if [[ -z "$1" ]]; then
+      echo "Specify topic"
+      usage
+    fi
+    topic="$1"
+    $JS_CMD synthesize --topic "$topic"
+    ;;
+  status)
+    $PY_CMD status
+    ;;
+  logs)
+    limit="${1:-10}"
+    $PY_CMD logs --limit "$limit"
+    ;;
+  *)
+    usage
+    ;;
+esac

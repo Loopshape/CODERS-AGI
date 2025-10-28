@@ -1,0 +1,645 @@
+<!DOCTYPE html>                                                                    
+<html lang="en">
+<head>                                                                             
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nemodian 2244-1 :: AI Code Editor</title>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>                                                     
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>                                                                              
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.0/beautify.js"></script>
+
+<style>
+/* Reset and Base Styles */
+html,body{margin:0;height:100%;font-family:'Fira Code',monospace;font-size:12px;overflow:hidden;}
+body{display:flex;flex-direction:column;background:#3a3c31;color:#f0f0e0;position:absolute;top:0;left:0;right:0;bottom:0;}                                            
+
+/* Header and Status Bar */
+header{background:#2e3026;color:#f0f0e0;padding:5px 10px;display:flex;justify-content:space-between;align-items:center;position:fixed;top:0;width:100%;z-index:2;border-bottom:1px solid #22241e;}
+/* STATUS BAR COLOR ENHANCEMENT FOR NOTIFICATIONS */
+#status-bar{
+    background:#22241e;
+    color:#4ac94a;
+    padding:2px 10px;
+    font-size:11px;
+    position:fixed;
+    top:35px;
+    width:100%;
+    z-index:2;
+    border-top:1px solid #2e3026;
+    transition: background-color 0.2s, color 0.2s; /* Smooth transition for notification colors */
+    display: flex;
+    justify-content: space-between;
+}
+#status-bar.error{
+    background-color: #a03333; /* Winered for error */
+    color: #f0f0e0;
+}
+#status-bar.warn{
+    background-color: #f0ad4e; /* Orange for warning */
+    color: #3a3c31;
+}
+#status-bar.success{
+    background-color: #4ac94a; /* Green for success */
+    color: #3a3c31;
+}
+#status-bar .editor-info { color: #999966; } /* Secondary color for non-critical info */
+#status-bar .file-info { font-weight: 800; } /* Highlight file info */
+
+
+/* Footer - FINAL LAYOUT */
+footer{
+    background:#2e3026;
+    color:#f0f0e0;
+    padding:5px 10px;
+    display:block;
+    position:fixed;
+    bottom:0;
+    width:100%;
+    z-index:2;
+    border-top:1px solid #22241e;
+    box-sizing: border-box;
+}
+#footer-grid{
+    display:grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 5px;
+    width:100%;
+    align-items:center;
+}
+
+/* Editor Area */
+/* Margin values here were hardcoded. We will control the height in JS for robustness. */
+#editor-container{flex:1;margin-top:58px;margin-bottom:42px;overflow:hidden;position:relative;display:flex;background:#3a3c31;} 
+
+.code-editor-wrapper{
+    display:flex;
+    flex:1;
+    overflow:auto; 
+    position:relative;
+    width: 100%;
+    height: 100%; 
+}
+#line-numbers{
+    padding:5px 5px 5px 10px;
+    text-align:right;
+    color:#999966;
+    font-size:12px;
+    line-height:1.5;
+    user-select:none;
+    background:#313328;
+    min-width:30px;
+    position: sticky; 
+    left: 0;
+    z-index: 5;
+    height: fit-content;
+}
+.highlighting-area{
+    position:absolute;
+    top:0;
+    left: 0; 
+    right:0;
+    bottom:0;
+    pointer-events:none;
+    z-index: 0;
+}                                                            
+.highlighting-area pre{
+    margin:0;
+    padding:5px;
+    background:transparent !important;
+    white-space:pre-wrap;
+    word-break:break-all;
+}                                             
+.highlighting-area code{font-size:12px;line-height:1.5;}
+
+#editor{
+    width:100%;
+    height:100%;
+    border:none;
+    outline:none;
+    resize:none;
+    padding:5px;
+    font-family:inherit;
+    font-size:inherit;
+    background:transparent;
+    color:transparent;
+    caret-color:#4ac94a;
+    z-index:1;
+    line-height:1.5;
+    white-space:pre-wrap;
+    word-break:break-all;
+    position:absolute;
+    top:0;
+    left:55px;
+    right:0;
+    bottom:0;
+    padding-left:5px;
+    box-sizing: border-box; 
+}
+
+/* Buttons and Input */
+/* WINERED/BLUISH THEME */
+button{
+    font-size:11px;
+    padding:2px 6px;
+    cursor:pointer;
+    background:#a03333;
+    color:#f0f0e0;
+    border:1px solid #a03333;
+    transition: all 0.1s;
+    text-transform:uppercase;
+}
+button:hover{
+    background:#3366a0;
+    color:#f0f0e0;
+    border-color: #3366a0;
+}
+#save,#delete{background:#a03333;border-color:#a03333;color:#f0f0e0;}
+#save:hover,#delete:hover{background:#3366a0;color:#f0f0e0;}
+#prompt-input{
+    font-size:12px;
+    padding-top: 5px;
+    padding-right: 5px;
+    padding-bottom: 5px;
+    padding-left: 0.5em; 
+    font-weight: 800;
+    background:#22241e;
+    color:#f0f0e0;
+    border:1px solid #4ac94a;
+    width:100%;
+    grid-column: 1 / span 20; 
+}
+#send-button{
+    height: 30px;
+    line-height: 1;
+    padding: 0 0; 
+    width: 100%;
+    grid-column: 21 / span 4; 
+}
+
+/* Side Menu Styles */
+#side-menu{
+    position: fixed;
+    top: 36px;
+    left: -216px;
+    width: 200px;
+    height: calc(100% - 36px);
+    background: #313328;
+    z-index: 10;
+    transition: left 0.3s ease-in-out;
+    border-right: 1px solid #22241e;
+    padding: 10px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+#side-menu.open{
+    left: 0;
+}
+#menu-toggle{
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 10px;
+    user-select: none;
+}
+.menu-group-title{
+    color: #4ac94a;
+    font-size: 10px;
+    text-transform: uppercase;
+    margin-top: 10px;
+    border-bottom: 1px solid #4ac94a33;
+    padding-bottom: 2px;
+}
+.menu-button-item{
+    width: 100%;
+    margin-top: 0;
+}
+</style>
+</head>                                                                            
+<body>
+
+<!-- Side Menu -->
+<div id="side-menu">
+    <div class="menu-group-title">File Operations</div>
+    <button id="save" class="menu-button-item">SAVE (Ctrl+S)</button>
+    <button id="load" class="menu-button-item">LOAD</button>
+    
+    <div class="menu-group-title">Code Tools</div>
+    <button id="beautify" class="menu-button-item">Beautify</button>                         
+    <button id="syntaxcheck" class="menu-button-item">Syntax/Repair</button>
+    <button id="compress" class="menu-button-item">Compress</button>                         
+    
+    <div class="menu-group-title">History</div>
+    <button id="undo" class="menu-button-item">UNDO (Ctrl+Z)</button>
+    <button id="redo" class="menu-button-item">REDO (Ctrl+Y/Shift+Z)</button>
+</div>
+
+<header>
+  <span id="menu-toggle">☰ Nemodian Menu</span>
+  <span>Nemodian 2244-1 :: AI Editor</span>
+  <span id="burger-menu"></span>                                                  
+</header>
+                                                                                   
+<!-- Status Bar HTML structure updated -->
+<div id="status-bar">
+    <span id="file-metadata">No File Loaded</span>
+    <span id="editor-metadata">Cursor: 0:0 | Tokens: 0 | History: 0 | Status: READY</span>
+</div>
+
+<div id="editor-container">
+  <div class="code-editor-wrapper">
+    <div id="line-numbers"></div>                                                      
+    <div class="highlighting-area">
+      <pre><code class="language-javascript" id="highlighted-code"></code></pre>       
+    </div>
+    <textarea id="editor" spellcheck="false" autofocus></textarea>
+  </div>
+</div>
+
+<footer>
+  <div id="footer-grid">
+    <!-- Row 1: Prompt Input (66%) and Send Button (34%) -->
+    <input type="text" id="prompt-input" placeholder="Enter AI Prompt (Ctrl+Enter to Run)">
+    <button id="send-button">SEND</button>
+  </div>
+</footer>
+                                                                                   
+<script>
+// === State ===
+let assemblyCode = '';
+let historyStack = [];
+let redoStack = [];
+const MAX_HISTORY = 200;
+const $editor = $('#editor');
+const $highlightCode = $('#highlighted-code');
+const $status = $('#status-bar');
+const $lineNumbers = $('#line-numbers');
+let currentFileHandle = null;
+
+// Global state for file metadata
+let fileMetadata = {
+    name: 'Untitled',
+    path: '(Unsaved/Local)',
+    sizeKB: '0.00',
+    timestamp: 'N/A'
+};
+
+// Stores the last stable status message for reverting from a notification
+let lastStatusMessage = 'READY';
+
+// Hypothetical Backend API Endpoint (Adjust port as needed for your Node.js server)
+const API_ENDPOINT = 'http://localhost:3000/api/reason'; 
+let currentLanguage = 'javascript'; // Language for Prism highlighting
+
+// === Notification System (NEW) ===
+function showNotification(message, type = 'info', duration = 3000) {
+    // Save current status before overriding
+    if (!$status.data('notifying')) {
+        $status.data('original-text', $status.html()); // Save full HTML content
+        $status.data('notifying', true);
+    }
+    
+    // Set notification style and message
+    $status.removeClass('error warn success').addClass(type).html(`<span class="file-info">${message}</span><span class="editor-info"></span>`);
+
+    // Revert after duration
+    clearTimeout($status.data('timer'));
+    $status.data('timer', setTimeout(() => {
+        $status.removeClass('error warn success');
+        $status.html($status.data('original-text') || '<span id="file-metadata">No File Loaded</span><span id="editor-metadata">Cursor: 0:0 | Tokens: 0 | History: 0 | Status: READY</span>');
+        $status.data('notifying', false);
+    }, duration));
+}
+
+// === History ===
+function pushHistory(){
+    const code = $editor.val();                                                        
+    if(historyStack.length && historyStack[historyStack.length-1]===code) return;
+    historyStack.push(code);
+    if(historyStack.length>MAX_HISTORY) historyStack.shift();                          
+    redoStack=[];
+    updateStatus('READY');
+}                                                                                  
+function undo(){ 
+    if(historyStack.length){
+        redoStack.push($editor.val());
+        assemblyCode=historyStack.pop();
+        renderAssembly();
+        showNotification('Action: UNDO', 'info', 1500);
+    } 
+}
+function redo(){ 
+    if(redoStack.length){
+        historyStack.push($editor.val());
+        assemblyCode=redoStack.pop();
+        renderAssembly();
+        showNotification('Action: REDO', 'info', 1500);
+    } 
+}
+                                                                                   
+// === Rendering ===
+function renderAssembly(code=assemblyCode){
+    $editor.val(code);
+    highlightCode(code);
+    generateLineNumbers();
+    updateStatus();
+}                                                   
+
+function highlightCode(code){
+    const grammar = window.Prism.languages[currentLanguage] || window.Prism.languages.javascript;
+    $highlightCode.html(window.Prism.highlight(code, grammar, currentLanguage));
+}
+
+function generateLineNumbers(){
+    let lines=$editor.val().split('\n').length;
+    let html='';
+    for(let i=1;i<=lines;i++){html+=`<div>${i}</div>`;} 
+    $lineNumbers.html(html);
+}
+
+function syncScroll(){
+    let st=$editor.scrollTop(),sl=$editor.scrollLeft();
+    $('.code-editor-wrapper').scrollTop(st);
+    $('.code-editor-wrapper').scrollLeft(sl);
+}           
+
+function updateStatus(statusMessage='EDITING'){
+    lastStatusMessage = statusMessage;
+    if ($status.data('notifying')) return;
+
+    const pos=$editor[0].selectionStart;
+    const code=$editor.val();
+    const lines=code.substr(0,pos).split('\n');
+    const line=lines.length;
+    const col=lines[lines.length-1].length;
+    const tokens=(code.match(/function|let|const|var|class|for|if|while/g)||[]).length;
+    
+    const editorMetadataHTML = `<span class="editor-info">Cursor: ${line}:${col} | Tokens: ${tokens} | History: ${historyStack.length} | Status: ${statusMessage}</span>`;
+
+    // File Metadata String Construction
+    const fileName = fileMetadata.name;
+    const sizeKB = fileMetadata.sizeKB;
+    const timestamp = fileMetadata.timestamp;
+    const fileInfoHTML = `<span class="file-info">${fileName} [${sizeKB} KB] - ${timestamp}</span>`;
+    
+    // Update status bar with both pieces of information
+    $status.html(fileInfoHTML + editorMetadataHTML);
+}                                                                                                                                  
+
+// === AI Integration (REPLACING SIMULATION with FETCH) ===
+async function runAgents(prompt, codeToRefine = null){
+    // 1. Disable Editor and Set Status
+    const originalCode = codeToRefine || $editor.val();
+    $editor.prop('disabled',true);
+    updateStatus('AI_REASONING');
+    
+    const payload = {
+        prompt: prompt,
+        context: originalCode, 
+    };
+
+    try {
+        // 3. Make API Call
+        showNotification('Running AI Assembly...', 'info', 10000); 
+        const response = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            throw new Error(`AI Backend Error: HTTP status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const result = data.suggested_code || data.final_output || data.result; 
+        
+        if (result) {
+            // 4. Update Editor Content with Result
+            assemblyCode = result; 
+            renderAssembly(assemblyCode);
+            pushHistory();
+            showNotification('AI Assembly Complete. Code Updated.', 'success');
+            updateStatus('AI_COMPLETE');
+        } else {
+             showNotification('AI Analysis Complete. No code was returned.', 'warn');
+             updateStatus('ANALYSIS_ONLY');
+        }
+
+
+    } catch (e) {
+        showNotification(`AI Reasoning Failed: ${e.message}`, 'error', 5000);
+        $editor.prop('disabled',false);
+        updateStatus('ERROR');
+    } finally {
+        $editor.prop('disabled',false);
+        updateStatus('READY');
+    }
+}                                                                                                                                                                     
+
+// === File Access (File System Access API) ===
+async function openFile(){
+    try{
+        [currentFileHandle] = await window.showOpenFilePicker();
+        const file = await currentFileHandle.getFile();
+        assemblyCode = await file.text();
+        
+        // 1. Update Global File Metadata
+        fileMetadata.name = file.name;
+        fileMetadata.sizeKB = (file.size / 1024).toFixed(2);
+        fileMetadata.timestamp = new Date(file.lastModified).toLocaleTimeString(); 
+        
+        // 2. Set Language
+        const fileName = file.name;
+        if(fileName.endsWith('.js') || fileName.endsWith('.json')) currentLanguage = 'javascript';
+        else if(fileName.endsWith('.html') || fileName.endsWith('.xml')) currentLanguage = 'markup';
+        else if(fileName.endsWith('.css')) currentLanguage = 'css';
+        else currentLanguage = 'clike';
+
+        renderAssembly();
+        pushHistory();
+        showNotification(`File LOADED: ${fileMetadata.name}`, 'success');
+        updateStatus(`LOADED`);
+    }catch(e){updateStatus('READY');showNotification('File open cancelled or not supported.', 'warn');}
+}
+async function saveFile(){                                                             
+    try{
+        if(!currentFileHandle) currentFileHandle = await window.showSaveFilePicker();                                                                                         
+        const writable = await currentFileHandle.createWritable();
+        await writable.write($editor.val());                                               
+        await writable.close();
+        
+        // Update timestamp on save
+        fileMetadata.timestamp = new Date().toLocaleTimeString();
+        fileMetadata.sizeKB = (new Blob([$editor.val()]).size / 1024).toFixed(2);
+
+        showNotification('File SAVED successfully.', 'success');
+        updateStatus('SAVED');
+    }catch(e){updateStatus('READY');showNotification('File save cancelled or not supported.', 'warn');}
+}
+
+// === NEW: Jump to Line Function ===
+function jumpToLine(lineNumber) {
+    const lines = $editor.val().split('\n');
+    let position = 0;
+    
+    for (let i = 0; i < lineNumber - 1 && i < lines.length; i++) {
+        position += lines[i].length + 1;
+    }
+
+    $editor[0].selectionStart = position;
+    $editor[0].selectionEnd = position;
+    $editor.focus();
+
+    const lineHeight = 18;
+    const scrollPosition = (lineNumber - 1) * lineHeight - $editor.height() / 4;
+    $editor.scrollTop(scrollPosition);
+    syncScroll();
+}
+
+// === Footer Buttons Handlers (Bound to Side Menu) ===                                                          
+$('#undo').click(undo);                                                            
+$('#redo').click(redo);                                                            
+$('#beautify').click(()=>{
+    try{
+        assemblyCode=js_beautify($editor.val(),{indent_size:2});
+        renderAssembly();
+        pushHistory();
+        showNotification('Code BEAUTIFIED.', 'success', 1500);
+        updateStatus('BEAUTIFIED');
+    }catch(e){showNotification('Beautify error.', 'error');}
+});
+
+// Syntax Check and Repair Logic
+$('#syntaxcheck').click(()=>{
+    try{
+        new Function($editor.val());
+        showNotification('Syntax OK. Code is parsable.', 'success');
+        updateStatus('SYNTAX_OK');
+
+    }catch(e){
+        const errorMsg = e.message;
+        const lineMatch = errorMsg.match(/at\s+[\w\W]*?:(\d+):/i) || errorMsg.match(/:(\d+):/);
+        let errorLine = lineMatch ? parseInt(lineMatch[1], 10) : 1;
+        if (errorLine === 0) errorLine = 1;
+        
+        jumpToLine(errorLine);
+        
+        const confirmRepair = confirm(`Syntax ERROR on line ${errorLine}: ${e.message}\n\nDo you want to run the AI Code Refinement (CORE/CODE Agents) to automatically fix this error?`);
+        
+        if (confirmRepair) {
+            const refinePrompt = `Critique and fix the syntax error on line ${errorLine} in the following JavaScript code. The original error was: "${e.message}". Provide ONLY the suggested, improved code block marked with [FINAL_ANSWER]CODE_START...CODE_END.`;
+            runAgents(refinePrompt, $editor.val());
+        } else {
+            showNotification(`Syntax ERROR on line ${errorLine}. Fix manually.`, 'error', 4000);
+        }
+        
+        updateStatus('SYNTAX_ERR');
+    }
+});
+
+$('#compress').click(()=>{
+    assemblyCode=$editor.val().replace(/\/\/.*/g,'').replace(/\s+/g,' ').replace(/\s*([{}();,])\s*/g,'$1').trim();
+    renderAssembly();
+    pushHistory();
+    showNotification('Code COMPRESSED.', 'success', 1500);
+    updateStatus('COMPRESSED');
+});
+$('#save').click(saveFile);
+$('#load').click(openFile);                                                        
+                                                                                   
+// === Editor Events & Menu Toggle ===
+$editor.on('input propertychange',function(){
+    assemblyCode=$editor.val();
+    pushHistory(); 
+    highlightCode(assemblyCode);
+    generateLineNumbers();
+    updateStatus('EDITING');
+});                        
+$editor.on('scroll',syncScroll);
+$editor.on('keyup click',updateStatus);                                            
+
+// AI Prompt Execution
+const sendPrompt = function(){
+    const $input = $('#prompt-input');
+    const prompt = $input.val().trim();
+    if(prompt) runAgents(prompt);
+    $input.val('');
+};
+
+$('#prompt-input').keypress(function(e){
+    // Ctrl+Enter or Cmd+Enter to run the agent prompt
+    if((e.ctrlKey || e.metaKey) && e.key==='Enter'){
+        e.preventDefault();
+        sendPrompt();
+    }
+});
+$('#send-button').click(sendPrompt); // New Send Button Handler
+
+// Side Menu Toggle
+$('#menu-toggle').click(function(e){
+    e.stopPropagation(); // Prevent document click from immediately closing it
+    $('#side-menu').toggleClass('open');
+});
+
+// Close menu on outside click
+$(document).on('click', function(e) {
+    if (!$(e.target).closest('#side-menu, #menu-toggle').length && $('#side-menu').hasClass('open')) {
+        $('#side-menu').removeClass('open');
+    }
+});
+
+
+// === Keyboard Shortcuts ===                                                      
+$(document).keydown(function(e){
+    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveFile();}
+    if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}
+    if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='Z'))){e.preventDefault();redo();}
+});
+
+// === Layout and Responsiveness ===
+function resizeLayout(){
+    // Use window.innerHeight to correctly account for soft keyboards/dynamic viewports
+    const windowH = window.innerHeight;
+    const headerH = $('header').outerHeight(true);
+    const statusH = $('#status-bar').outerHeight(true);
+    const footerH = $('footer').outerHeight(true);
+    
+    // Calculate Editor Container Height: Total Height - Header - Status Bar - Footer
+    const editorContainerH = windowH - headerH - statusH - footerH;
+    
+    // 1. Set the height of the main content area
+    $('#editor-container').css('height', editorContainerH + 'px'); 
+
+    // 2. Adjust internal components based on line numbers
+    const lnW = $('#line-numbers').outerWidth();
+    const pad = 5;
+    const leftPos = lnW + pad;
+
+    $editor.css({
+        'left': leftPos + 'px',
+        'width': `calc(100% - ${leftPos}px)`, 
+    });
+    $('.highlighting-area').css('padding-left', leftPos + 'px');
+    
+    generateLineNumbers();
+    syncScroll();
+}
+
+// Bind resizeLayout to both window resize (desktop) and orientation change (mobile)
+$(window).on('resize orientationchange', resizeLayout);                                               
+
+$(document).ready(()=>{
+    assemblyCode='// Nemodian 2244-1 AI Editor Ready\n// Use Ctrl+Enter or the SEND button to run an AI prompt.';
+    renderAssembly();
+    pushHistory();
+    resizeLayout();
+    updateStatus('READY');
+});              
+</script>
+
+</body>
+</html>

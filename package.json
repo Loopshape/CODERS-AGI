@@ -1,0 +1,28 @@
+{
+  "name": "nemodian-2244-1-ai-platform",
+  "version": "4.1.0",
+  "description": "API Backend for the Nemodian 2244-1 Autonomic Synthesis Platform (ASP), providing multi-agent reasoning and code refinement services.",
+  "main": "ai.js",
+  "type": "module",
+  "scripts": {
+    "start": "node ai.js --api-server",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Nemodian 2244-1",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^12.0.0",
+    "node-fetch": "^2.7.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "keywords": [
+    "ai",
+    "multi-agent",
+    "ollama",
+    "node-js",
+    "cli"
+  ]
+}
