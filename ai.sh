@@ -10,7 +10,7 @@ FILES_DIR="$BASE_DIR/files"
 mkdir -p "$TMP_DIR" "$FILES_DIR"
 
 # Models
-LOCAL_MODELS=("core" "loop" "2244" "coin" "code")
+LOCAL_MODELS=("core" "loop" "wave" "coin" "code")
 CLOUD_MODEL="deepseek-v3.1:671b-cloud"
 
 TEMP_FACTOR="${TEMP_FACTOR:-0.5}"
